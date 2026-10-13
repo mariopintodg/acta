@@ -54,7 +54,14 @@ const IC = {
   bookmark: '<path d="M6 3h12v18l-6-4-6 4V3Z"/>',
   key: '<circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3M14 9l2 2"/>',
   pin: '<path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12Z"/><circle cx="12" cy="9" r="2.5"/>',
-  edit: '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/>'
+  edit: '<path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/>',
+  lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+  chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  text: '<path d="M4 6h16M4 12h16M4 18h10"/>',
+  mind: '<circle cx="12" cy="12" r="3"/><circle cx="4.5" cy="5.5" r="2"/><circle cx="19.5" cy="5.5" r="2"/><circle cx="4.5" cy="18.5" r="2"/><circle cx="19.5" cy="18.5" r="2"/><path d="M9.8 10 6 7M14.2 10 18 7M9.8 14 6 17M14.2 14 18 17"/>',
+  chat: '<path d="M4 5h16v11H9l-5 4V5Z"/>',
+  image: '<rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/>',
+  report: '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 17v-3M12 17v-6M15 17v-2"/>'
 };
 const icon = (k, sw = 1.8, size) => `<svg viewBox="0 0 24 24"${size ? ` width="${size}" height="${size}"` : ''} fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k] || IC.spark}</svg>`;
 const TOPIC_COLORS = ['var(--t1)', 'var(--t2)', 'var(--t3)', 'var(--t4)', 'var(--t5)', 'var(--t6)'];
@@ -82,7 +89,7 @@ const Settings = {
   load() { try { Object.assign(this.v, JSON.parse(localStorage.getItem('acta:settings') || '{}')); } catch {} return this; },
   set(patch) { Object.assign(this.v, patch); try { localStorage.setItem('acta:settings', JSON.stringify(this.v)); if ('theme' in patch) localStorage.setItem('acta:theme', this.v.theme); } catch {} if ('theme' in patch) applyTheme(); }
 }.load();
-function applyTheme() { const t = Settings.v.theme; if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); else document.documentElement.removeAttribute('data-theme'); }
+function applyTheme() { document.documentElement.setAttribute('data-theme', 'dark'); }
 applyTheme();
 
 /* =========================================================
@@ -232,6 +239,14 @@ async function openaiTranscribe(blob, offset, partNo, onStatus) {
   onStatus && onStatus(partNo);
   let j;
   try { j = await call(true); } catch (e) { if (e.status === 400 && /language/i.test(e.raw || '')) j = await call(false); else throw e; }
+  {
+    let sec = 0;
+    if (Array.isArray(j.segments) && j.segments.length) sec = Math.max(...j.segments.map(x => +x.end || 0));
+    if (!sec && j.duration) sec = +j.duration;
+    if (!sec && j.usage?.seconds) sec = +j.usage.seconds;
+    if (!sec) sec = blob.size * 8 / (Settings.v.bitrate || 32000);
+    Usage.add('openai', sec / 60 * STT_PER_MIN, 'transcripcion');
+  }
   const suffix = partNo > 0 ? '·' + (partNo + 1) : '';
   if (Array.isArray(j.segments) && j.segments.length) {
     return j.segments.map(sg => ({ t: Math.round((offset + (+sg.start || 0)) * 10) / 10, end: Math.round((offset + (+sg.end || 0)) * 10) / 10, s: sg.speaker != null ? String(sg.speaker) + suffix : undefined, text: String(sg.text || '').trim() })).filter(x => x.text);
@@ -246,7 +261,7 @@ async function openaiTranscribe(blob, offset, partNo, onStatus) {
 /* =========================================================
    Claude (Anthropic Messages API, streamed)
    ========================================================= */
-async function claude({ system, messages, tools, tool_choice, max_tokens = 16000, onText, onProgress, signal }) {
+async function claude({ system, messages, tools, tool_choice, max_tokens = 16000, onText, onProgress, signal, kind = 'otro' }) {
   if (!Settings.v.anthropicKey) throw { code: 'no_anthropic', message: 'Agrega tu clave de Claude (Anthropic) en Ajustes para analizar.' };
   let res;
   try {
@@ -262,7 +277,8 @@ async function claude({ system, messages, tools, tool_choice, max_tokens = 16000
     throw { code: res.status === 401 ? 'bad_anthropic_key' : 'anthropic_' + res.status, message: res.status === 401 ? 'La clave de Claude no es válida. Revísala en Ajustes.' : res.status === 429 ? 'Claude alcanzó el límite de uso por ahora. Espera un momento y reintenta.' : res.status === 529 ? 'Claude está saturado en este momento. Reintenta en unos minutos.' : 'Error de Claude: ' + m };
   }
   const reader = res.body.getReader(); const dec = new TextDecoder();
-  let buf = '', text = '', json = '', stop = null, chars = 0;
+  let buf = '', text = '', json = '', stop = null, chars = 0, usage = {}, outTok = 0;
+  const bill = () => { const pr = PRICES[Settings.v.claudeModel] || PRICES['claude-sonnet-5-5']; const cost = ((usage.input_tokens || 0) * pr.in + (usage.cache_creation_input_tokens || 0) * pr.in * 1.25 + (usage.cache_read_input_tokens || 0) * pr.in * .1 + outTok * pr.out) / 1e6; Usage.add('anthropic', cost, kind); };
   for (;;) {
     const { done, value } = await reader.read(); if (done) break;
     buf += dec.decode(value, { stream: true });
@@ -276,10 +292,12 @@ async function claude({ system, messages, tools, tool_choice, max_tokens = 16000
         if (o.delta.type === 'text_delta') { text += o.delta.text; chars += o.delta.text.length; onText && onText(text); }
         else if (o.delta.type === 'input_json_delta') { json += o.delta.partial_json; chars += o.delta.partial_json.length; }
         onProgress && onProgress(chars);
-      } else if (o.type === 'message_delta') stop = o.delta?.stop_reason || stop;
-      else if (o.type === 'error') throw { code: 'stream', message: 'Claude interrumpió la respuesta: ' + (o.error?.message || 'error') };
+      } else if (o.type === 'message_start') { usage = o.message?.usage || {}; outTok = usage.output_tokens || 0; }
+      else if (o.type === 'message_delta') { stop = o.delta?.stop_reason || stop; if (o.usage?.output_tokens != null) outTok = o.usage.output_tokens; }
+      else if (o.type === 'error') { bill(); throw { code: 'stream', message: 'Claude interrumpió la respuesta: ' + (o.error?.message || 'error') }; }
     }
   }
+  bill();
   let toolInput = null;
   if (json) { try { toolInput = JSON.parse(json); } catch { throw { code: 'bad_json', message: stop === 'max_tokens' ? 'La reunión es muy larga para un solo análisis con este modelo. Prueba con Claude Opus o divide la transcripción.' : 'Claude devolvió un resultado incompleto. Reintenta.' }; } }
   return { text, toolInput, stop };
@@ -325,7 +343,7 @@ Reglas:
 - Las notas y momentos marcados por el usuario son prioridad: los anotó porque le importan.
 - Tareas: empieza con verbo; owner es la persona responsable si se dijo, si no "Sin asignar"; due solo si se mencionó un plazo.
 - quotes: frases textuales cortas y memorables.
-- speakers: ${labels.length ? `etiquetas presentes: ${labels.join(', ')}. Deduce el nombre de cada una solo si es claro (alguien la nombra, se presenta o coincide con un participante); si no, deja name vacío.` : 'no hay etiquetas de hablante; devuelve un arreglo vacío.'}
+- speakers: ${labels.length ? `etiquetas presentes: ${labels.join(', ')}. Deduce el nombre de cada una solo si es claro (alguien la nombra, se presenta o coincide con un participante); si no, deja name vacío. Las etiquetas con sufijo ·2, ·3… vienen de partes posteriores de la misma reunión (la grabación se reanudó): si por el contexto son la misma persona que otra etiqueta, dales el mismo nombre; si no se puede saber, usa "Persona A", "Persona B" coherentes entre partes.` : 'no hay etiquetas de hablante; devuelve un arreglo vacío.'}
 - Enfoque de esta reunión: ${tpl.focus}`;
   const user = `Datos de la reunión
 - Título provisional: ${m.titleHint || '(sin título, propón uno)'}
@@ -338,7 +356,7 @@ Transcripción:
 ${transcriptText(m, segs)}
 
 Genera el acta llamando a la herramienta guardar_acta una sola vez, con todos los campos completos. No escribas texto fuera de la herramienta.`;
-  const r = await claude({ system, messages: [{ role: 'user', content: user }], tools: [{ name: 'guardar_acta', description: 'Guarda el acta estructurada de la reunión', input_schema: ANALYSIS_SCHEMA }], tool_choice: { type: 'auto' }, max_tokens: 32000, onProgress });
+  const r = await claude({ system, messages: [{ role: 'user', content: user }], tools: [{ name: 'guardar_acta', description: 'Guarda el acta estructurada de la reunión', input_schema: ANALYSIS_SCHEMA }], tool_choice: { type: 'auto' }, max_tokens: 32000, onProgress, kind: 'acta' });
   let input = r.toolInput;
   if (!input && r.text) { try { let t = r.text.trim().replace(/^```(?:json)?/i, '').replace(/```$/, ''); const a0 = t.indexOf('{'), b0 = t.lastIndexOf('}'); input = JSON.parse(t.slice(a0, b0 + 1)); } catch {} }
   if (!input) throw { code: 'bad_json', message: r.stop === 'max_tokens' ? 'La reunión es muy larga para un solo análisis. Prueba con Claude Opus en Ajustes.' : 'Claude no devolvió el acta. Toca Reintentar.' };
@@ -419,6 +437,7 @@ async function processMeeting(id, { template } = {}) {
 const Rec = {
   state: 'idle', stream: null, mr: null, ctx: null, analyser: null, mime: '', recId: null,
   activeMs: 0, lastStart: 0, part: 0, partStartSec: 0, seq: 0, parts: [], marks: [], notesLog: [], live: [], wake: null, raf: 0, tick: 0, sr: null, interim: '',
+  isIOS: /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1),
   elapsed() { return this.activeMs + (this.state === 'recording' ? performance.now() - this.lastStart : 0); },
   pickMime() { const c = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4;codecs=mp4a.40.2', 'audio/mp4', 'audio/aac']; for (const t of c) if (window.MediaRecorder && MediaRecorder.isTypeSupported?.(t)) return t; return ''; },
   async start(meta) {
@@ -426,11 +445,11 @@ const Rec = {
     try { this.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } }); }
     catch (e) { throw { message: e.name === 'NotAllowedError' ? 'Acta necesita permiso para usar el micrófono. Actívalo en los permisos del sitio y vuelve a intentarlo.' : 'No se pudo acceder al micrófono: ' + e.message }; }
     this.mime = this.pickMime(); this.recId = uid(); this.startedAt = Date.now(); this.pending = new Set(); this.activeMs = 0; this.part = 0; this.seq = 0; this.parts = [{ part: 0, offset: 0 }]; this.marks = []; this.notesLog = []; this.live = []; this.meta = meta;
-    try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); const src = this.ctx.createMediaStreamSource(this.stream); this.analyser = this.ctx.createAnalyser(); this.analyser.fftSize = 1024; src.connect(this.analyser); } catch {}
+    this.attachAnalyser(); this.watchTracks();
     this.startPart(0);
     this.state = 'recording'; this.lastStart = performance.now();
     this.saveActive(); this.lockScreen(); if (Settings.v.captions || !Settings.v.openaiKey) this.startCaptions();
-    window.addEventListener('beforeunload', this.guard);
+    window.addEventListener('beforeunload', this.guard); document.addEventListener('visibilitychange', this.onHide); window.addEventListener('pagehide', this.onHide);
     this.tick = setInterval(() => { if (this.state === 'recording' && this.elapsed() / 1000 - this.partStartSec >= PART_SEC) this.rotate(); this.saveActive(); }, 5000);
   },
   startPart(p) {
@@ -439,6 +458,34 @@ const Rec = {
     const recId = this.recId;
     mr.ondataavailable = e => { if (e.data && e.data.size) { const pr = DB.put('chunks', { recId, part: p, seq: this.seq++, blob: e.data, type: mr.mimeType }).catch(() => {}); this.pending.add(pr); pr.finally(() => this.pending.delete(pr)); } };
     mr.start(4000); this.mr = mr; this.part = p; this.partStartSec = this.elapsed() / 1000;
+  },
+  attachAnalyser() { try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); const src = this.ctx.createMediaStreamSource(this.stream); this.analyser = this.ctx.createAnalyser(); this.analyser.fftSize = 1024; this.analyser.smoothingTimeConstant = .7; src.connect(this.analyser); } catch {} },
+  watchTracks() { this.stream?.getAudioTracks().forEach(t => t.addEventListener('ended', () => { if (this.state === 'recording' && this.stream && this.stream.getAudioTracks().includes(t)) this.interrupt('El micrófono se detuvo'); })); },
+  onHide: e => { const hidden = document.visibilityState === 'hidden' || (e && e.type === 'pagehide'); if (hidden && Rec.state === 'recording' && Rec.isIOS) Rec.interrupt('Pantalla bloqueada o app en segundo plano'); },
+  interrupt(reason) {
+    if (this.state !== 'recording') return;
+    this.activeMs = this.elapsed(); this.state = 'interrupted';
+    const mr = this.mr; try { mr.requestData(); } catch {} try { mr.stop(); } catch {}
+    this.stream?.getTracks().forEach(t => t.stop()); this.stream = null;
+    try { this.ctx?.close(); } catch {} this.ctx = null; this.analyser = null;
+    this.stopCaptions();
+    this.marks.push({ t: Math.round(this.activeMs / 1000), label: 'Pausa automática · ' + reason, auto: true });
+    this.saveActive();
+    try { Pocket.off(); } catch {}
+    if (S.route.view === 'record') render();
+  },
+  async continueAfter() {
+    if (this.state !== 'interrupted') return;
+    let s;
+    try { s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } }); }
+    catch (e) { throw { message: e.name === 'NotAllowedError' ? 'Acta necesita permiso para usar el micrófono. Actívalo y toca Continuar otra vez.' : 'No se pudo reactivar el micrófono: ' + e.message }; }
+    this.stream = s; this.attachAnalyser(); this.watchTracks();
+    const next = this.part + 1; const off = this.activeMs / 1000;
+    this.parts.push({ part: next, offset: off });
+    this.lastStart = performance.now(); this.state = 'recording';
+    this.startPart(next); this.partStartSec = off;
+    this.lockScreen(); if (Settings.v.captions || !Settings.v.openaiKey) this.startCaptions();
+    this.saveActive();
   },
   rotate() { const old = this.mr; const next = this.part + 1; const off = this.elapsed() / 1000; this.parts.push({ part: next, offset: off }); try { old.stop(); } catch {} this.startPart(next); this.partStartSec = off; },
   pause() { if (this.state !== 'recording') return; this.activeMs = this.elapsed(); this.state = 'paused'; try { this.mr.pause(); } catch {} this.saveActive(); },
@@ -463,16 +510,16 @@ const Rec = {
     this.stream?.getTracks().forEach(t => t.stop()); this.stream = null;
     try { this.ctx?.close(); } catch {} this.ctx = null; this.analyser = null;
     this.stopCaptions(); this.wake?.release?.().catch(() => {}); this.wake = null;
-    window.removeEventListener('beforeunload', this.guard); document.removeEventListener('visibilitychange', this.onVis);
+    window.removeEventListener('beforeunload', this.guard); document.removeEventListener('visibilitychange', this.onVis); document.removeEventListener('visibilitychange', this.onHide); window.removeEventListener('pagehide', this.onHide);
   },
   guard(e) { e.preventDefault(); e.returnValue = ''; },
-  async lockScreen() { try { if ('wakeLock' in navigator) { this.wake = await navigator.wakeLock.request('screen'); document.addEventListener('visibilitychange', this.onVis); } } catch {} },
-  onVis: async () => { if (document.visibilityState === 'visible' && Rec.state !== 'idle' && (!Rec.wake || Rec.wake.released)) { try { Rec.wake = await navigator.wakeLock.request('screen'); } catch {} } },
+  async lockScreen() { try { if ('wakeLock' in navigator && (!this.wake || this.wake.released)) { this.wake = await navigator.wakeLock.request('screen'); document.removeEventListener('visibilitychange', this.onVis); document.addEventListener('visibilitychange', this.onVis); } } catch {} },
+  onVis: async () => { if (document.visibilityState === 'visible' && Rec.state !== 'idle' && (!Rec.wake || Rec.wake.released)) { try { Rec.wake = await navigator.wakeLock.request('screen'); } catch {} } if (document.visibilityState === 'visible' && Rec.state === 'interrupted') { if (navigator.vibrate) navigator.vibrate([60, 60, 60]); render(); } },
   startCaptions() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SR) return;
     const sr = new SR(); sr.lang = Settings.v.language && Settings.v.language !== 'auto' ? (Settings.v.language === 'es' ? 'es-CL' : Settings.v.language) : 'es-CL'; sr.continuous = true; sr.interimResults = true;
     sr.onresult = e => { let interim = ''; for (let i = e.resultIndex; i < e.results.length; i++) { const r = e.results[i]; if (r.isFinal) { const text = r[0].transcript.trim(); if (text) this.live.push({ t: Math.max(0, Math.round(this.elapsed() / 1000 - wordsOf(text) / 2.5)), text }); } else interim += r[0].transcript; } this.interim = interim; updateCaption(); };
-    sr.onend = () => { if (this.sr === sr && this.state !== 'idle' && this.state !== 'stopping') { setTimeout(() => { try { sr.start(); } catch {} }, 250); } };
+    sr.onend = () => { if (this.sr === sr && this.state === 'recording') { setTimeout(() => { try { sr.start(); } catch {} }, 250); } };
     sr.onerror = e => { if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { this.sr = null; } };
     try { sr.start(); this.sr = sr; } catch {}
   },
@@ -566,50 +613,89 @@ function render() {
 }
 
 /* =========================================================
-   Library
+   Library (home)
    ========================================================= */
+const AV_COLORS = ['#FF9A6B', '#7FE0FF', '#5FEBC4', '#C3A6FF', '#FFD27A', '#FF85A8'];
+function initials(n) { const p = String(n || '').trim().split(/\s+/).filter(Boolean); return ((p[0]?.[0] || '') + (p[1]?.[0] || '')).toUpperCase() || '·'; }
+function avatarsHTML(names, max = 4) { const list = names.filter(Boolean).slice(0, max); return `<div class="avatars">${list.map((n, i) => `<span class="av" style="background:${AV_COLORS[i % 6]}" title="${esc(n)}">${esc(initials(n))}</span>`).join('')}${names.length > max ? `<span class="av" style="background:#2A2F3E;color:#fff">+${names.length - max}</span>` : ''}</div>`; }
+function ringSVG(pct, color, size = 42, stroke = 5) { const r = (size - stroke) / 2, c = 2 * Math.PI * r, p = Math.max(0, Math.min(1, pct)); return `<svg class="ring" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" aria-hidden="true"><circle class="bgc" cx="${size / 2}" cy="${size / 2}" r="${r}" stroke-width="${stroke}"/><circle class="fg" cx="${size / 2}" cy="${size / 2}" r="${r}" stroke-width="${stroke}" stroke="${color}" stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - p)}"/></svg>`; }
+function greeting() { const h = new Date().getHours(); return h < 12 ? 'Buenos días' : h < 20 ? 'Buenas tardes' : 'Buenas noches'; }
 function miniTopicBar(m) {
   const t = m.analysis?.topics || []; if (!t.length) return '';
   const tot = t.reduce((a, x) => a + Math.max(1, x.end - x.start), 0);
   return `<div class="topicbar" aria-hidden="true">${t.map((x, i) => `<i style="width:${Math.max(1, x.end - x.start) / tot * 100}%;background:${tc(i)}"></i>`).join('')}</div>`;
 }
 const STATUS_TXT = { queued: 'En cola', transcribing: 'Transcribiendo', analyzing: 'Analizando', error: 'Requiere atención' };
+function budgetHTML() {
+  const la = Usage.left('anthropic'), lo = Usage.left('openai');
+  const ba = Usage.v.anthropic.balance || 1, bo = Usage.v.openai.balance || 1;
+  const hours = lo / (STT_PER_MIN * 60), actas = la / Usage.avg('anthropic', 'acta', 0.1);
+  const col = (l, b) => l / b < .2 ? 'var(--risk)' : 'var(--g-cool)';
+  return `<button class="budget" data-nav="settings" aria-label="Ver saldo estimado">
+    <span class="bi">${icon('money', 2)}</span>
+    <div class="bud"><div class="top"><span>Claude · actas</span><b data-left="anthropic">${money(la)}</b></div><div class="bar-meter"><i style="width:${Math.min(100, la / ba * 100)}%;background:${col(la, ba)}"></i></div></div>
+    <div class="bud"><div class="top"><span>OpenAI · transcripción</span><b data-left="openai">${money(lo)}</b></div><div class="bar-meter"><i style="width:${Math.min(100, lo / bo * 100)}%;background:${col(lo, bo)}"></i></div></div>
+    <div class="est">Alcanza para <b>≈ ${hours >= 10 ? Math.floor(hours) : hours.toFixed(1)} h</b> de grabación <br>y <b>≈ ${Math.floor(actas)} actas</b></div>
+  </button>`;
+}
 function renderLibrary(app) {
   const q = S.q;
   const list = S.meetings.filter(m => !q || [m.analysis?.title, m.titleHint, m.analysis?.tldr, (m.analysis?.tags || []).join(' '), (m.participants || []).join(' '), Object.values(m.speakers || {}).join(' ')].join(' ').toLowerCase().includes(q));
-  const pending = S.meetings.reduce((a, m) => a + (m.analysis?.actions || []).filter(x => !x.done).length, 0);
+  const allActs = S.meetings.flatMap(m => m.analysis?.actions || []);
+  const pending = allActs.filter(x => !x.done).length, doneN = allActs.length - pending;
+  const now = new Date(); const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  const thisMonth = S.meetings.filter(m => (m.createdAt || 0) >= monthStart);
+  const hours = S.meetings.reduce((a, m) => a + (m.durationSec || 0), 0) / 3600;
+  const decisions = S.meetings.reduce((a, m) => a + (m.analysis?.decisions?.length || 0), 0);
   const needsKeys = !Settings.v.anthropicKey || !Settings.v.openaiKey;
+  const low = Settings.v.anthropicKey && (Usage.left('anthropic') < 1 || (Settings.v.openaiKey && Usage.left('openai') < 1));
   app.innerHTML = `
-  ${S.recovery ? `<div class="notice" style="margin-bottom:16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:220px"><b>Hay una grabación sin terminar</b> de ${fmtT(S.recovery.elapsed)}. La app se cerró mientras grababas, pero el audio quedó guardado.</span><button class="btn sm primary" id="rec-recover">Recuperar y procesar</button><button class="btn sm ghost danger" id="rec-discard">Descartar</button></div>` : ''}
-  ${needsKeys && S.loaded ? `<div class="notice info" style="margin-bottom:16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:220px"><b>Configura Acta en 2 minutos.</b> Agrega tus claves de Claude y OpenAI para transcribir con hablantes y generar las actas.</span><button class="btn sm primary" data-nav="settings">${icon('key')}Ir a Ajustes</button></div>` : ''}
-  ${q ? '' : `<section class="hero-rec">
-    <svg class="hero-wave" viewBox="0 0 300 120" preserveAspectRatio="none" aria-hidden="true">${Array.from({ length: 40 }, (_, i) => { const h = 12 + Math.abs(Math.sin(i * .7) * 70 + Math.sin(i * 1.9) * 20); return `<rect x="${i * 7.5}" y="${60 - h / 2}" width="4" height="${h}" rx="2" fill="#F2F3F7"/>`; }).join('')}</svg>
-    <div style="position:relative"><h2>¿Empieza una reunión?</h2><p>Graba con el micrófono del celular. Al terminar, Acta transcribe quién dijo qué y arma el acta visual.</p></div>
-    <button class="btn lg" data-nav="record" style="position:relative">${icon('mic', 2)}Grabar ahora</button>
-  </section>`}
-  <div class="page-head">
-    <div><div class="eyebrow">Tu biblioteca</div><h1>Reuniones</h1>
-    <p>${S.meetings.length ? `${S.meetings.length} ${S.meetings.length === 1 ? 'reunión' : 'reuniones'} · ${pending} ${pending === 1 ? 'tarea pendiente' : 'tareas pendientes'}` : 'Cada conversación convertida en un acta visual: decisiones, tareas, mapa mental y un brief listo para trabajar.'}</p></div>
-  </div>
+  ${S.recovery ? `<div class="notice" style="margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:220px"><b>Hay una grabación sin terminar</b> de ${fmtT(S.recovery.elapsed)}. La app se cerró mientras grababas, pero el audio quedó guardado.</span><button class="btn sm primary" id="rec-recover">Recuperar y procesar</button><button class="btn sm ghost danger" id="rec-discard">Descartar</button></div>` : ''}
+  ${needsKeys && S.loaded ? `<div class="notice info" style="margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:220px"><b>Configura Acta en 2 minutos.</b> Agrega tus claves de Claude y OpenAI para transcribir con hablantes y crear las actas.</span><button class="btn sm primary" data-nav="settings">${icon('key')}Ir a Ajustes</button></div>` : ''}
+  ${low ? `<div class="notice" style="margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:220px"><b>Te queda poco saldo.</b> Recarga en la consola del proveedor para no quedarte sin actas en medio de una reunión.</span><button class="btn sm" data-nav="settings">Ver saldo</button></div>` : ''}
+  ${q ? '' : `<section class="home-hero rise">
+    <span class="aura a1"></span><span class="aura a2"></span><span class="aura a3"></span>
+    <div class="hh-grid">
+      <div>
+        <div class="eyebrow">${greeting()} · ${esc(now.toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' }))}</div>
+        <h1>Cada conversación,<br><span class="grad">convertida en trabajo.</span></h1>
+        <p class="sub">Graba, y Acta separa quién dijo qué, detecta decisiones y tareas, y te entrega un informe listo para compartir.</p>
+      </div>
+      <button class="orb-btn" data-nav="record" aria-label="Grabar ahora"><span class="halo"></span><span class="halo h2"></span><span class="core">${icon('mic', 2)}</span><span class="lbl">GRABAR AHORA</span></button>
+    </div>
+    <div class="hh-stats">
+      <div class="hstat">${ringSVG(Math.min(1, thisMonth.length / 20), '#FF7A45')}<div><b>${thisMonth.length}</b><span>Reuniones este mes</span></div></div>
+      <div class="hstat">${ringSVG(Math.min(1, hours / 20), '#5AD8FF')}<div><b>${hours >= 10 ? Math.round(hours) : hours.toFixed(1)}<small style="font-size:14px;color:var(--muted)"> h</small></b><span>Conversación analizada</span></div></div>
+      <div class="hstat">${ringSVG(allActs.length ? doneN / allActs.length : 0, '#33E3B4')}<div><b>${pending}</b><span>Tareas pendientes</span></div></div>
+      <div class="hstat">${ringSVG(Math.min(1, decisions / 30), '#A47BFF')}<div><b>${decisions}</b><span>Decisiones registradas</span></div></div>
+    </div>
+  </section>
+  ${Settings.v.anthropicKey ? budgetHTML() : ''}`}
+  <div class="sec-title"><h2>${q ? 'Resultados' : 'Reuniones recientes'}</h2><span class="muted" style="font-size:12.5px">${list.length} ${list.length === 1 ? 'reunión' : 'reuniones'}</span></div>
   ${!S.loaded ? `<div class="empty"><p>Cargando…</p></div>` :
-    list.length ? `<div class="grid-lib">${list.map(cardHTML).join('')}</div>`
+    list.length ? `<div class="grid-lib">${list.map((m, i) => cardHTML(m, i)).join('')}</div>`
     : q ? `<div class="empty"><h3>Sin resultados</h3><p>Ninguna reunión coincide con “${esc(q)}”.</p></div>`
     : `<div class="empty">${icon('doc', 1.6, 34)}<h3>Aún no hay actas</h3><p style="max-width:48ch">Graba tu próxima conversación o importa un audio o una transcripción que ya tengas.</p><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"><button class="btn primary" data-nav="record">${icon('mic')}Grabar</button><button class="btn" data-nav="import">${icon('upload')}Importar</button><button class="btn ghost" id="load-demo">Ver un ejemplo</button></div></div>`}
-  <p class="status-line">Guardado solo en este dispositivo${S.meetings.length ? ' · respáldalo desde Ajustes' : ''}</p>`;
+  <p class="status-line">Todo se guarda solo en este dispositivo${S.meetings.length ? ' · respáldalo desde Ajustes' : ''}</p>`;
   $$('[data-open]', app).forEach(b => b.onclick = () => go('m/' + b.dataset.open));
   const rr = $('#rec-recover'); if (rr) rr.onclick = recoverRecording;
   const rd = $('#rec-discard'); if (rd) rd.onclick = async () => { const r = S.recovery; S.recovery = null; await DB.delChunks(r.recId); await DB.del('kv', 'activeRec'); render(); toast('Grabación descartada'); };
   const ld = $('#load-demo'); if (ld) ld.onclick = loadDemo;
 }
-function cardHTML(m) {
+function cardHTML(m, i = 0) {
   const a = m.analysis || {}; const acts = a.actions || []; const done = acts.filter(x => x.done).length;
-  const st = m.status && m.status !== 'ready' ? `<span class="chip ${m.status === 'error' ? 'err' : 'proc'}">${S.running.has(m.id) || m.status !== 'error' ? STATUS_TXT[m.status] || 'Procesando' : STATUS_TXT.error}</span>` : '';
-  return `<button class="mcard" data-open="${esc(m.id)}">
-    <div class="mcard-meta"><span class="mono">${esc(fmtDate(m.date))}</span>${m.durationSec ? `<span class="mono">${esc(fmtT(m.durationSec))}</span>` : ''}${(a.tags || []).includes('ejemplo') ? '<span class="chip ex">Ejemplo</span>' : ''}${m.audioParts?.length ? `<span title="Con audio">${icon('mic', 1.8, 14)}</span>` : ''}${st}</div>
-    <h3>${esc(a.title || m.titleHint || 'Reunión del ' + fmtDate(m.date))}</h3>
-    ${a.tldr ? `<p class="tl">${esc(a.tldr)}</p>` : `<p class="tl">${esc(m.status === 'error' ? (m.error?.message || '') : 'El acta se está preparando…')}</p>`}
-    ${miniTopicBar(m)}
-    ${m.analysis ? `<div class="mcard-foot"><span><b>${(a.decisions || []).length}</b> decisiones</span><span><b>${done}/${acts.length}</b> tareas</span><span><b>${(a.ideas || []).length}</b> ideas</span></div>` : ''}
+  const st = m.status && m.status !== 'ready' ? `<span class="chip ${m.status === 'error' ? 'err' : 'proc'}">${STATUS_TXT[m.status] || 'Procesando'}</span>` : '';
+  const topics = a.topics || []; const tot = topics.reduce((s, x) => s + Math.max(1, x.end - x.start), 0) || 1;
+  const band = topics.length ? topics.map((x, k) => `<i style="flex:${Math.max(1, x.end - x.start) / tot * 100};background:${tc(k)}"></i>`).join('') : `<i style="flex:1;background:var(--g-brand)"></i>`;
+  const people = (a.participants?.length ? a.participants : m.participants) || [];
+  return `<button class="mcard rise" style="animation-delay:${Math.min(i, 8) * 40}ms" data-open="${esc(m.id)}">
+    <div class="mc-band">${band}</div>
+    <div class="mc-body">
+      <div class="mcard-meta"><span class="mono">${esc(fmtDate(m.date))}</span>${m.durationSec ? `<span class="mono">${esc(fmtT(m.durationSec))}</span>` : ''}${(a.tags || []).includes('ejemplo') ? '<span class="chip ex">Ejemplo</span>' : ''}${st}</div>
+      <h3>${esc(a.title || m.titleHint || 'Reunión del ' + fmtDate(m.date))}</h3>
+      ${a.tldr ? `<p class="tl">${esc(a.tldr)}</p>` : `<p class="tl">${esc(m.status === 'error' ? (m.error?.message || '') : 'El acta se está preparando…')}</p>`}
+      <div class="mc-foot">${people.length ? avatarsHTML(people) : '<span></span>'}${m.analysis ? `<div class="mc-kpis"><span style="color:var(--dec)">${icon('flag', 2)}<b>${(a.decisions || []).length}</b></span><span style="color:var(--act)">${icon('check', 2.4)}<b>${done}/${acts.length}</b></span><span style="color:var(--idea)">${icon('idea', 2)}<b>${(a.ideas || []).length}</b></span></div>` : ''}</div>
+    </div>
   </button>`;
 }
 async function recoverRecording() {
@@ -624,28 +710,32 @@ async function recoverRecording() {
    ========================================================= */
 let recMeta = null;
 function renderRecord(app) {
-  const on = Rec.state !== 'idle';
+  const st = Rec.state; const on = st !== 'idle'; const intr = st === 'interrupted';
   recMeta = recMeta || { title: '', participants: '', template: 'general', context: '' };
+  const liveCls = st === 'recording' ? 'on' : (st === 'paused' || intr) ? 'warn' : '';
+  const liveTxt = st === 'recording' ? 'Grabando' : st === 'paused' ? 'En pausa' : intr ? 'Grabación en pausa' : 'Listo para grabar';
   app.innerHTML = `
   <div class="rec-grid">
     <section class="stage" aria-label="Grabadora">
       <div class="stage-top">
-        <span class="live ${Rec.state === 'recording' ? 'on' : ''}" id="live"><i></i><span id="live-txt">${Rec.state === 'recording' ? 'Grabando' : Rec.state === 'paused' ? 'En pausa' : 'Listo para grabar'}</span></span>
-        <span style="font-size:12.5px;color:var(--stage-muted)" id="rec-size">${on ? '' : (Settings.v.openaiKey ? 'Transcripción con hablantes al terminar' : 'Sin clave de OpenAI: se usará el dictado del teléfono')}</span>
+        <span class="live ${liveCls}" id="live"><i></i><span id="live-txt">${liveTxt}</span></span>
+        <span class="rec-size" id="rec-size">${on ? '' : (Settings.v.openaiKey ? 'Hablantes · alta precisión' : 'Dictado del teléfono')}</span>
       </div>
-      <div class="timer" id="timer">${fmtClock(Rec.elapsed())}<small id="timer-sub">${on ? 'No bloquees la pantalla mientras grabas' : 'Toca el botón rojo para empezar'}</small></div>
-      <canvas class="wave" id="wave" aria-hidden="true"></canvas>
-      <div class="meter" aria-hidden="true"><i id="lvl"></i></div>
+      <div class="orb-wrap"><canvas id="orb" aria-hidden="true"></canvas><div class="orb-center"><div class="timer" id="timer">${fmtClock(Rec.elapsed())}</div><div class="timer-sub" id="timer-sub">${intr ? 'Toca continuar para seguir' : on ? (st === 'paused' ? 'Pausado' : 'Escuchando') : 'Toca el botón para empezar'}</div></div></div>
+      ${intr ? `<div class="interrupt"><b>La grabación se pausó sola</b><span>El iPhone corta el micrófono de las apps web cuando se bloquea la pantalla o cambias de app. Lo grabado hasta ahora está a salvo. Toca <b>Continuar</b> y seguirá en la misma reunión.</span></div>` : ''}
       <div class="controls">
-        <div class="cbtn-lbl"><button class="cbtn" id="r-mark" ${on ? '' : 'disabled'} aria-label="Marcar momento importante">${icon('bookmark', 1.9)}</button>Marcar</div>
-        <div class="cbtn-lbl"><button class="bigrec ${on ? 'on' : ''}" id="r-main" aria-label="${on ? 'Detener y procesar' : 'Empezar a grabar'}"><span></span></button>${on ? 'Terminar' : 'Grabar'}</div>
-        <div class="cbtn-lbl"><button class="cbtn" id="r-pause" ${on ? '' : 'disabled'} aria-label="${Rec.state === 'paused' ? 'Reanudar' : 'Pausar'}">${icon(Rec.state === 'paused' ? 'play' : 'pause', 2)}</button><span id="pause-lbl">${Rec.state === 'paused' ? 'Seguir' : 'Pausa'}</span></div>
+        <div class="cbtn-lbl"><button class="cbtn" id="r-mark" ${st === 'recording' ? '' : 'disabled'} aria-label="Marcar momento importante">${icon('bookmark', 1.9)}</button>Marcar</div>
+        <div class="cbtn-lbl"><button class="bigrec ${on && !intr ? 'on' : ''} ${intr ? 'resume' : ''}" id="r-main" aria-label="${intr ? 'Continuar grabando' : on ? 'Terminar y procesar' : 'Empezar a grabar'}"><span></span></button>${intr ? 'Continuar' : on ? 'Terminar' : 'Grabar'}</div>
+        <div class="cbtn-lbl"><button class="cbtn" id="r-pause" ${st === 'recording' || st === 'paused' ? '' : 'disabled'} aria-label="${st === 'paused' ? 'Reanudar' : 'Pausar'}">${icon(st === 'paused' ? 'play' : 'pause', 2)}</button><span id="pause-lbl">${st === 'paused' ? 'Seguir' : 'Pausa'}</span></div>
       </div>
-      <div class="marks" id="marks">${Rec.marks.map(k => `<span class="mark"><b>${fmtT(k.t)}</b>${esc(k.label || 'Momento importante')}</span>`).join('')}</div>
+      ${on && !intr ? `<div class="pill-row"><button class="pill cool" id="r-pocket">${icon('lock', 2)}Modo bolsillo</button></div>` : ''}
+      ${intr ? `<div class="pill-row"><button class="pill" id="r-end-now">${icon('stop', 2)}Terminar aquí y crear el acta</button></div>` : ''}
+      <div class="marks" id="marks">${Rec.marks.map(k => `<span class="mark ${k.auto ? 'auto' : ''}"><b>${fmtT(k.t)}</b>${esc(k.label || 'Momento importante')}</span>`).join('')}</div>
       <div class="caption" id="caption" ${on && Rec.sr ? '' : 'hidden'}></div>
-      ${on ? `<div style="display:flex;justify-content:center"><button class="btn sm ghost" id="r-discard" style="color:var(--stage-muted)">Descartar grabación</button></div><div id="discard-confirm"></div>` : ''}
+      ${on ? `<div style="display:flex;justify-content:center"><button class="btn sm ghost" id="r-discard">Descartar grabación</button></div><div id="discard-confirm"></div>` : ''}
     </section>
-    <aside style="display:grid;gap:16px">
+    <aside style="display:grid;gap:14px">
+      ${Rec.isIOS ? `<div class="tipbox">${icon('lock', 2)}<span><b>No bloquees el iPhone mientras grabas.</b> Usa <b>Modo bolsillo</b>: deja la pantalla en negro, evita toques accidentales y la grabación sigue. Si una reunión será muy larga, conecta el cargador.</span></div>` : `<div class="tipbox">${icon('lock', 2)}<span><b>Puedes apagar la pantalla.</b> En Android la grabación sigue con la pantalla bloqueada. Si prefieres, usa <b>Modo bolsillo</b>.</span></div>`}
       <section class="panel">
         <div class="eyebrow">Notas en vivo</div>
         <p class="muted" style="font-size:13px;margin:6px 0 12px">Cada nota queda con su minuto. Claude les da prioridad en el acta.</p>
@@ -665,63 +755,121 @@ function renderRecord(app) {
   </div>`;
   const syncMeta = () => { recMeta = { title: $('#r-title').value, participants: $('#r-people').value, template: $('#r-tpl').value, context: $('#r-ctx').value }; if (Rec.state !== 'idle') { Rec.meta = metaFromForm(); Rec.saveActive(); } };
   $$('#r-title,#r-people,#r-tpl,#r-ctx').forEach(el => el.addEventListener('input', syncMeta));
+  const finish = async () => {
+    const btn = $('#r-main'); if (btn) btn.disabled = true; const ts = $('#timer-sub'); if (ts) ts.textContent = 'Guardando audio…';
+    Rec.meta = metaFromForm(); Pocket.off();
+    const info = await Rec.stop();
+    const m = await finishRecording(info);
+    recMeta = null; document.body.classList.remove('recording');
+    go('m/' + m.id);
+    if (m.status === 'queued') processMeeting(m.id);
+  };
   $('#r-main').onclick = async () => {
     if (Rec.state === 'idle') {
-      try { await Rec.start(metaFromForm()); render(); drawLoop(); toast('Grabando'); }
+      try { await Rec.start(metaFromForm()); render(); toast('Grabando'); }
       catch (e) { toast(e.message || 'No se pudo iniciar la grabación', 5000); }
-    } else {
-      const btn = $('#r-main'); btn.disabled = true; $('#timer-sub').textContent = 'Guardando audio…';
-      Rec.meta = metaFromForm();
-      const info = await Rec.stop();
-      const m = await finishRecording(info);
-      recMeta = null; document.body.classList.remove('recording');
-      go('m/' + m.id);
-      if (m.status === 'queued') processMeeting(m.id);
-    }
+    } else if (Rec.state === 'interrupted') {
+      try { await Rec.continueAfter(); render(); toast('Grabación reanudada'); }
+      catch (e) { toast(e.message || 'No se pudo reanudar', 5000); }
+    } else finish();
   };
-  $('#r-pause').onclick = () => { if (Rec.state === 'recording') Rec.pause(); else Rec.resume(); renderRecordState(); };
+  const en = $('#r-end-now'); if (en) en.onclick = finish;
+  $('#r-pause').onclick = () => { if (Rec.state === 'recording') Rec.pause(); else Rec.resume(); render(); };
   $('#r-mark').onclick = () => { const t = Rec.addMark(''); $('#marks').insertAdjacentHTML('beforeend', `<span class="mark"><b>${fmtT(t)}</b>Momento importante</span>`); if (navigator.vibrate) navigator.vibrate(30); };
+  const pk = $('#r-pocket'); if (pk) pk.onclick = () => Pocket.on();
   $('#note-f').onsubmit = e => { e.preventDefault(); const v = $('#note-in').value.trim(); if (!v || Rec.state === 'idle') return; const t = Rec.addNote(v); $('#note-in').value = ''; const log = $('#notes-log'); if (Rec.notesLog.length === 1) log.innerHTML = ''; log.insertAdjacentHTML('beforeend', `<div><b>${fmtT(t)}</b><span>${esc(v)}</span></div>`); log.scrollTop = log.scrollHeight; };
-  const rd = $('#r-discard'); if (rd) rd.onclick = () => { $('#discard-confirm').innerHTML = `<div class="confirm" style="justify-content:center">¿Descartar todo el audio grabado?<button class="btn sm solid-danger" id="dc-yes">Descartar</button><button class="btn sm" id="dc-no">Seguir grabando</button></div>`; $('#dc-yes').onclick = async () => { await Rec.discard(); recMeta = null; document.body.classList.remove('recording'); go(''); toast('Grabación descartada'); }; $('#dc-no').onclick = () => $('#discard-confirm').innerHTML = ''; };
-  sizeWave(); if (on) drawLoop(); else drawIdle();
+  const rd = $('#r-discard'); if (rd) rd.onclick = () => { $('#discard-confirm').innerHTML = `<div class="confirm" style="justify-content:center;margin-top:8px">¿Descartar todo el audio grabado?<button class="btn sm solid-danger" id="dc-yes">Descartar</button><button class="btn sm" id="dc-no">Seguir</button></div>`; $('#dc-yes').onclick = async () => { Pocket.off(); await Rec.discard(); recMeta = null; document.body.classList.remove('recording'); go(''); toast('Grabación descartada'); }; $('#dc-no').onclick = () => $('#discard-confirm').innerHTML = ''; };
+  startOrb();
   updateCaption();
 }
 function metaFromForm() { const g = id => ($(id)?.value || '').trim(); return { title: g('#r-title'), participants: g('#r-people').split(',').map(x => x.trim()).filter(Boolean), template: $('#r-tpl')?.value || 'general', context: g('#r-ctx') }; }
-function renderRecordState() {
-  const live = $('#live'); if (!live) return;
-  live.classList.toggle('on', Rec.state === 'recording'); $('#live-txt').textContent = Rec.state === 'recording' ? 'Grabando' : 'En pausa';
-  $('#r-pause').innerHTML = icon(Rec.state === 'paused' ? 'play' : 'pause', 2); $('#pause-lbl').textContent = Rec.state === 'paused' ? 'Seguir' : 'Pausa';
-}
 function updateCaption() { const c = $('#caption'); if (!c) return; const last = Rec.live.slice(-2).map(x => esc(x.text)).join(' '); c.hidden = !(Rec.state !== 'idle' && Rec.sr); c.innerHTML = `${last}${Rec.interim ? ` <em>${esc(Rec.interim)}</em>` : ''}` || 'Escuchando…'; }
-function sizeWave() { const c = $('#wave'); if (!c) return; const r = c.getBoundingClientRect(); const dpr = Math.min(2, window.devicePixelRatio || 1); c.width = Math.max(1, r.width * dpr); c.height = Math.max(1, r.height * dpr); }
-window.addEventListener('resize', sizeWave);
-const waveHist = [];
-function drawIdle() { const c = $('#wave'); if (!c) return; const g = c.getContext('2d'); g.clearRect(0, 0, c.width, c.height); const n = 64, bw = c.width / n; g.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--stage-line').trim() || '#2A2F3E'; for (let i = 0; i < n; i++) { const h = 3 * (window.devicePixelRatio || 1); g.fillRect(i * bw + bw * .2, c.height / 2 - h / 2, bw * .6, h); } }
-function drawLoop() {
-  cancelAnimationFrame(Rec.raf);
-  const cs = getComputedStyle(document.documentElement);
-  const accent = cs.getPropertyValue('--stage-accent').trim() || '#8E9BFF', dim = cs.getPropertyValue('--stage-line').trim() || '#2A2F3E';
-  const data = new Uint8Array(Rec.analyser ? Rec.analyser.fftSize : 1024);
-  let lastSize = 0;
+
+/* Orb visualizer: radial spectrum around a glowing core */
+const Orb = { raf: 0, lvl: 0, hist: new Float32Array(96), t0: performance.now(), sizeTick: 0 };
+function startOrb() {
+  cancelAnimationFrame(Orb.raf);
+  const freq = new Uint8Array(512), time = new Uint8Array(1024);
   const frame = () => {
-    if (Rec.state === 'idle') return;
-    const c = $('#wave'); const t = $('#timer');
-    if (t) t.firstChild.nodeValue = fmtClock(Rec.elapsed());
+    const c = $('#orb');
+    if (!c) { Orb.raf = 0; return; }
+    const dpr = Math.min(2, window.devicePixelRatio || 1); const w = c.clientWidth;
+    if (c.width !== Math.round(w * dpr)) { c.width = Math.round(w * dpr); c.height = Math.round(w * dpr); }
+    const g = c.getContext('2d'); const W = c.width, cx = W / 2, cy = W / 2;
+    const recording = Rec.state === 'recording';
     let level = 0;
-    if (Rec.analyser && Rec.state === 'recording') { Rec.analyser.getByteTimeDomainData(data); let sum = 0; for (let i = 0; i < data.length; i++) { const v = (data[i] - 128) / 128; sum += v * v; } level = Math.min(1, Math.sqrt(sum / data.length) * 4); }
-    waveHist.push(level); if (waveHist.length > 90) waveHist.shift();
-    const lv = $('#lvl'); if (lv) lv.style.width = (level * 100).toFixed(0) + '%';
-    if (c) {
-      const g = c.getContext('2d'); g.clearRect(0, 0, c.width, c.height);
-      const n = 90, bw = c.width / n;
-      for (let i = 0; i < n; i++) { const v = waveHist[waveHist.length - n + i] ?? 0; const h = Math.max(3 * (window.devicePixelRatio || 1), v * c.height * .92); g.fillStyle = i > n - 4 ? accent : (v > .02 ? accent : dim); g.globalAlpha = .35 + .65 * (i / n); g.beginPath(); const x = i * bw + bw * .2, w = bw * .6, y = c.height / 2 - h / 2; if (g.roundRect) g.roundRect(x, y, w, h, w / 2); else g.rect(x, y, w, h); g.fill(); }
-      g.globalAlpha = 1;
+    if (Rec.analyser && recording) {
+      Rec.analyser.getByteTimeDomainData(time); let sum = 0; for (let i = 0; i < time.length; i++) { const v = (time[i] - 128) / 128; sum += v * v; } level = Math.min(1, Math.sqrt(sum / time.length) * 4.5);
+      Rec.analyser.getByteFrequencyData(freq);
+    } else freq.fill(0);
+    Orb.lvl += (level - Orb.lvl) * .25;
+    const tt = (performance.now() - Orb.t0) / 1000;
+    g.clearRect(0, 0, W, W);
+    const R = W * .30;
+    // outer glow
+    const glow = g.createRadialGradient(cx, cy, R * .4, cx, cy, W * .5);
+    const ga = recording ? .30 + Orb.lvl * .5 : Rec.state === 'idle' ? .16 : .10;
+    glow.addColorStop(0, `rgba(255,90,90,${ga})`); glow.addColorStop(.55, `rgba(180,80,255,${ga * .45})`); glow.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = glow; g.fillRect(0, 0, W, W);
+    // radial bars
+    const N = 96; const grad = g.createLinearGradient(0, 0, W, W);
+    grad.addColorStop(0, '#FFB06B'); grad.addColorStop(.5, '#FF4D7A'); grad.addColorStop(1, '#A66BFF');
+    g.strokeStyle = grad; g.lineCap = 'round'; g.lineWidth = Math.max(2, W / 150);
+    for (let i = 0; i < N; i++) {
+      const fi = Math.floor(Math.pow(i / N, 1.6) * 180) + 2;
+      const target = recording ? (freq[fi] / 255) : (Rec.state === 'idle' ? (Math.sin(tt * 1.6 + i * .26) * .5 + .5) * .12 : .03);
+      Orb.hist[i] += (target - Orb.hist[i]) * .3;
+      const len = R * .08 + Orb.hist[i] * R * .62;
+      const ang = (i / N) * Math.PI * 2 - Math.PI / 2;
+      const r0 = R * 1.06;
+      g.globalAlpha = .35 + Orb.hist[i] * .65;
+      g.beginPath(); g.moveTo(cx + Math.cos(ang) * r0, cy + Math.sin(ang) * r0); g.lineTo(cx + Math.cos(ang) * (r0 + len), cy + Math.sin(ang) * (r0 + len)); g.stroke();
     }
-    Rec.raf = requestAnimationFrame(frame);
+    g.globalAlpha = 1;
+    // core ring
+    const breathe = recording ? Orb.lvl * .08 : Math.sin(tt * 1.4) * .012;
+    g.beginPath(); g.arc(cx, cy, R * (1 + breathe), 0, Math.PI * 2);
+    const core = g.createRadialGradient(cx, cy - R * .3, R * .1, cx, cy, R * 1.05);
+    core.addColorStop(0, 'rgba(40,24,40,.95)'); core.addColorStop(1, 'rgba(12,10,18,.98)');
+    g.fillStyle = core; g.fill();
+    g.lineWidth = Math.max(1.5, W / 220); g.strokeStyle = recording ? 'rgba(255,120,110,.75)' : 'rgba(255,255,255,.14)'; g.stroke();
+    // progress arc of current minute
+    if (Rec.state !== 'idle') {
+      const sec = (Rec.elapsed() / 1000) % 60;
+      g.beginPath(); g.arc(cx, cy, R * .9, -Math.PI / 2, -Math.PI / 2 + (sec / 60) * Math.PI * 2);
+      g.strokeStyle = 'rgba(255,255,255,.22)'; g.lineWidth = Math.max(1.5, W / 260); g.stroke();
+    }
+    const t = $('#timer'); if (t) t.textContent = fmtClock(Rec.elapsed());
+    if (++Orb.sizeTick % 60 === 0) { const el = $('#rec-size'); if (el && Rec.state !== 'idle') { const est = Rec.elapsed() / 1000 * (+Settings.v.bitrate || 32000) / 8; el.textContent = `≈ ${fmtBytes(est)} · ${(Rec.mime.split(';')[0].replace('audio/', '') || 'audio').toUpperCase()}`; } }
+    Pocket.level(Orb.lvl);
+    Orb.raf = requestAnimationFrame(frame);
   };
-  Rec.raf = requestAnimationFrame(frame);
-  clearInterval(drawLoop._s); drawLoop._s = setInterval(async () => { if (Rec.state === 'idle') { clearInterval(drawLoop._s); return; } const el = $('#rec-size'); if (!el) return; const est = Rec.elapsed() / 1000 * (+Settings.v.bitrate || 32000) / 8; if (est !== lastSize) { lastSize = est; el.textContent = `≈ ${fmtBytes(est)} · ${Rec.mime.split(';')[0].replace('audio/', '').toUpperCase() || 'AUDIO'}`; } }, 2000);
+  Orb.raf = requestAnimationFrame(frame);
 }
+
+/* Pocket mode: black screen, touch shield, hold to exit */
+const Pocket = {
+  timer: 0, hold: 0,
+  on() {
+    const el = $('#pocket'); el.hidden = false; document.body.classList.add('pocket');
+    try { el.requestFullscreen?.().catch(() => {}); } catch {}
+    this.tick(); clearInterval(this.timer); this.timer = setInterval(() => this.tick(), 500);
+  },
+  off() {
+    const el = $('#pocket'); if (!el || el.hidden) return; el.hidden = true; document.body.classList.remove('pocket'); clearInterval(this.timer);
+    try { if (document.fullscreenElement) document.exitFullscreen(); } catch {}
+  },
+  tick() { const t = $('#pocket-time'); if (t) t.textContent = fmtClock(Rec.elapsed()); const s = $('#pocket-state'); if (s) s.textContent = Rec.state === 'recording' ? 'Grabando' : Rec.state === 'paused' ? 'En pausa' : 'Detenida'; if (Rec.state === 'idle' || Rec.state === 'interrupted') this.off(); },
+  level(v) { const l = $('#pocket-lvl'); if (l && !$('#pocket').hidden) l.style.width = Math.round(v * 100) + '%'; }
+};
+(() => {
+  const el = $('#pocket'), h = $('#pocket-hold');
+  ['touchmove', 'touchstart', 'wheel'].forEach(ev => el.addEventListener(ev, e => { if (!e.target.closest('#pocket-hold')) e.preventDefault(); }, { passive: false }));
+  el.addEventListener('contextmenu', e => e.preventDefault());
+  const start = e => { e.preventDefault(); h.classList.add('holding'); clearTimeout(Pocket.hold); Pocket.hold = setTimeout(() => { h.classList.remove('holding'); Pocket.off(); if (navigator.vibrate) navigator.vibrate(20); }, 1000); };
+  const cancel = () => { h.classList.remove('holding'); clearTimeout(Pocket.hold); };
+  h.addEventListener('pointerdown', start); ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => h.addEventListener(ev, cancel));
+})();
 
 /* =========================================================
    Import view
@@ -805,10 +953,11 @@ function renderMeeting(app, m) {
   m._labels = speakerLabels(S._segCache?.[m.id] || []);
   if (!a || (m.status && m.status !== 'ready')) return renderProcessing(app, m);
   const tab = S.route.tab || 'resumen';
-  const tabs = [['resumen', 'Resumen'], ['mapa', 'Mapa mental'], ['brief', 'Brief'], ['transcripcion', 'Transcripción'], ['preguntar', 'Preguntar']];
+  const tabs = [['resumen', 'Resumen', 'spark'], ['informe', 'Informe', 'report'], ['mapa', 'Mapa mental', 'mind'], ['brief', 'Brief', 'doc'], ['transcripcion', 'Transcripción', 'text'], ['preguntar', 'Preguntar', 'chat']];
   const people = (a.participants?.length ? a.participants : m.participants) || [];
   app.innerHTML = `
   <button class="btn ghost sm back" data-nav="library">${icon('back')}Reuniones</button>
+  <section class="m-hero rise"><span class="aura a1"></span><span class="aura a2"></span>
   <header class="m-head">
     <div class="m-meta">
       <span>${icon('cal')}${esc(fmtDate(m.date))}</span>
@@ -819,20 +968,22 @@ function renderMeeting(app, m) {
     <h1 id="m-title" contenteditable="true" spellcheck="false" title="Toca para cambiar el título">${esc(a.title)}</h1>
     ${(a.tags || []).length ? `<div style="display:flex;gap:6px;flex-wrap:wrap">${a.tags.map(t => `<span class="chip ${t === 'ejemplo' ? 'ex' : ''}">#${esc(t)}</span>`).join('')}</div>` : ''}
     <div class="m-actions">
+      <button class="btn sm primary" id="m-report">${icon('report', 2)}Informe</button>
       <button class="btn sm" id="m-share">${icon('share')}Compartir</button>
       <button class="btn sm" id="m-md">${icon('download')}Exportar .md</button>
       <button class="btn sm" id="m-copy">${icon('copy')}Copiar resumen</button>
       <span style="display:inline-flex;gap:6px;align-items:center"><select id="re-tpl" class="btn sm" aria-label="Tipo de análisis">${Object.entries(TEMPLATES).map(([k, t]) => `<option value="${k}" ${m.template === k ? 'selected' : ''}>${t.name}</option>`).join('')}</select><button class="btn sm" id="re-run">${icon('refresh')}Re-analizar</button></span>
       <span id="del-slot"><button class="btn sm ghost danger" id="m-del">${icon('trash')}Eliminar</button></span>
     </div>
-  </header>
-  <nav class="tabs" role="tablist">${tabs.map(([k, l]) => `<button class="tab" role="tab" data-tab="${k}" aria-selected="${tab === k}">${l}</button>`).join('')}</nav>
+  </header></section>
+  <nav class="tabs" role="tablist">${tabs.map(([k, l, ic]) => `<button class="tab" role="tab" data-tab="${k}" aria-selected="${tab === k}">${icon(ic, 2)}${l}</button>`).join('')}</nav>
   <section id="tab-body"></section>`;
   $$('[data-tab]').forEach(b => b.onclick = () => { history.replaceState(null, '', '#m/' + m.id + '/' + b.dataset.tab); S.route.tab = b.dataset.tab; $$('[data-tab]').forEach(x => x.setAttribute('aria-selected', x === b)); renderTab(m); });
   const h1 = $('#m-title');
   h1.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); h1.blur(); } });
   h1.addEventListener('blur', async () => { const v = h1.textContent.trim(); if (v && v !== a.title) { a.title = v; await saveMeeting(m); toast('Título actualizado'); } else h1.textContent = a.title; });
   $('#m-share').onclick = () => shareMeeting(m);
+  $('#m-report').onclick = () => { const b = $('[data-tab="informe"]'); if (b) { b.click(); b.scrollIntoView({ block: 'nearest', inline: 'center' }); } };
   $('#m-md').onclick = async () => downloadText(slug(a.title) + '.md', await fullMd(m));
   $('#m-copy').onclick = () => copyText(summaryText(m), 'Resumen copiado');
   $('#re-run').onclick = () => { processMeeting(m.id, { template: $('#re-tpl').value }); m.status = 'analyzing'; render(); };
@@ -851,7 +1002,7 @@ function renderProcessing(app, m) {
   const err = m.error;
   app.innerHTML = `
   <button class="btn ghost sm back" data-nav="library">${icon('back')}Reuniones</button>
-  <div class="m-head"><div class="m-meta"><span>${icon('cal')}${esc(fmtDate(m.date))}</span>${m.durationSec ? `<span class="mono">${icon('time')}${fmtT(m.durationSec)}</span>` : ''}</div><h1>${esc(m.analysis?.title || m.titleHint || 'Nueva reunión')}</h1></div>
+  <section class="m-hero"><span class="aura a1"></span><span class="aura a2"></span><div class="m-head"><div class="m-meta"><span>${icon('cal')}${esc(fmtDate(m.date))}</span>${m.durationSec ? `<span class="mono">${icon('time')}${fmtT(m.durationSec)}</span>` : ''}</div><h1>${esc(m.analysis?.title || m.titleHint || 'Nueva reunión')}</h1></div></section>
   <section class="panel" style="max-width:720px">
     <h2>${st === 'error' ? 'El acta necesita tu atención' : 'Preparando el acta'}</h2>
     <div class="stepper">${steps.map(s => `<div class="pstep ${s.s}"><span class="dot">${s.s === 'done' ? icon('check', 3) : s.s === 'fail' ? '!' : ''}</span><div><b>${s.t}</b><small ${s.s === 'run' ? 'id="proc-detail"' : ''}>${esc(s.s === 'run' ? (S.progress[m.id] || 'Trabajando…') : s.s === 'fail' ? (err?.message || '') : s.d)}</small></div></div>`).join('')}</div>
@@ -877,6 +1028,7 @@ async function renderTab(m) {
   if (!$('#tab-body')) return;
   const tab = S.route.tab || 'resumen';
   if (tab === 'resumen') return renderSummary(body, m, a, segs);
+  if (tab === 'informe') return renderReport(body, m, a, segs);
   if (tab === 'mapa') { body.innerHTML = `<div class="mm-wrap">${mindmapSVG(a.mindmap)}</div><p class="mm-note">En el celular, desliza hacia el lado para recorrer el mapa.</p>`; return; }
   if (tab === 'brief') {
     body.innerHTML = `<div class="tools-row"><button class="btn sm" id="b-copy">${icon('copy')}Copiar brief</button><button class="btn sm" id="b-dl">${icon('download')}Descargar .md</button><button class="btn sm" id="b-share">${icon('share')}Compartir</button></div><article class="brief">${md(a.brief || '_Sin brief para esta reunión._')}</article>`;
@@ -891,34 +1043,32 @@ async function renderTab(m) {
 
 function box(title, color, soft, ic, items, n) { return `<div class="box"><div class="box-h"><span class="ic" style="background:${soft};color:${color}">${icon(ic, 2)}</span><h3>${title}</h3><span class="n">${n ?? ''}</span></div>${items || '<div class="empty-li">Nada registrado.</div>'}</div>`; }
 function talkTime(m, segs) {
-  const map = new Map(); let total = 0;
-  segs.forEach(x => { if (!x.s) return; const w = wordsOf(x.text); map.set(x.s, (map.get(x.s) || 0) + w); total += w; });
-  if (map.size < 2) return '';
-  const rows = [...map.entries()].sort((a, b) => b[1] - a[1]);
-  return `<div class="sec"><div class="sec-h"><h2>Quién habló</h2><span class="count">Proporción de palabras</span></div><div class="panel talk">${rows.map(([l, w]) => `<div class="talk-row"><span class="nm">${esc(spkName(m, l))}</span><span class="tb"><i style="width:${(w / total * 100).toFixed(1)}%;background:${tc(spkIndex(m, l))}"></i></span><span>${Math.round(w / total * 100)}%</span></div>`).join('')}</div></div>`;
+  const rows = speakerShares(m, segs);
+  if (rows.length < 2) return '';
+  return `<div class="sec"><div class="sec-h"><h2>Quién habló</h2><span class="count">Proporción de palabras</span></div><div class="panel talk">${donutSVG(rows.map((r, i) => ({ pct: r.pct, color: tc(i) })), { size: 150, thick: 18, label: String(rows.length), sub: 'VOCES' })}<div class="talk-list">${rows.map((r, i) => `<div class="talk-row"><span class="nm"><i style="background:${tc(i)}"></i>${esc(r.name)}</span><span class="tb"><i style="width:${(r.pct * 100).toFixed(1)}%;background:${tc(i)}"></i></span><span>${Math.round(r.pct * 100)}%</span></div>`).join('')}</div></div></div>`;
 }
 function renderSummary(body, m, a, segs) {
   const acts = a.actions || []; const done = acts.filter(x => x.done).length;
   const dur = m.durationSec || segDuration(segs);
   const sevC = s => s === 'alta' ? 'var(--risk)' : s === 'media' ? 'var(--idea)' : 'var(--muted)';
-  const sevS = s => s === 'alta' ? 'var(--risk-soft)' : s === 'media' ? 'var(--idea-soft)' : 'var(--surface-2)';
+  const sevS = s => s === 'alta' ? 'var(--risk-soft)' : s === 'media' ? 'var(--idea-soft)' : 'var(--glass-2)';
   const marks = m.marks || [];
   body.innerHTML = `
   <div class="tldr"><div class="eyebrow">En pocas palabras</div><p>${esc(a.tldr)}</p>
     ${a.mood ? `<div class="mood"><b>${esc(a.mood.label)}</b><span class="track"><i style="width:${a.mood.score}%"></i></span><span>${esc(a.mood.note)}</span></div>` : ''}</div>
   <div class="stats">
-    <div class="stat"><b class="mono">${dur ? fmtT(dur) : '—'}</b><span>Duración${m.estimatedTimes ? ' aprox.' : ''}</span></div>
-    <div class="stat"><b>${nf(m.words || wordCount(segs))}</b><span>Palabras</span></div>
-    <div class="stat"><b>${(a.decisions || []).length}</b><span>Decisiones</span></div>
-    <div class="stat"><b>${done}<span style="font-size:17px;color:var(--muted)">/${acts.length}</span></b><span>Tareas hechas</span></div>
-    <div class="stat"><b>${(a.topics || []).length}</b><span>Temas</span></div>
+    <div class="stat"><span class="si" style="background:var(--accent-soft);color:var(--ember)">${icon('time', 2)}</span><b class="mono">${dur ? fmtT(dur) : '—'}</b><span>Duración${m.estimatedTimes ? ' aprox.' : ''}</span></div>
+    <div class="stat"><span class="si" style="background:var(--q-soft);color:var(--q)">${icon('text', 2)}</span><b>${nf(m.words || wordCount(segs))}</b><span>Palabras</span></div>
+    <div class="stat"><span class="si" style="background:var(--dec-soft);color:var(--dec)">${icon('flag', 2)}</span><b>${(a.decisions || []).length}</b><span>Decisiones</span></div>
+    <div class="stat"><span class="si" style="background:var(--act-soft);color:var(--act)">${icon('check', 2.4)}</span><b>${done}<span style="font-size:17px;color:var(--muted)">/${acts.length}</span></b><span>Tareas hechas</span></div>
+    <div class="stat"><span class="si" style="background:var(--idea-soft);color:var(--idea)">${icon('chart', 2)}</span><b>${(a.topics || []).length}</b><span>Temas</span></div>
   </div>
   ${(a.topics || []).length ? `<div class="sec"><div class="sec-h"><h2>Recorrido de la conversación</h2><span class="count">Toca un tema para ir a ese momento</span></div>
     <div class="timeline">${timelineHTML(a.topics, dur)}<svg class="density" id="dens" preserveAspectRatio="none" aria-hidden="true"></svg>
     ${marks.length ? `<div class="tl-marks">${marks.map(k => `<button data-jump="${k.t}" style="left:${Math.min(100, k.t / dur * 100)}%" title="${esc(k.label || 'Momento marcado')} · ${fmtT(k.t)}">${icon('bookmark', 2)}</button>`).join('')}</div>` : ''}
     <div class="tl-axis mono"><span>0:00</span><span>${fmtT(dur / 2)}</span><span>${fmtT(dur)}</span></div>
     <div class="tl-legend">${a.topics.map((t, i) => `<span><i style="background:${tc(i)}"></i>${esc(t.name)} <em>${fmtT(t.start)}</em></span>`).join('')}${marks.length ? `<span>${icon('bookmark', 2, 12)}Tus marcas</span>` : ''}</div></div></div>` : ''}
-  ${(a.keyPoints || []).length ? `<div class="sec"><div class="sec-h"><h2>Puntos clave</h2></div><div class="g3">${a.keyPoints.map(k => `<div class="kp"><span class="kp-ic">${icon(k.icon)}</span><h4>${esc(k.title)}</h4><p>${esc(k.detail)}</p></div>`).join('')}</div></div>` : ''}
+  ${(a.keyPoints || []).length ? `<div class="sec"><div class="sec-h"><h2>Puntos clave</h2></div><div class="g3">${a.keyPoints.map((k, i) => `<div class="kp" style="--kc:${tc(i)}"><span class="kp-ic">${icon(k.icon, 2)}</span><h4>${esc(k.title)}</h4><p>${esc(k.detail)}</p></div>`).join('')}</div></div>` : ''}
   <div class="sec g2">
     ${box('Decisiones', 'var(--dec)', 'var(--dec-soft)', 'flag', (a.decisions || []).map(d => `<div class="li"><span class="mk" style="background:var(--dec)"></span><div>${esc(d.text)}${d.why ? `<small>${esc(d.why)}</small>` : ''}</div></div>`).join(''), (a.decisions || []).length)}
     <div class="box"><div class="box-h"><span class="ic" style="background:var(--act-soft);color:var(--act)">${icon('check', 2.2)}</span><h3>Tareas</h3><span class="n">${done} de ${acts.length} hechas</span></div>
@@ -1060,7 +1210,7 @@ function renderAsk(body, m, a, segs) {
     const box = document.createElement('div'); box.className = 'msg a'; box.textContent = 'Pensando…'; $('#msgs').appendChild(box); box.scrollIntoView({ block: 'end', behavior: 'smooth' });
     const ctx = `Eres el asistente de esta reunión. Responde en español de Chile, directo y útil, en texto plano (listas con guiones si ayudan, sin markdown pesado). Basa tus respuestas en la reunión; si algo no se dijo, acláralo. Puedes proponer ideas propias si te las piden, separándolas de lo conversado.\n\nActa:\n${JSON.stringify({ ...a, brief: undefined, speakers: undefined })}\n\nTranscripción:\n${transcriptText(m, segs)}`;
     try {
-      const r = await claude({ system: [{ type: 'text', text: ctx, cache_control: { type: 'ephemeral' } }], messages: chat.map(c => ({ role: c.role, content: c.content })), max_tokens: 4000, onText: t => { box.textContent = t; } });
+      const r = await claude({ system: [{ type: 'text', text: ctx, cache_control: { type: 'ephemeral' } }], messages: chat.map(c => ({ role: c.role, content: c.content })), max_tokens: 4000, kind: 'pregunta', onText: t => { box.textContent = t; } });
       chat.push({ role: 'assistant', content: r.text || '(sin respuesta)' });
     } catch (e) { chat.pop(); toast(e.message || 'No se pudo responder', 5000); }
     busy = false; if (S.route.view === 'meeting' && S.route.id === m.id && S.route.tab === 'preguntar') renderAsk(body, m, a, segs);
@@ -1103,6 +1253,11 @@ async function renderSettings(app) {
   app.innerHTML = `
   <div class="page-head"><div><div class="eyebrow">Ajustes</div><h1>Configura Acta</h1><p>Todo queda guardado solo en este dispositivo.</p></div></div>
   <div class="set-grid">
+    <section class="panel" id="budget">
+      <h2>Saldo estimado</h2>
+      <p class="muted" style="font-size:13.5px;margin-top:6px">Acta calcula cuánto gasta cada reunión con los precios oficiales y lo descuenta de lo que cargaste. Puede diferir por centavos; si quieres exactitud, copia el saldo real de la consola y toca <b>Ajustar saldo</b>.</p>
+      <div class="wallet">${walletHTML('anthropic')}${walletHTML('openai')}</div>
+    </section>
     ${standalone ? '' : `<section class="panel howto"><h2>Instálala en tu celular</h2><ol style="margin-top:10px"><li><b>iPhone (Safari):</b> botón Compartir → <b>Agregar a pantalla de inicio</b>.</li><li><b>Android (Chrome):</b> menú ⋮ → <b>Instalar aplicación</b>.</li></ol><p class="muted" style="font-size:13px;margin-top:10px">Así se abre a pantalla completa, funciona sin conexión para revisar tus actas y aparece junto a tus otras apps.</p></section>`}
     <section class="panel">
       <h2>Claves de servicio</h2>
@@ -1130,10 +1285,11 @@ async function renderSettings(app) {
         <label class="switch"><input type="checkbox" id="s-cap" ${v.captions ? 'checked' : ''}><span><b>Subtítulos en vivo</b><small>Muestra el texto mientras grabas, usando el dictado del teléfono. En algunos Android puede interferir con el micrófono.</small></span></label>
       </div>
     </section>
-    <section class="panel">
-      <h2>Apariencia</h2>
-      <div class="seg-ctl" style="margin-top:12px" role="group" aria-label="Tema">${[['system', 'Automático'], ['light', 'Claro'], ['dark', 'Oscuro']].map(([k, l]) => `<button data-theme-set="${k}" aria-pressed="${v.theme === k}">${l}</button>`).join('')}</div>
-    </section>
+    <section class="panel howto"><h2>Grabar con el teléfono bloqueado</h2><ol style="margin-top:10px">
+      <li><b>iPhone:</b> Apple no deja que las apps web sigan usando el micrófono con la pantalla bloqueada. Usa <b>Modo bolsillo</b> mientras grabas: pantalla negra, sin toques accidentales y la grabación sigue.</li>
+      <li>Si igual se bloquea, Acta guarda todo lo grabado y te ofrece <b>Continuar</b> en la misma reunión.</li>
+      <li>Para que no se apague sola: Ajustes del iPhone → Pantalla y brillo → <b>Bloqueo automático</b> → un tiempo largo durante tus reuniones.</li>
+      <li><b>Android:</b> la grabación sigue con la pantalla apagada.</li></ol></section>
     <section class="panel">
       <h2>Almacenamiento y respaldo</h2>
       ${est ? `<div style="margin-top:12px;display:grid;gap:8px"><div class="store-bar"><i style="width:${Math.min(100, est.usage / est.quota * 100).toFixed(1)}%"></i></div><span class="muted" style="font-size:13px">${fmtBytes(est.usage)} usados de ${fmtBytes(est.quota)} disponibles${persisted ? ' · protegido contra borrado automático' : ''}</span></div>` : ''}
@@ -1149,13 +1305,13 @@ async function renderSettings(app) {
       <li>Tus reuniones, audios y actas viven en este dispositivo.</li>
       <li>El audio se envía a OpenAI solo para transcribirlo; el texto se envía a Anthropic solo para crear el acta y responder preguntas.</li>
       <li>Avísales a los participantes que estás grabando.</li></ol></section>
-    <p class="status-line">Acta 1.0</p>
+    <p class="status-line">Acta 2.0</p>
   </div>`;
   const keyIn = (id, k) => $(id).addEventListener('change', e => { Settings.set({ [k]: e.target.value.trim() }); toast('Clave guardada'); });
   keyIn('#k-anthropic', 'anthropicKey'); keyIn('#k-openai', 'openaiKey');
   $('#t-anthropic').onclick = async () => {
     Settings.set({ anthropicKey: $('#k-anthropic').value.trim() }); const r = $('#r-anthropic'); r.textContent = 'Probando…';
-    try { await claude({ messages: [{ role: 'user', content: 'Responde solo: ok' }], max_tokens: 5 }); r.innerHTML = `<span class="ok-badge">${icon('check', 2.4, 14)}Conectado con ${esc(Settings.v.claudeModel)}</span>`; }
+    try { await claude({ messages: [{ role: 'user', content: 'Responde solo: ok' }], max_tokens: 5, kind: 'prueba' }); r.innerHTML = `<span class="ok-badge">${icon('check', 2.4, 14)}Conectado con ${esc(Settings.v.claudeModel)}</span>`; }
     catch (e) { r.innerHTML = `<span class="ok-badge bad">${esc(e.message || 'No funcionó')}</span>`; }
   };
   $('#t-openai').onclick = async () => {
@@ -1168,7 +1324,8 @@ async function renderSettings(app) {
   $('#s-lang').onchange = e => Settings.set({ language: e.target.value });
   $('#s-br').onchange = e => Settings.set({ bitrate: +e.target.value });
   $('#s-cap').onchange = e => Settings.set({ captions: e.target.checked });
-  $$('[data-theme-set]').forEach(b => b.onclick = () => { Settings.set({ theme: b.dataset.themeSet }); $$('[data-theme-set]').forEach(x => x.setAttribute('aria-pressed', x === b)); });
+  $$('[data-wset]').forEach(b => b.onclick = () => { const p = b.dataset.wset; const v = parseFloat(($('#w-' + p + '-val').value || '').replace(',', '.')); if (!(v >= 0)) { toast('Escribe el saldo en dólares, por ejemplo 4.85'); return; } Usage.set(p, v); toast('Saldo ajustado'); renderSettings(app); });
+  $$('[data-wtop]').forEach(b => b.onclick = () => { const p = b.dataset.wtop; const v = parseFloat(($('#w-' + p + '-top').value || '').replace(',', '.')); if (!(v > 0)) { toast('Escribe el monto que recargaste, por ejemplo 5'); return; } Usage.topup(p, v); toast('Recarga sumada'); renderSettings(app); });
   const sp = $('#s-persist'); if (sp) sp.onclick = async () => { let ok = false; try { ok = await navigator.storage.persist(); } catch {} toast(ok ? 'Tus datos quedaron protegidos' : 'El navegador no lo permitió. Instalar la app suele habilitarlo.'); renderSettings(app); };
   $('#s-export').onclick = exportBackup;
   $('#s-import').onchange = e => importBackup(e.target.files[0]);
@@ -1188,6 +1345,161 @@ async function importBackup(file) {
     for (const m of data.meetings) { if (!m.id) continue; const exists = await DB.get('meetings', m.id); if (exists) continue; m.audioParts = []; await DB.put('meetings', m); if (data.transcripts?.[m.id]) await DB.put('transcripts', { segments: data.transcripts[m.id] }, m.id); n++; }
     await loadMeetings(); toast(n ? `${n} ${n === 1 ? 'reunión importada' : 'reuniones importadas'}` : 'No había reuniones nuevas en el respaldo');
   } catch { toast('Ese archivo no es un respaldo de Acta.'); }
+}
+
+/* =========================================================
+   Charts shared by app and report
+   ========================================================= */
+function speakerShares(m, segs) {
+  const map = new Map(); let total = 0;
+  segs.forEach(x => { if (!x.s) return; const w = wordsOf(x.text); map.set(x.s, (map.get(x.s) || 0) + w); total += w; });
+  const byName = new Map();
+  map.forEach((w, l) => { const n = spkName(m, l).replace(/ · parte \d+$/, ''); const cur = byName.get(n) || { label: l, name: n, w: 0, idx: spkIndex(m, l) }; cur.w += w; byName.set(n, cur); });
+  return [...byName.values()].sort((a, b) => b.w - a.w).map(x => ({ label: x.label, name: x.name, pct: total ? x.w / total : 0, idx: x.idx }));
+}
+function donutSVG(items, { size = 130, thick = 16, track = 'rgba(255,255,255,.07)', label = '', sub = '', ink = '#F3F5FB', muted = '#A3AABD', cls = 'donut' } = {}) {
+  const r = (size - thick) / 2, c = size / 2; let acc = 0;
+  const arcs = items.map(it => { const len = it.pct * 100; const gap = items.length > 1 ? 1.2 : 0; const L = Math.max(0, len - gap); const s = `<circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="${it.color}" stroke-width="${thick}" pathLength="100" stroke-dasharray="${L} ${100 - L}" stroke-dashoffset="${-acc}" transform="rotate(-90 ${c} ${c})" stroke-linecap="butt"/>`; acc += len; return s; }).join('');
+  return `<svg class="${cls}" viewBox="0 0 ${size} ${size}" role="img" aria-label="${esc(sub)}"><circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="${track}" stroke-width="${thick}"/>${arcs}<text x="${c}" y="${c + 4}" text-anchor="middle" font-size="${size * .2}" font-weight="700" fill="${ink}" font-family="Bricolage Grotesque, system-ui, sans-serif">${esc(label)}</text><text x="${c}" y="${c + size * .17}" text-anchor="middle" font-size="${size * .075}" fill="${muted}" font-family="IBM Plex Sans, system-ui, sans-serif" letter-spacing="1.2" font-weight="600">${esc(sub)}</text></svg>`;
+}
+function gaugeSVG(score) {
+  const p = Math.max(0, Math.min(100, score || 0));
+  const ang = Math.PI * (1 - p / 100); const nx = 75 + Math.cos(ang) * 52, ny = 78 - Math.sin(ang) * 52;
+  return `<svg viewBox="0 0 150 86" aria-hidden="true"><defs><linearGradient id="gg" x1="0" x2="1"><stop offset="0" stop-color="#2F80ED"/><stop offset=".5" stop-color="#FF8A3D"/><stop offset="1" stop-color="#E8467C"/></linearGradient></defs>
+    <path d="M15 78 A60 60 0 0 1 135 78" fill="none" stroke="#EEF0F4" stroke-width="12" stroke-linecap="round"/>
+    <path d="M15 78 A60 60 0 0 1 135 78" fill="none" stroke="url(#gg)" stroke-width="12" stroke-linecap="round" pathLength="100" stroke-dasharray="${p} 100"/>
+    <circle cx="${nx.toFixed(1)}" cy="${ny.toFixed(1)}" r="6" fill="#fff" stroke="#12141B" stroke-width="3"/>
+    <text x="75" y="72" text-anchor="middle" font-size="22" font-weight="750" fill="#12141B" font-family="Bricolage Grotesque, system-ui, sans-serif">${Math.round(p)}</text></svg>`;
+}
+
+/* =========================================================
+   Infographic report (paper-white poster)
+   ========================================================= */
+const REP_COLORS = ['#FF6A3D', '#2F80ED', '#10B48C', '#7C5CFF', '#F2A100', '#E8467C'];
+const rc = i => REP_COLORS[((i % 6) + 6) % 6];
+function reportHTML(m, a, segs) {
+  const dur = m.durationSec || segDuration(segs);
+  const acts = a.actions || []; const done = acts.filter(x => x.done).length;
+  const people = (a.participants?.length ? a.participants : m.participants) || [];
+  const shares = speakerShares(m, segs);
+  const topics = a.topics || []; const tot = topics.reduce((s, t) => s + Math.max(1, t.end - t.start), 0) || 1;
+  const sevC = s => s === 'alta' ? '#D93A26' : s === 'media' ? '#B07400' : '#6A7183';
+  const sevB = s => s === 'alta' ? '#FFE9E6' : s === 'media' ? '#FFF4DB' : '#EFF1F5';
+  const kpi = (val, lbl, ic, c) => `<div class="rp-kpi" style="--kc:${c}">${icon(ic, 2)}<b>${val}</b><span>${lbl}</span></div>`;
+  const sec = (title, inner) => `<section class="rp-sec"><h2>${title}</h2>${inner}</section>`;
+  const listBox = (items, color) => items.length ? `<div class="rp-list">${items.map(x => `<div class="rp-li"><span class="d" style="background:${x.color || color}"></span><div>${x.html}</div></div>`).join('')}</div>` : `<div class="rp-list"><div class="rp-li"><span></span><div style="color:#9198A8">Nada registrado.</div></div></div>`;
+  const ownerColor = {}; let oc = 0; acts.forEach(t => { if (!(t.owner in ownerColor)) ownerColor[t.owner] = rc(oc++); });
+  return `<article class="rep">
+  <div class="rp-band"></div>
+  <header class="rp-head">
+    <div style="display:grid;gap:12px;position:relative;z-index:1">
+      <div class="rp-brand"><i><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2"/></svg></i>Acta · Informe de reunión</div>
+      <h1 class="rp-title">${esc(a.title)}</h1>
+      <div class="rp-meta"><span>${icon('cal')}${esc(fmtDate(m.date))}</span>${dur ? `<span>${icon('time')}${fmtT(dur)}${m.estimatedTimes ? ' aprox.' : ''}</span>` : ''}${people.length ? `<span>${icon('users')}${esc(people.join(', '))}</span>` : ''}<span>${icon('doc')}${esc((TEMPLATES[m.template] || TEMPLATES.general).name)}</span></div>
+      ${(a.tags || []).filter(t => t !== 'ejemplo').length ? `<div class="rp-tags">${a.tags.filter(t => t !== 'ejemplo').map(t => `<span>#${esc(t)}</span>`).join('')}</div>` : ''}
+    </div>
+    ${a.mood ? `<div class="rp-gauge">${gaugeSVG(a.mood.score)}<b>${esc(a.mood.label)}</b><small>Clima de la reunión</small></div>` : ''}
+  </header>
+  <div class="rp-body">
+    <div class="rp-kpis">
+      ${kpi(dur ? fmtT(dur) : '—', 'Duración', 'time', '#FF6A3D')}
+      ${kpi(nf(m.words || wordCount(segs)), 'Palabras', 'text', '#2F80ED')}
+      ${kpi((a.decisions || []).length, 'Decisiones', 'flag', '#7C5CFF')}
+      ${kpi(`${done}/${acts.length}`, 'Tareas hechas', 'check', '#10B48C')}
+      ${kpi(topics.length, 'Temas', 'chart', '#F2A100')}
+    </div>
+    <div class="rp-2 w73">
+      ${sec('Resumen ejecutivo', `<div class="rp-sum">${esc(a.tldr)}</div>${a.mood?.note ? `<p class="rp-mood"><b>Clima:</b> ${esc(a.mood.note)}</p>` : ''}`)}
+      ${shares.length >= 2 ? sec('Participación', `<div class="rp-spk">${donutSVG(shares.map((s, i) => ({ pct: s.pct, color: rc(i) })), { size: 130, thick: 18, track: '#EEF0F4', label: String(shares.length), sub: 'VOCES', ink: '#12141B', muted: '#5E6577', cls: '' })}<div class="rp-legend">${shares.map((s, i) => `<div><i style="background:${rc(i)}"></i><span>${esc(s.name)}</span><span>${Math.round(s.pct * 100)}%</span></div>`).join('')}</div></div>`)
+        : sec('Participantes', `<div class="rp-legend">${(people.length ? people : ['Sin registrar']).map((p, i) => `<div><span class="rp-av" style="background:${rc(i)}">${esc(initials(p))}</span><span>${esc(p)}</span><span></span></div>`).join('')}</div>`)}
+    </div>
+    ${topics.length ? sec('Recorrido de la conversación', `<div class="rp-tl"><div class="rp-tlbar">${topics.map((t, i) => `<i style="flex:${Math.max(1, t.end - t.start) / tot * 100};background:${rc(i)}"></i>`).join('')}</div><div class="rp-tlaxis"><span>0:00</span><span>${fmtT(dur / 2)}</span><span>${fmtT(dur)}</span></div>
+      <div class="rp-topics">${topics.map((t, i) => `<div class="rp-topic"><span class="sw" style="background:${rc(i)}"></span><div><b>${esc(t.name)}</b><em>${fmtT(t.start)}–${fmtT(t.end)} · ${Math.round(Math.max(1, t.end - t.start) / tot * 100)}%</em><small>${esc(t.summary)}</small></div></div>`).join('')}</div></div>`) : ''}
+    ${(a.keyPoints || []).length ? sec('Puntos clave', `<div class="rp-kps">${a.keyPoints.map((k, i) => `<div class="rp-kp" style="--kc:${rc(i)}"><span class="n">${icon(k.icon, 2)}</span><div><b>${esc(k.title)}</b><p>${esc(k.detail)}</p></div></div>`).join('')}</div>`) : ''}
+    <div class="rp-2">
+      ${sec(`Decisiones · ${(a.decisions || []).length}`, listBox((a.decisions || []).map(d => ({ html: `${esc(d.text)}${d.why ? `<small>${esc(d.why)}</small>` : ''}` })), '#7C5CFF'))}
+      ${sec(`Plan de acción · ${acts.length}`, acts.length ? `<div class="rp-tasks">${acts.map(t => `<div class="rp-task ${t.done ? 'done' : ''}"><span class="cb ${t.done ? 'on' : ''}"></span><div><div class="t">${esc(t.task)}</div><small><span class="rp-av" style="background:${ownerColor[t.owner]}">${esc(initials(t.owner))}</span>${esc(t.owner)}${t.due ? ` · ${esc(t.due)}` : ''}</small></div><span class="rp-prio ${t.priority}">${t.priority}</span></div>`).join('')}</div>` : listBox([], ''))}
+    </div>
+    <div class="rp-3">
+      ${sec('Riesgos', listBox((a.risks || []).map(r => ({ color: sevC(r.severity), html: `${esc(r.text)}<span class="pill" style="background:${sevB(r.severity)};color:${sevC(r.severity)}">${r.severity}</span>` })), '#D93A26'))}
+      ${sec('Ideas', listBox((a.ideas || []).map(d => ({ html: `${esc(d.text)}${d.note ? `<small>${esc(d.note)}</small>` : ''}` })), '#F2A100'))}
+      ${sec('Preguntas abiertas', listBox((a.questions || []).map(q => ({ html: esc(q.text) })), '#2F80ED'))}
+    </div>
+    ${(a.numbers || []).length ? sec('Cifras clave', `<div class="rp-nums">${a.numbers.map(n => `<div class="rp-num"><b>${esc(n.value)}</b><span>${esc(n.label)}</span></div>`).join('')}</div>`) : ''}
+    <div class="rp-2">
+      ${(a.quotes || []).length ? sec('Frase destacada', `<div class="rp-quote"><p>“${esc(a.quotes[0].text)}”</p><small>${esc(a.quotes[0].who)}${a.quotes[0].t != null ? ` · ${fmtT(a.quotes[0].t)}` : ''}</small></div>`) : ''}
+      ${(a.nextSteps || []).length ? sec('Próximos pasos', `<div class="rp-flow" style="grid-template-columns:1fr">${a.nextSteps.map((s, i) => `<div class="rp-step"><b>${i + 1}</b><span>${esc(s)}</span></div>`).join('')}</div>`) : ''}
+    </div>
+  </div>
+  <footer class="rp-foot"><span>Generado con Acta · ${esc(new Date().toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' }))}</span><span>Transcripción con hablantes · Análisis con Claude</span></footer>
+</article>`;
+}
+function renderReport(body, m, a, segs) {
+  body.innerHTML = `<div class="rep-tools"><button class="btn primary sm" id="rp-png">${icon('image', 2)}Guardar como imagen</button><button class="btn sm" id="rp-pdf">${icon('doc')}PDF / Imprimir</button><span class="hint">Informe listo para enviar por WhatsApp o correo.</span></div><div class="rep-frame rise">${reportHTML(m, a, segs)}</div>`;
+  $('#rp-png').onclick = () => exportReportPNG(m, a, segs);
+  $('#rp-pdf').onclick = () => { try { window.print(); } catch { toast('Tu navegador no permite imprimir desde aquí. Usa “Guardar como imagen”.'); } };
+}
+function loadH2I() {
+  if (window.htmlToImage) return Promise.resolve(window.htmlToImage);
+  return new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'h2i.js'; s.onload = () => res(window.htmlToImage); s.onerror = () => rej(new Error('No se pudo cargar el generador de imágenes. Revisa tu conexión.')); document.head.appendChild(s); });
+}
+async function exportReportPNG(m, a, segs) {
+  const btn = $('#rp-png'); if (btn) { btn.disabled = true; btn.lastChild.textContent = 'Generando…'; }
+  const wrap = document.createElement('div'); wrap.className = 'rep-export'; wrap.innerHTML = reportHTML(m, a, segs); document.body.appendChild(wrap);
+  const node = wrap.firstElementChild;
+  try {
+    const lib = await loadH2I();
+    try { await document.fonts?.ready; } catch {}
+    const opts = { pixelRatio: 2, backgroundColor: '#ffffff', width: 1080 };
+    let blob;
+    try { await lib.toBlob(node, opts); blob = await lib.toBlob(node, opts); }
+    catch { blob = await lib.toBlob(node, { ...opts, skipFonts: true }); }
+    if (!blob) throw new Error('El navegador no generó la imagen.');
+    const file = new File([blob], slug(a.title) + '-informe.png', { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], title: a.title }); } catch (e) { if (e.name !== 'AbortError') throw e; } }
+    else { const url = URL.createObjectURL(file); const l = document.createElement('a'); l.href = url; l.download = file.name; document.body.appendChild(l); l.click(); setTimeout(() => { URL.revokeObjectURL(url); l.remove(); }, 1500); toast('Imagen descargada'); }
+  } catch (e) { toast('No se pudo crear la imagen: ' + (e.message || 'error'), 5000); }
+  finally { wrap.remove(); if (btn) { btn.disabled = false; btn.lastChild.textContent = 'Guardar como imagen'; } }
+}
+
+/* =========================================================
+   Usage & balance (estimated, per provider)
+   ========================================================= */
+const PRICES = { 'claude-sonnet-5-5': { in: 2, out: 10 }, 'claude-opus-5-5': { in: 4, out: 20 }, 'claude-haiku-5-5': { in: 0.10, out: 0.50 } };
+const STT_PER_MIN = 0.006;
+const money = v => 'US$' + (Math.round(v * 100) / 100).toFixed(2);
+const Usage = {
+  v: null,
+  load() {
+    try { this.v = JSON.parse(localStorage.getItem('acta:usage') || 'null'); } catch {}
+    if (!this.v || !this.v.anthropic) this.v = { anthropic: { balance: 5, setAt: Date.now(), log: [] }, openai: { balance: 5, setAt: Date.now(), log: [] } };
+    return this;
+  },
+  save() { try { localStorage.setItem('acta:usage', JSON.stringify(this.v)); } catch {} },
+  add(p, cost, kind) { if (!(cost > 0)) return; const b = this.v[p]; b.log.push({ t: Date.now(), c: +cost.toFixed(6), k: kind }); if (b.log.length > 800) b.log = b.log.slice(-800); this.save(); $$('[data-left="' + p + '"]').forEach(el => el.textContent = money(this.left(p))); },
+  spent(p) { const b = this.v[p]; return b.log.filter(x => x.t >= b.setAt).reduce((a, x) => a + x.c, 0); },
+  spentAll(p) { return this.v[p].log.reduce((a, x) => a + x.c, 0); },
+  left(p) { return Math.max(0, this.v[p].balance - this.spent(p)); },
+  set(p, balance) { this.v[p].balance = Math.max(0, +balance || 0); this.v[p].setAt = Date.now(); this.save(); },
+  topup(p, amt) { const l = this.left(p); this.v[p].balance = l + Math.max(0, +amt || 0); this.v[p].setAt = Date.now(); this.save(); },
+  avg(p, kind, def) { const l = this.v[p].log.filter(x => x.k === kind).slice(-10); return l.length ? l.reduce((a, x) => a + x.c, 0) / l.length : def; },
+  count(p, kind) { return this.v[p].log.filter(x => x.k === kind).length; }
+}.load();
+function walletHTML(p) {
+  const isA = p === 'anthropic';
+  const b = Usage.v[p], left = Usage.left(p), spent = Usage.spent(p), pct = b.balance ? left / b.balance : 0;
+  const color = pct < .2 ? '#FF6B6B' : isA ? '#FF7A45' : '#5AD8FF';
+  const est = isA ? `≈ <b>${Math.floor(left / Usage.avg('anthropic', 'acta', 0.1))}</b> actas más (promedio ${money(Usage.avg('anthropic', 'acta', 0.1))} c/u)` : `≈ <b>${(left / (STT_PER_MIN * 60)).toFixed(1)} h</b> de transcripción (US$0,36 por hora)`;
+  return `<div class="wcard">
+    <div class="wh"><b>${isA ? 'Claude · Anthropic' : 'OpenAI'}</b><span class="chip ${pct < .2 ? 'err' : ''}">${isA ? 'Actas y preguntas' : 'Transcripción'}</span></div>
+    <div class="wnum">${ringSVG(pct, color, 64, 7)}<div><div class="big" data-left="${p}">${money(left)}</div><small>quedan de ${money(b.balance)} · usado ${money(spent)}</small></div></div>
+    <div class="wfoot"><span>${est}</span><span>Desde ${esc(new Date(b.setAt).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' }))} · ${Usage.v[p].log.filter(x => x.t >= b.setAt).length} usos registrados</span></div>
+    <div class="wact">
+      <div class="wform"><input id="w-${p}-val" inputmode="decimal" placeholder="${left.toFixed(2)}" aria-label="Saldo real en dólares"><button class="btn sm" data-wset="${p}">Ajustar saldo</button></div>
+      <div class="wform"><input id="w-${p}-top" inputmode="decimal" placeholder="5" aria-label="Monto recargado"><button class="btn sm" data-wtop="${p}">Sumé recarga</button></div>
+    </div>
+    <a href="${isA ? 'https://platform.claude.com/settings/billing' : 'https://platform.openai.com/settings/organization/billing/overview'}" target="_blank" rel="noopener">Ver saldo real en la consola ↗</a>
+  </div>`;
 }
 
 /* =========================================================
@@ -1302,6 +1614,13 @@ async function loadDemo() {
   await saveMeeting({ id, createdAt: Date.now() - 86400000, date: today(), durationSec: 350, participants: ['Camila', 'Diego', 'Tú'], template: 'proyecto', context: 'Primera reunión para definir la app de reservas.', notes: '', notesLog: [{ t: 95, text: 'Preguntar costo exacto de WhatsApp Business' }], marks: [{ t: 140, label: 'Decisión WhatsApp' }], audioParts: [], speakers: {}, status: 'ready', words: wordCount(segs), analysis });
   go('m/' + id);
 }
+
+/* =========================================================
+   App-like touch behaviour: no pinch or double-tap zoom
+   ========================================================= */
+['gesturestart', 'gesturechange', 'gestureend'].forEach(ev => document.addEventListener(ev, e => e.preventDefault(), { passive: false }));
+document.addEventListener('touchmove', e => { if ((e.touches && e.touches.length > 1) || (e.scale && e.scale !== 1)) e.preventDefault(); }, { passive: false });
+document.addEventListener('dblclick', e => { if (!e.target.closest('input,textarea,[contenteditable]')) e.preventDefault(); }, { passive: false });
 
 /* =========================================================
    Boot
