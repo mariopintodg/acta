@@ -10,12 +10,12 @@
   "background_color": "#0E1016",
   "theme_color": "#0E1016",
   "icons": [
-    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "shortcuts": [
-    { "name": "Grabar reunión", "short_name": "Grabar", "url": "./#record", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
-    { "name": "Tareas pendientes", "short_name": "Tareas", "url": "./#tasks", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
+    { "name": "Grabar reunión", "short_name": "Grabar", "url": "./#record", "icons": [{ "src": "icon-192.png", "sizes": "192x192" }] },
+    { "name": "Tareas pendientes", "short_name": "Tareas", "url": "./#tasks", "icons": [{ "src": "icon-192.png", "sizes": "192x192" }] }
   ]
 }

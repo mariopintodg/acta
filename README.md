@@ -22,7 +22,7 @@ Es un sitio estático. Basta con servir esta carpeta por HTTPS (por ejemplo, Git
 ## Archivos
 
 - `index.html`: estructura y navegación.
-- `css/app.css`: sistema de diseño (tokens de color, tipografía, modo claro y oscuro).
-- `js/app.js`: grabadora, almacenamiento, transcripción, análisis y vistas.
+- `app.css`: sistema de diseño (tokens de color, tipografía, modo claro y oscuro).
+- `app.js`: grabadora, almacenamiento, transcripción, análisis y vistas.
 - `sw.js`: funcionamiento sin conexión.
-- `manifest.webmanifest` e `icons/`: instalación como app.
+- `manifest.webmanifest` y los íconos PNG: instalación como app.
