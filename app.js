@@ -337,10 +337,12 @@ ${notes ? `\nNotas del usuario durante la reunión:\n${notes}\n` : ''}${marks ? 
 Transcripción:
 ${transcriptText(m, segs)}
 
-Genera el acta llamando a la herramienta guardar_acta.`;
-  const r = await claude({ system, messages: [{ role: 'user', content: user }], tools: [{ name: 'guardar_acta', description: 'Guarda el acta estructurada de la reunión', input_schema: ANALYSIS_SCHEMA }], tool_choice: { type: 'tool', name: 'guardar_acta' }, max_tokens: 20000, onProgress });
-  if (!r.toolInput) throw { code: 'bad_json', message: 'Claude no devolvió el acta. Reintenta.' };
-  return normalize(r.toolInput, m.durationSec || segDuration(segs), m.titleHint);
+Genera el acta llamando a la herramienta guardar_acta una sola vez, con todos los campos completos. No escribas texto fuera de la herramienta.`;
+  const r = await claude({ system, messages: [{ role: 'user', content: user }], tools: [{ name: 'guardar_acta', description: 'Guarda el acta estructurada de la reunión', input_schema: ANALYSIS_SCHEMA }], tool_choice: { type: 'auto' }, max_tokens: 32000, onProgress });
+  let input = r.toolInput;
+  if (!input && r.text) { try { let t = r.text.trim().replace(/^```(?:json)?/i, '').replace(/```$/, ''); const a0 = t.indexOf('{'), b0 = t.lastIndexOf('}'); input = JSON.parse(t.slice(a0, b0 + 1)); } catch {} }
+  if (!input) throw { code: 'bad_json', message: r.stop === 'max_tokens' ? 'La reunión es muy larga para un solo análisis. Prueba con Claude Opus en Ajustes.' : 'Claude no devolvió el acta. Toca Reintentar.' };
+  return normalize(input, m.durationSec || segDuration(segs), m.titleHint);
 }
 function normalize(a, dur, titleHint) {
   const arr = v => Array.isArray(v) ? v : [];
@@ -395,7 +397,7 @@ async function processMeeting(id, { template } = {}) {
         if (!m.durationSec) m.durationSec = segDuration(segs);
       }
     }
-    m = await patchMeeting(id, { status: 'analyzing', error: null, words: wordCount(segs), durationSec: m.durationSec || segDuration(segs) }); render();
+    m = await patchMeeting(id, { status: 'analyzing', error: null, hasTranscript: true, words: wordCount(segs), durationSec: m.durationSec || segDuration(segs) }); render();
     setProgress(id, `Claude está leyendo ${nf(wordCount(segs))} palabras…`);
     const tpl = template || m.template || 'general';
     const analysis = await analyze(m, segs, tpl, n => setProgress(id, `Escribiendo el acta… ${nf(n)} caracteres`));
@@ -842,7 +844,7 @@ function renderProcessing(app, m) {
   const hasAudio = !!m.audioParts?.length;
   const steps = [];
   if (hasAudio) steps.push({ k: 'saved', t: 'Audio guardado en el dispositivo', d: `${fmtT(m.durationSec)} · ${fmtBytes(m.audioParts.reduce((a, p) => a + (p.size || 0), 0))}`, s: 'done' });
-  if (hasAudio) steps.push({ k: 'tr', t: Settings.v.sttModel === 'gpt-4o-transcribe-diarize' ? 'Transcribir e identificar hablantes' : 'Transcribir', d: '', s: st === 'transcribing' ? 'run' : (st === 'analyzing' ? 'done' : 'todo') });
+  if (hasAudio) steps.push({ k: 'tr', t: Settings.v.sttModel === 'gpt-4o-transcribe-diarize' ? 'Transcribir e identificar hablantes' : 'Transcribir', d: '', s: st === 'transcribing' ? 'run' : ((st === 'analyzing' || m.hasTranscript) ? 'done' : 'todo') });
   else steps.push({ k: 'tx', t: 'Transcripción recibida', d: '', s: 'done' });
   steps.push({ k: 'an', t: 'Crear el acta con Claude', d: '', s: st === 'analyzing' ? 'run' : 'todo' });
   if (st === 'error') { const fail = steps.find(s => s.s === 'todo' || s.s === 'run'); if (fail) fail.s = 'fail'; }
