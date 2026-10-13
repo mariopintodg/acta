@@ -61,7 +61,19 @@ const IC = {
   mind: '<circle cx="12" cy="12" r="3"/><circle cx="4.5" cy="5.5" r="2"/><circle cx="19.5" cy="5.5" r="2"/><circle cx="4.5" cy="18.5" r="2"/><circle cx="19.5" cy="18.5" r="2"/><path d="M9.8 10 6 7M14.2 10 18 7M9.8 14 6 17M14.2 14 18 17"/>',
   chat: '<path d="M4 5h16v11H9l-5 4V5Z"/>',
   image: '<rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/>',
-  report: '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 17v-3M12 17v-6M15 17v-2"/>'
+  report: '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 17v-3M12 17v-6M15 17v-2"/>',
+  camera: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+  scissors: '<circle cx="6" cy="6" r="2.6"/><circle cx="6" cy="18" r="2.6"/><path d="M8.2 7.6 20 18M8.2 16.4 20 6"/>',
+  folder: '<path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2.5h8.5A1.5 1.5 0 0 1 21 9v9.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  send: '<path d="M21 3 10 14M21 3l-7 18-4-7-7-4z"/>',
+  mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/>',
+  week: '<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4M7 14h2M11 14h2M15 14h2M7 17h2"/>',
+  wifioff: '<path d="M2 8.5a15 15 0 0 1 4-2.6M9.5 5.2A15 15 0 0 1 22 8.5M5 12a10 10 0 0 1 3.4-2M12.6 9.1A10 10 0 0 1 19 12M8.5 15.5a5 5 0 0 1 7 0M12 19h.01M3 3l18 18"/>',
+  face: '<path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2M9 9v1.5M15 9v1.5M12 9v4h-1M9.5 16a4 4 0 0 0 5 0"/>',
+  word: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M8.5 12l1.3 5 1.7-4 1.7 4 1.3-5"/>',
+  link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+  more: '<circle cx="5" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="19" cy="12" r="1.6" fill="currentColor"/>'
 };
 const icon = (k, sw = 1.8, size) => `<svg viewBox="0 0 24 24"${size ? ` width="${size}" height="${size}"` : ''} fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k] || IC.spark}</svg>`;
 const TOPIC_COLORS = ['var(--t1)', 'var(--t2)', 'var(--t3)', 'var(--t4)', 'var(--t5)', 'var(--t6)'];
@@ -72,8 +84,17 @@ const TEMPLATES = {
   proyecto: { name: 'Proyecto / kickoff', desc: 'Alcance, requisitos, plazos y responsables', focus: 'Enfócate en alcance, requisitos, entregables, plazos, presupuesto, responsables y dependencias. El brief debe servir para arrancar el proyecto.' },
   cliente: { name: 'Cliente / venta', desc: 'Necesidades, objeciones, presupuesto y cierre', focus: 'Enfócate en necesidades y dolores del cliente, presupuesto, objeciones, criterios de decisión, competencia y próximo paso comercial.' },
   ideas: { name: 'Lluvia de ideas', desc: 'Ideas agrupadas, las más prometedoras primero', focus: 'Enfócate en capturar TODAS las ideas, agruparlas por tema y destacar las más prometedoras y por qué.' },
-  uno: { name: '1:1 / seguimiento', desc: 'Avances, bloqueos y compromisos', focus: 'Enfócate en avances desde la última vez, bloqueos, feedback dado y compromisos de cada persona.' }
+  uno: { name: '1:1 / seguimiento', desc: 'Avances, bloqueos y compromisos', focus: 'Enfócate en avances desde la última vez, bloqueos, feedback dado y compromisos de cada persona.' },
+  obra: { group: 'rubro', name: 'Obra / construcción', desc: 'Avance, materiales, plazos y seguridad', focus: 'Es una reunión de obra o construcción en Chile. Enfócate en el avance por partida, atrasos y sus causas, materiales y cubicaciones, subcontratos, permisos (DOM), seguridad y prevención de riesgos, estados de pago y plazos comprometidos.', ficha: ['Obra o proyecto', 'Avance informado', 'Partidas atrasadas', 'Materiales por pedir', 'Estado de pago', 'Seguridad', 'Próxima visita'] },
+  propiedades: { group: 'rubro', name: 'Corretaje / propiedades', desc: 'Propiedad, precio en UF, condiciones', focus: 'Es una reunión de corretaje o venta/arriendo de propiedades en Chile. Enfócate en la propiedad, precio (UF o pesos), gastos comunes, condiciones de pago, crédito hipotecario, documentos pedidos, objeciones del cliente y próxima visita o firma.', ficha: ['Propiedad', 'Operación', 'Precio', 'Gastos comunes', 'Financiamiento', 'Documentos pendientes', 'Próximo paso'] },
+  pyme: { group: 'rubro', name: 'Pyme / proveedor', desc: 'Precios, entregas, pago y factura', focus: 'Es una reunión comercial de una pyme chilena con un proveedor o cliente. Enfócate en productos o servicios, precios netos o con IVA, volúmenes, plazos de entrega, condiciones de pago (contado, 30, 60 días), factura y despacho.', ficha: ['Contraparte', 'Producto o servicio', 'Precio acordado', 'Volumen', 'Plazo de entrega', 'Condición de pago', 'Facturación'] },
+  salud: { group: 'rubro', name: 'Consulta / atención', desc: 'Motivo, indicaciones y controles', focus: 'Es una atención profesional (salud, kinesiología, nutrición, psicología u otra). Enfócate en el motivo de consulta, lo evaluado, las indicaciones dadas, los exámenes o documentos pedidos y la fecha de control. No agregues diagnósticos que no se dijeron.', ficha: ['Motivo de consulta', 'Indicaciones', 'Exámenes o documentos', 'Próximo control', 'Alertas a vigilar'] },
+  legal: { group: 'rubro', name: 'Abogado / asesoría', desc: 'Hechos, plazos y documentos', focus: 'Es una asesoría legal, contable o tributaria en Chile. Enfócate en los hechos relatados, la estrategia propuesta, plazos legales o del SII, documentos requeridos, honorarios y próximos trámites. No inventes normas.', ficha: ['Materia', 'Hechos principales', 'Estrategia', 'Plazos clave', 'Documentos requeridos', 'Honorarios'] },
+  apoderados: { group: 'rubro', name: 'Reunión de apoderados', desc: 'Acuerdos de curso, cuotas y fechas', focus: 'Es una reunión de apoderados de un colegio en Chile. Enfócate en acuerdos del curso, cuotas y montos, actividades y fechas, información del colegio o profesor jefe y quién se encarga de qué.', ficha: ['Curso', 'Acuerdos', 'Cuotas y montos', 'Fechas importantes', 'Encargados'] },
+  comunidad: { group: 'rubro', name: 'Condominio / junta de vecinos', desc: 'Votaciones, gastos comunes y acuerdos', focus: 'Es una asamblea de condominio, comité o junta de vecinos en Chile. Enfócate en los acuerdos y votaciones (a favor, en contra), quórum si se mencionó, gastos comunes, mantenciones, cotizaciones y reclamos.', ficha: ['Comunidad', 'Asistentes o quórum', 'Acuerdos votados', 'Gastos comunes', 'Cotizaciones', 'Próxima asamblea'] },
+  equipo: { group: 'rubro', name: 'Equipo semanal', desc: 'Estado por persona y bloqueos', focus: 'Es la reunión semanal de un equipo de trabajo. Enfócate en el estado de cada persona o área, metas de la semana, bloqueos, ayudas pedidas y compromisos con fecha.', ficha: ['Metas de la semana', 'Bloqueos', 'Ayuda pedida', 'Indicadores mencionados'] }
 };
+const tplOptions = sel => `<optgroup label="General">${Object.entries(TEMPLATES).filter(([, t]) => !t.group).map(([k, t]) => `<option value="${k}" ${sel === k ? 'selected' : ''}>${t.name}</option>`).join('')}</optgroup><optgroup label="Por rubro">${Object.entries(TEMPLATES).filter(([, t]) => t.group).map(([k, t]) => `<option value="${k}" ${sel === k ? 'selected' : ''}>${t.name}</option>`).join('')}</optgroup>`;
 const KP_ICONS = ['target', 'money', 'people', 'time', 'tech', 'design', 'legal', 'growth', 'idea', 'risk'];
 const CLAUDE_MODELS = [['claude-sonnet-5-5', 'Claude Sonnet 5.5 — recomendado'], ['claude-opus-5-5', 'Claude Opus 5.5 — máximo detalle'], ['claude-haiku-5-5', 'Claude Haiku 5.5 — más rápido y económico']];
 const STT_MODELS = [['gpt-4o-transcribe-diarize', 'Con hablantes (recomendado)'], ['whisper-1', 'Whisper — con marcas de tiempo, sin hablantes'], ['gpt-4o-transcribe', 'Solo texto']];
@@ -83,7 +104,8 @@ const PART_SEC = 55 * 60;
 /* =========================================================
    Settings (localStorage — only this device)
    ========================================================= */
-const DEFAULTS = { anthropicKey: '', openaiKey: '', claudeModel: 'claude-sonnet-5-5', sttModel: 'gpt-4o-transcribe-diarize', language: 'es', theme: 'system', captions: false, bitrate: 32000, followAudio: true };
+const DEFAULTS = { anthropicKey: '', openaiKey: '', claudeModel: 'claude-sonnet-5-5', sttModel: 'gpt-4o-transcribe-diarize', language: 'es', theme: 'system', captions: false, bitrate: 32000, followAudio: true, vocab: '', lockOn: false, lockCred: '', lockPin: '', lockSalt: '', lockAfter: 60 };
+const vocabList = () => String(Settings.v.vocab || '').split(/[\n,;]+/).map(x => x.trim()).filter(Boolean).slice(0, 120);
 const Settings = {
   v: { ...DEFAULTS },
   load() { try { Object.assign(this.v, JSON.parse(localStorage.getItem('acta:settings') || '{}')); } catch {} return this; },
@@ -100,14 +122,15 @@ const DB = {
   open() {
     if (this._p) return this._p;
     this._p = new Promise((res, rej) => {
-      const r = indexedDB.open('acta', 1);
+      const r = indexedDB.open('acta', 2);
       r.onupgradeneeded = () => {
-        const d = r.result;
-        d.createObjectStore('meetings', { keyPath: 'id' });
-        d.createObjectStore('transcripts');
-        d.createObjectStore('audio');
-        const c = d.createObjectStore('chunks', { autoIncrement: true }); c.createIndex('rec', 'recId');
-        d.createObjectStore('kv');
+        const d = r.result; const has = n => d.objectStoreNames.contains(n);
+        if (!has('meetings')) d.createObjectStore('meetings', { keyPath: 'id' });
+        if (!has('transcripts')) d.createObjectStore('transcripts');
+        if (!has('audio')) d.createObjectStore('audio');
+        if (!has('chunks')) { const c = d.createObjectStore('chunks', { autoIncrement: true }); c.createIndex('rec', 'recId'); }
+        if (!has('kv')) d.createObjectStore('kv');
+        if (!has('photos')) d.createObjectStore('photos');
       };
       r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
     });
@@ -119,19 +142,21 @@ const DB = {
   },
   req(r) { return new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
   get(store, key) { return this.tx(store, 'readonly', st => this.req(st.get(key))); },
-  put(store, val, key) { return this.tx(store, 'readwrite', st => this.req(key === undefined ? st.put(val) : st.put(val, key))); },
+  put(store, val, key) { if (store === 'transcripts' && typeof S !== 'undefined') S.txIndex = null; return this.tx(store, 'readwrite', st => this.req(key === undefined ? st.put(val) : st.put(val, key))); },
   del(store, key) { return this.tx(store, 'readwrite', st => this.req(st.delete(key))); },
   all(store) { return this.tx(store, 'readonly', st => this.req(st.getAll())); },
   keys(store) { return this.tx(store, 'readonly', st => this.req(st.getAllKeys())); },
   async chunksFor(recId) { return this.tx('chunks', 'readonly', st => this.req(st.index('rec').getAll(recId))); },
   async delChunks(recId) { const d = await this.open(); return new Promise((res, rej) => { const t = d.transaction('chunks', 'readwrite'); const idx = t.objectStore('chunks').index('rec'); const c = idx.openKeyCursor(IDBKeyRange.only(recId)); c.onsuccess = () => { const cur = c.result; if (cur) { t.objectStore('chunks').delete(cur.primaryKey); cur.continue(); } }; t.oncomplete = res; t.onerror = () => rej(t.error); }); },
-  async clearAll() { for (const s of ['meetings', 'transcripts', 'audio', 'chunks', 'kv']) await this.tx(s, 'readwrite', st => this.req(st.clear())); }
+  async clearAll() { for (const s of ['meetings', 'transcripts', 'audio', 'chunks', 'kv', 'photos']) await this.tx(s, 'readwrite', st => this.req(st.clear())); }
 };
 
 /* =========================================================
    App state
    ========================================================= */
-const S = { meetings: [], loaded: false, route: { view: 'library' }, q: '', trq: '', chats: {}, progress: {}, running: new Set(), recovery: null, taskFilter: 'pending', ownerFilter: '' };
+const S = { meetings: [], loaded: false, route: { view: 'library' }, q: '', trq: '', chats: {}, progress: {}, running: new Set(), recovery: null, taskFilter: 'pending', ownerFilter: '', txIndex: null, weekOff: 0 };
+const projectsList = () => [...new Set(S.meetings.map(m => (m.project || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
+const fold = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 const meetingById = id => S.meetings.find(m => m.id === id);
 async function loadMeetings() { S.meetings = (await DB.all('meetings')).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); S.loaded = true; }
 async function saveMeeting(m) { await DB.put('meetings', m); const i = S.meetings.findIndex(x => x.id === m.id); if (i >= 0) S.meetings[i] = m; else { S.meetings.unshift(m); S.meetings.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)); } return m; }
@@ -141,6 +166,7 @@ async function deleteMeeting(id) {
   const m = meetingById(id);
   await DB.del('meetings', id); await DB.del('transcripts', id).catch(() => {});
   for (const p of (m?.audioParts || [])) await DB.del('audio', p.key).catch(() => {});
+  for (const p of (m?.photos || [])) await DB.del('photos', p.key).catch(() => {});
   S.meetings = S.meetings.filter(x => x.id !== id); Player.unload(id);
 }
 
@@ -226,6 +252,8 @@ async function openaiTranscribe(blob, offset, partNo, onStatus) {
     if (model === 'gpt-4o-transcribe-diarize') { fd.append('response_format', 'diarized_json'); fd.append('chunking_strategy', 'auto'); }
     else if (model === 'whisper-1') { fd.append('response_format', 'verbose_json'); fd.append('timestamp_granularities[]', 'segment'); }
     else fd.append('response_format', 'json');
+    const vocab = vocabList();
+    if (vocab.length && model !== 'gpt-4o-transcribe-diarize') fd.append('prompt', 'Vocabulario: ' + vocab.join(', ') + '.');
     if (withLang && Settings.v.language && Settings.v.language !== 'auto') fd.append('language', Settings.v.language);
     return fd;
   };
@@ -315,7 +343,12 @@ const ANALYSIS_SCHEMA = {
     keyPoints: { type: 'array', items: { type: 'object', properties: { title: { type: 'string' }, detail: { type: 'string' }, icon: { type: 'string', enum: KP_ICONS } }, required: ['title', 'detail', 'icon'] } },
     topics: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, start: { type: 'number' }, end: { type: 'number' }, summary: { type: 'string' } }, required: ['name', 'start', 'end', 'summary'] } },
     decisions: { type: 'array', items: { type: 'object', properties: { text: { type: 'string' }, why: { type: 'string' } }, required: ['text'] } },
-    actions: { type: 'array', items: { type: 'object', properties: { task: { type: 'string' }, owner: { type: 'string' }, due: { type: 'string' }, priority: { type: 'string', enum: ['alta', 'media', 'baja'] } }, required: ['task', 'owner', 'priority'] } },
+    actions: { type: 'array', items: { type: 'object', properties: { task: { type: 'string' }, owner: { type: 'string' }, due: { type: 'string', description: 'Plazo tal como se dijo' }, dueDate: { type: 'string', description: 'Fecha del plazo en formato AAAA-MM-DD calculada desde la fecha de la reunión; vacío si no se dijo plazo' }, priority: { type: 'string', enum: ['alta', 'media', 'baja'] } }, required: ['task', 'owner', 'priority'] } },
+    ficha: { type: 'array', description: 'Ficha del rubro: un valor por cada campo pedido, solo con lo que se dijo; si un campo no se mencionó, value = "No se mencionó"', items: { type: 'object', properties: { label: { type: 'string' }, value: { type: 'string' } }, required: ['label', 'value'] } },
+    followUp: { type: 'object', description: 'Mensaje de seguimiento listo para enviar a los participantes, escrito en primera persona por quien grabó', properties: { whatsapp: { type: 'string', description: 'Versión corta para WhatsApp: saludo, 3 a 6 líneas con acuerdos y tareas con responsable y plazo, cierre cordial. Puede usar *negritas* de WhatsApp. Sin emojis excesivos.' }, emailSubject: { type: 'string' }, emailBody: { type: 'string', description: 'Correo formal y breve: saludo, resumen, acuerdos, tareas con responsable y plazo, próxima reunión si se mencionó, despedida. Texto plano.' } }, required: ['whatsapp', 'emailSubject', 'emailBody'] },
+    corrections: { type: 'array', description: 'Palabras que la transcripción escribió mal y que corresponden al vocabulario del usuario o a nombres claros por contexto', items: { type: 'object', properties: { wrong: { type: 'string' }, right: { type: 'string' } }, required: ['wrong', 'right'] } },
+    previousTasks: { type: 'array', description: 'Solo si se entregaron tareas pendientes de reuniones anteriores del proyecto: el estado de cada una según lo conversado hoy', items: { type: 'object', properties: { ref: { type: 'string' }, status: { type: 'string', enum: ['hecha', 'en curso', 'sin novedad'] }, note: { type: 'string' } }, required: ['ref', 'status'] } },
+    continuity: { type: 'string', description: 'Solo si hay reuniones anteriores del proyecto: 1-3 frases sobre qué avanzó, qué cambió y qué sigue trabado respecto a la vez anterior' },
     ideas: { type: 'array', items: { type: 'object', properties: { text: { type: 'string' }, note: { type: 'string' } }, required: ['text'] } },
     risks: { type: 'array', items: { type: 'object', properties: { text: { type: 'string' }, severity: { type: 'string', enum: ['alta', 'media', 'baja'] } }, required: ['text', 'severity'] } },
     questions: { type: 'array', items: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] } },
@@ -325,15 +358,18 @@ const ANALYSIS_SCHEMA = {
     nextSteps: { type: 'array', items: { type: 'string' } },
     brief: { type: 'string', description: 'Documento Markdown (# título, ## secciones, listas con -) que sirva de materia prima para arrancar o continuar el proyecto: Contexto, Objetivo, Alcance, Requisitos y detalles, Decisiones tomadas, Pendientes y preguntas, Plan inicial. Concreto, sin relleno.' }
   },
-  required: ['title', 'tldr', 'mood', 'tags', 'speakers', 'participants', 'keyPoints', 'topics', 'decisions', 'actions', 'ideas', 'risks', 'questions', 'numbers', 'quotes', 'mindmap', 'nextSteps', 'brief']
+  required: ['title', 'tldr', 'mood', 'tags', 'speakers', 'participants', 'keyPoints', 'topics', 'decisions', 'actions', 'ideas', 'risks', 'questions', 'numbers', 'quotes', 'mindmap', 'nextSteps', 'brief', 'followUp']
 };
 const transcriptText = (m, segs) => segs.map(x => `[${fmtT(x.t)}] ${x.s ? (m?.speakers?.[x.s] ? `${m.speakers[x.s]} (${x.s})` : x.s) + ': ' : ''}${x.text}`).join('\n');
 async function analyze(m, segs, template, onProgress) {
   const tpl = TEMPLATES[template] || TEMPLATES.general;
   const labels = speakerLabels(segs);
   const notes = [m.notes, ...(m.notesLog || []).map(n => `[${fmtT(n.t)}] ${n.text}`)].filter(Boolean).join('\n');
-  const marks = (m.marks || []).map(k => `[${fmtT(k.t)}] ${k.label || 'Momento marcado'}`).join('\n');
-  const system = `Eres un analista de reuniones de primer nivel. Produces actas visuales precisas y útiles para trabajar.
+  const marks = [...(m.marks || []).map(k => `[${fmtT(k.t)}] ${k.label || 'Momento marcado'}`), ...(m.photos || []).filter(p => p.t != null).map(p => `[${fmtT(p.t)}] El usuario tomó una foto (pizarra, documento o lámina)`)].join('\n');
+  const vocab = vocabList();
+  const prevCtx = projectContext(m);
+  const wd = (() => { try { return new Date(m.date + 'T12:00:00').toLocaleDateString('es-CL', { weekday: 'long' }); } catch { return ''; } })();
+  const system =`Eres un analista de reuniones de primer nivel. Produces actas visuales precisas y útiles para trabajar.
 Reglas:
 - Escribe en español de Chile, claro y profesional.
 - No inventes nada: usa solo lo que se dijo. Si una sección no aplica, devuelve un arreglo vacío.
@@ -344,14 +380,19 @@ Reglas:
 - Tareas: empieza con verbo; owner es la persona responsable si se dijo, si no "Sin asignar"; due solo si se mencionó un plazo.
 - quotes: frases textuales cortas y memorables.
 - speakers: ${labels.length ? `etiquetas presentes: ${labels.join(', ')}. Deduce el nombre de cada una solo si es claro (alguien la nombra, se presenta o coincide con un participante); si no, deja name vacío. Las etiquetas con sufijo ·2, ·3… vienen de partes posteriores de la misma reunión (la grabación se reanudó): si por el contexto son la misma persona que otra etiqueta, dales el mismo nombre; si no se puede saber, usa "Persona A", "Persona B" coherentes entre partes.` : 'no hay etiquetas de hablante; devuelve un arreglo vacío.'}
-- Enfoque de esta reunión: ${tpl.focus}`;
+- Tareas con plazo: además de due (como se dijo), calcula dueDate en AAAA-MM-DD desde la fecha de la reunión (por ejemplo "el viernes" = el próximo viernes).
+- followUp: mensaje para enviar después de la reunión, con los acuerdos y tareas reales; no inventes fechas ni nombres.
+- Enfoque de esta reunión: ${tpl.focus}
+- ficha: ${tpl.ficha ? `completa estos campos en este orden: ${tpl.ficha.join(' · ')}.` : 'devuelve un arreglo vacío.'}
+${vocab.length ? `- Vocabulario del usuario (así se escriben estos nombres, marcas y términos): ${vocab.join(', ')}. Escríbelos así en el acta y agrega a corrections cada palabra que la transcripción escribió mal (solo si estás seguro).` : '- corrections: solo nombres propios claramente mal escritos; si no hay, arreglo vacío.'}
+${prevCtx ? '- Esta reunión continúa un proyecto con reuniones anteriores (ver abajo). Llena continuity y, para cada tarea pendiente entregada, previousTasks con su ref y su estado según lo conversado hoy. No repitas en actions una tarea anterior salvo que se haya reasignado o cambiado.' : '- previousTasks: arreglo vacío. continuity: vacío.'}`;
   const user = `Datos de la reunión
 - Título provisional: ${m.titleHint || '(sin título, propón uno)'}
-- Fecha: ${m.date}
+- Fecha: ${m.date}${wd ? ` (${wd})` : ''}${m.project ? `\n- Proyecto: ${m.project}` : ''}
 - Duración: ${fmtT(m.durationSec)}
 - Participantes declarados: ${(m.participants || []).join(', ') || '(no indicados)'}
 - Contexto: ${m.context || '(no indicado)'}
-${notes ? `\nNotas del usuario durante la reunión:\n${notes}\n` : ''}${marks ? `\nMomentos que el usuario marcó como importantes:\n${marks}\n` : ''}
+${notes ? `\nNotas del usuario durante la reunión:\n${notes}\n` : ''}${marks ? `\nMomentos que el usuario marcó como importantes:\n${marks}\n` : ''}${prevCtx ? `\n${prevCtx}\n` : ''}
 Transcripción:
 ${transcriptText(m, segs)}
 
@@ -361,6 +402,18 @@ Genera el acta llamando a la herramienta guardar_acta una sola vez, con todos lo
   if (!input && r.text) { try { let t = r.text.trim().replace(/^```(?:json)?/i, '').replace(/```$/, ''); const a0 = t.indexOf('{'), b0 = t.lastIndexOf('}'); input = JSON.parse(t.slice(a0, b0 + 1)); } catch {} }
   if (!input) throw { code: 'bad_json', message: r.stop === 'max_tokens' ? 'La reunión es muy larga para un solo análisis. Prueba con Claude Opus en Ajustes.' : 'Claude no devolvió el acta. Toca Reintentar.' };
   return normalize(input, m.durationSec || segDuration(segs), m.titleHint);
+}
+/* Earlier meetings of the same project, sent as short context (summaries only, never transcripts) */
+function projectMeetings(project, exceptId) { const p = fold(project).trim(); if (!p) return []; return S.meetings.filter(x => x.id !== exceptId && fold(x.project).trim() === p).sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.createdAt || 0) - (b.createdAt || 0)); }
+function projectContext(m) {
+  if (!m.project) return '';
+  const before = projectMeetings(m.project, m.id).filter(x => x.analysis && ((x.date || '') < (m.date || '') || ((x.date || '') === (m.date || '') && (x.createdAt || 0) < (m.createdAt || 0))));
+  if (!before.length) return '';
+  const L = [`Reuniones anteriores del proyecto "${m.project}" (resumen, de la más antigua a la más reciente):`];
+  before.slice(-3).forEach(x => { const a = x.analysis; L.push(`• ${x.date} — ${a.title}: ${a.tldr}`); (a.decisions || []).slice(0, 6).forEach(d => L.push(`   - Decisión: ${d.text}`)); });
+  const pend = []; before.forEach(x => (x.analysis.actions || []).forEach((t, i) => { if (!t.done) pend.push(`   ref ${x.id}|${i}: ${t.task} — ${t.owner}${t.due ? ' · ' + t.due : ''} (de ${x.date})`); }));
+  if (pend.length) { L.push('Tareas pendientes de esas reuniones:'); L.push(...pend.slice(-25)); }
+  return L.join('\n');
 }
 function normalize(a, dur, titleHint) {
   const arr = v => Array.isArray(v) ? v : [];
@@ -372,7 +425,12 @@ function normalize(a, dur, titleHint) {
     keyPoints: arr(a.keyPoints).slice(0, 6).map(k => ({ title: k.title || '', detail: k.detail || '', icon: KP_ICONS.includes(k.icon) ? k.icon : 'target' })),
     topics: arr(a.topics).map(t => ({ name: t.name || '', start: Math.max(0, +t.start || 0), end: +t.end || 0, summary: t.summary || '' })).filter(t => t.name),
     decisions: arr(a.decisions).map(d => ({ text: d.text || String(d), why: d.why || '' })),
-    actions: arr(a.actions).map(x => ({ id: uid(), task: x.task || String(x), owner: x.owner || 'Sin asignar', due: x.due || '', priority: ['alta', 'media', 'baja'].includes(x.priority) ? x.priority : 'media', done: false })),
+    ficha: arr(a.ficha).filter(x => x && x.label).map(x => ({ label: String(x.label), value: String(x.value ?? '') })),
+    followUp: a.followUp && typeof a.followUp === 'object' ? { whatsapp: a.followUp.whatsapp || '', emailSubject: a.followUp.emailSubject || '', emailBody: a.followUp.emailBody || '' } : null,
+    corrections: arr(a.corrections).filter(x => x && x.wrong && x.right && x.wrong !== x.right).slice(0, 40).map(x => ({ wrong: String(x.wrong), right: String(x.right) })),
+    previousTasks: arr(a.previousTasks).filter(x => x && x.ref).map(x => ({ ref: String(x.ref), status: ['hecha', 'en curso', 'sin novedad'].includes(x.status) ? x.status : 'sin novedad', note: x.note || '' })),
+    continuity: a.continuity || '',
+    actions: arr(a.actions).map(x => ({ id: uid(), task: x.task || String(x), owner: x.owner || 'Sin asignar', due: x.due || '', dueDate: /^\d{4}-\d{2}-\d{2}$/.test(x.dueDate || '') ? x.dueDate : '', priority: ['alta', 'media', 'baja'].includes(x.priority) ? x.priority : 'media', done: false })),
     ideas: arr(a.ideas).map(x => ({ text: x.text || String(x), note: x.note || '' })),
     risks: arr(a.risks).map(x => ({ text: x.text || String(x), severity: ['alta', 'media', 'baja'].includes(x.severity) ? x.severity : 'media' })),
     questions: arr(a.questions).map(x => ({ text: x.text || String(x) })),
@@ -393,6 +451,7 @@ function setProgress(id, text) { S.progress[id] = text; const el = $('#proc-deta
 async function processMeeting(id, { template } = {}) {
   if (S.running.has(id)) return; S.running.add(id);
   let m = meetingById(id) || await DB.get('meetings', id);
+  if (!navigator.onLine) { await patchMeeting(id, { status: 'waiting', error: null, template: template || m.template }); S.running.delete(id); render(); return; }
   try {
     let segs = await getSegments(id);
     if (!segs.length) {
@@ -423,20 +482,38 @@ async function processMeeting(id, { template } = {}) {
     analysis.speakers.forEach(sp => { if (sp.name && !m.speakersEdited?.[sp.label]) speakers[sp.label] = sp.name; });
     const prev = m.analysis?.actions || [];
     analysis.actions.forEach(a => { const old = prev.find(p => p.task === a.task); if (old) a.done = old.done; });
+    if (analysis.corrections.length) { const fixed = applyCorrections(segs, analysis.corrections); if (fixed) await DB.put('transcripts', { segments: segs }, id); }
+    let closed = 0;
+    for (const pt of analysis.previousTasks) {
+      if (pt.status !== 'hecha') continue; const [mid, i] = pt.ref.split('|'); const pm = meetingById(mid); const t = pm?.analysis?.actions?.[+i];
+      if (t && !t.done) { t.done = true; t.closedBy = id; await saveMeeting(pm); closed++; }
+    }
     await patchMeeting(id, { status: 'ready', error: null, analysis, template: tpl, speakers, analyzedAt: Date.now() });
-    if (S.route.view === 'meeting' && S.route.id === id) toast('Acta lista');
+    if (S.route.view === 'meeting' && S.route.id === id) toast(closed ? `Acta lista · ${closed} ${closed === 1 ? 'tarea anterior marcada' : 'tareas anteriores marcadas'} como hecha${closed === 1 ? '' : 's'}` : 'Acta lista', 4200);
   } catch (e) {
     console.error(e);
-    await patchMeeting(id, { status: 'error', error: { code: e.code || 'error', message: e.message || 'No se pudo completar el proceso.' } });
+    if (e.code === 'network' || !navigator.onLine) await patchMeeting(id, { status: 'waiting', error: null });
+    else await patchMeeting(id, { status: 'error', error: { code: e.code || 'error', message: e.message || 'No se pudo completar el proceso.' } });
   } finally { S.running.delete(id); delete S.progress[id]; render(); }
 }
+
+function applyCorrections(segs, corr) {
+  let n = 0;
+  const rules = corr.map(c => ({ rx: new RegExp('(^|[^\\p{L}\\p{N}])(' + c.wrong.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')(?=$|[^\\p{L}\\p{N}])', 'giu'), right: c.right }));
+  segs.forEach(x => rules.forEach(r => { const before = x.text; x.text = x.text.replace(r.rx, (_, pre) => pre + r.right); if (x.text !== before) n++; }));
+  return n;
+}
+/* Offline: meetings wait for the connection and process themselves when it returns */
+function processWaiting() { if (!navigator.onLine) return; for (const m of S.meetings) if (['waiting', 'queued'].includes(m.status) && !S.running.has(m.id)) processMeeting(m.id); }
+window.addEventListener('online', () => { document.body.classList.remove('offline'); const w = S.meetings.filter(m => m.status === 'waiting').length; if (w) toast(`Volvió internet: procesando ${w} ${w === 1 ? 'reunión' : 'reuniones'}`); processWaiting(); });
+window.addEventListener('offline', () => { document.body.classList.add('offline'); render(); });
 
 /* =========================================================
    Recorder
    ========================================================= */
 const Rec = {
   state: 'idle', stream: null, mr: null, ctx: null, analyser: null, mime: '', recId: null,
-  activeMs: 0, lastStart: 0, part: 0, partStartSec: 0, seq: 0, parts: [], marks: [], notesLog: [], live: [], wake: null, raf: 0, tick: 0, sr: null, interim: '',
+  activeMs: 0, lastStart: 0, part: 0, partStartSec: 0, seq: 0, parts: [], marks: [], notesLog: [], live: [], photos: [], capturing: false, wake: null, raf: 0, tick: 0, sr: null, interim: '',
   isIOS: /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1),
   elapsed() { return this.activeMs + (this.state === 'recording' ? performance.now() - this.lastStart : 0); },
   pickMime() { const c = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4;codecs=mp4a.40.2', 'audio/mp4', 'audio/aac']; for (const t of c) if (window.MediaRecorder && MediaRecorder.isTypeSupported?.(t)) return t; return ''; },
@@ -444,7 +521,7 @@ const Rec = {
     if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) throw { message: 'Este navegador no permite grabar audio. Usa Chrome (Android) o Safari (iPhone) actualizados.' };
     try { this.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } }); }
     catch (e) { throw { message: e.name === 'NotAllowedError' ? 'Acta necesita permiso para usar el micrófono. Actívalo en los permisos del sitio y vuelve a intentarlo.' : 'No se pudo acceder al micrófono: ' + e.message }; }
-    this.mime = this.pickMime(); this.recId = uid(); this.startedAt = Date.now(); this.pending = new Set(); this.activeMs = 0; this.part = 0; this.seq = 0; this.parts = [{ part: 0, offset: 0 }]; this.marks = []; this.notesLog = []; this.live = []; this.meta = meta;
+    this.mime = this.pickMime(); this.recId = uid(); this.startedAt = Date.now(); this.pending = new Set(); this.activeMs = 0; this.part = 0; this.seq = 0; this.parts = [{ part: 0, offset: 0 }]; this.marks = []; this.notesLog = []; this.live = []; this.photos = []; this.meta = meta;
     this.attachAnalyser(); this.watchTracks();
     this.startPart(0);
     this.state = 'recording'; this.lastStart = performance.now();
@@ -461,7 +538,7 @@ const Rec = {
   },
   attachAnalyser() { try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); const src = this.ctx.createMediaStreamSource(this.stream); this.analyser = this.ctx.createAnalyser(); this.analyser.fftSize = 1024; this.analyser.smoothingTimeConstant = .7; src.connect(this.analyser); } catch {} },
   watchTracks() { this.stream?.getAudioTracks().forEach(t => t.addEventListener('ended', () => { if (this.state === 'recording' && this.stream && this.stream.getAudioTracks().includes(t)) this.interrupt('El micrófono se detuvo'); })); },
-  onHide: e => { const hidden = document.visibilityState === 'hidden' || (e && e.type === 'pagehide'); if (hidden && Rec.state === 'recording' && Rec.isIOS) Rec.interrupt('Pantalla bloqueada o app en segundo plano'); },
+  onHide: e => { const hidden = document.visibilityState === 'hidden' || (e && e.type === 'pagehide'); if (hidden && Rec.state === 'recording' && Rec.isIOS && !Rec.capturing) Rec.interrupt('Pantalla bloqueada o app en segundo plano'); },
   interrupt(reason) {
     if (this.state !== 'recording') return;
     this.activeMs = this.elapsed(); this.state = 'interrupted';
@@ -492,7 +569,7 @@ const Rec = {
   resume() { if (this.state !== 'paused') return; this.lastStart = performance.now(); this.state = 'recording'; try { this.mr.resume(); } catch {} },
   addMark(label) { const t = Math.round(this.elapsed() / 1000); this.marks.push({ t, label: label || '' }); this.saveActive(); return t; },
   addNote(text) { const t = Math.round(this.elapsed() / 1000); this.notesLog.push({ t, text }); this.saveActive(); return t; },
-  saveActive() { if (!this.recId) return; DB.put('kv', { recId: this.recId, mime: this.mime, startedAt: this.startedAt || (this.startedAt = Date.now()), elapsed: Math.round(this.elapsed() / 1000), parts: this.parts, marks: this.marks, notesLog: this.notesLog, live: this.live, meta: this.meta }, 'activeRec').catch(() => {}); },
+  saveActive() { if (!this.recId) return; DB.put('kv', { recId: this.recId, mime: this.mime, startedAt: this.startedAt || (this.startedAt = Date.now()), elapsed: Math.round(this.elapsed() / 1000), parts: this.parts, marks: this.marks, notesLog: this.notesLog, live: this.live, photos: this.photos, meta: this.meta }, 'activeRec').catch(() => {}); },
   async stop() {
     if (this.state === 'idle') return null;
     const dur = Math.round(this.elapsed() / 1000);
@@ -500,7 +577,7 @@ const Rec = {
     await new Promise(res => { const mr = this.mr; if (!mr || mr.state === 'inactive') return res(); mr.addEventListener('stop', () => setTimeout(res, 120), { once: true }); try { mr.stop(); } catch { res(); } });
     await Promise.all([...this.pending]);
     this.cleanup();
-    const info = { recId: this.recId, mime: this.mime, parts: this.parts, marks: this.marks, notesLog: this.notesLog, live: this.live, meta: this.meta, durationSec: dur };
+    const info = { recId: this.recId, mime: this.mime, parts: this.parts, marks: this.marks, notesLog: this.notesLog, live: this.live, photos: this.photos, meta: this.meta, durationSec: dur };
     this.state = 'idle'; this.recId = null;
     return info;
   },
@@ -543,7 +620,7 @@ async function finishRecording(info, extra = {}) {
   const parts = await assembleRecording(info);
   const meta = info.meta || {};
   const live = info.live?.length ? mergeSegments(info.live) : [];
-  const m = { id, createdAt: Date.now(), date: today(), durationSec: info.durationSec || info.elapsed || 0, titleHint: meta.title || '', participants: meta.participants || [], template: meta.template || 'general', context: meta.context || '', notes: '', notesLog: info.notesLog || [], marks: info.marks || [], audioParts: parts, liveSegments: live, speakers: {}, status: parts.length ? 'queued' : 'error', source: 'record', ...extra };
+  const m = { id, createdAt: Date.now(), date: today(), durationSec: info.durationSec || info.elapsed || 0, titleHint: meta.title || '', participants: meta.participants || [], template: meta.template || 'general', context: meta.context || '', project: meta.project || '', notes: '', notesLog: info.notesLog || [], marks: info.marks || [], photos: info.photos || [], audioParts: parts, liveSegments: live, speakers: {}, status: parts.length ? 'queued' : 'error', source: 'record', ...extra };
   if (!parts.length) m.error = { code: 'no_audio', message: 'No se guardó audio de esta grabación.' };
   await saveMeeting(m);
   await DB.delChunks(info.recId); await DB.del('kv', 'activeRec');
@@ -580,22 +657,23 @@ const Player = {
    Router
    ========================================================= */
 function parseHash() {
-  const h = decodeURIComponent(location.hash.slice(1));
-  const [a, b, c] = h.split('/');
+  const [a, b, c] = location.hash.slice(1).split('/').map(x => { try { return decodeURIComponent(x); } catch { return x; } });
   if (a === 'm' && b) return { view: 'meeting', id: b, tab: c || 'resumen' };
-  if (['record', 'import', 'settings', 'tasks'].includes(a)) return { view: a };
+  if (a === 'p' && b) return { view: 'project', id: b };
+  if (['record', 'import', 'settings', 'tasks', 'week', 'projects'].includes(a)) return { view: a };
   return { view: 'library' };
 }
 function go(hash) { if (location.hash.slice(1) === hash) { onRoute(); return; } location.hash = hash; }
 function onRoute() {
   const prev = S.route; S.route = parseHash();
   if (Rec.state !== 'idle' && S.route.view !== 'record') { S.route = { view: 'record' }; history.replaceState(null, '', '#record'); toast('Estás grabando. Detén la grabación para salir.'); }
-  if (prev.view !== S.route.view || prev.id !== S.route.id) { S.trq = ''; window.scrollTo(0, 0); }
+  if (prev.view !== S.route.view || prev.id !== S.route.id) { S.trq = ''; window.scrollTo(0, 0); closeSheet(); }
+  if (S.trqNext) { S.trq = S.trqNext; S.trqNext = null; }
   render();
 }
 window.addEventListener('hashchange', onRoute);
 document.addEventListener('click', e => { const b = e.target.closest('[data-nav]'); if (!b) return; const v = b.dataset.nav; go(v === 'library' ? '' : v); });
-$('#q').addEventListener('input', e => { S.q = e.target.value.trim().toLowerCase(); if (S.route.view !== 'library') go(''); else render(); });
+let qT; $('#q').addEventListener('input', e => { S.q = e.target.value.trim(); clearTimeout(qT); qT = setTimeout(() => { if (S.route.view !== 'library') go(''); else render(); }, 160); });
 
 /* =========================================================
    Render dispatcher
@@ -608,6 +686,9 @@ function render() {
   if (v === 'import') return renderImport(app);
   if (v === 'settings') return renderSettings(app);
   if (v === 'tasks') return renderTasks(app);
+  if (v === 'week') return renderWeek(app);
+  if (v === 'projects') return renderProjects(app);
+  if (v === 'project') return renderProject(app, S.route.id);
   if (v === 'meeting') { const m = meetingById(S.route.id); if (m) return renderMeeting(app, m); if (S.loaded) { app.innerHTML = `<div class="empty"><h3>No encuentro esta reunión</h3><p>Puede que se haya eliminado.</p><button class="btn" data-nav="library">Volver a reuniones</button></div>`; return; } }
   renderLibrary(app);
 }
@@ -625,7 +706,7 @@ function miniTopicBar(m) {
   const tot = t.reduce((a, x) => a + Math.max(1, x.end - x.start), 0);
   return `<div class="topicbar" aria-hidden="true">${t.map((x, i) => `<i style="width:${Math.max(1, x.end - x.start) / tot * 100}%;background:${tc(i)}"></i>`).join('')}</div>`;
 }
-const STATUS_TXT = { queued: 'En cola', transcribing: 'Transcribiendo', analyzing: 'Analizando', error: 'Requiere atención' };
+const STATUS_TXT = { waiting: 'Esperando internet', queued: 'En cola', transcribing: 'Transcribiendo', analyzing: 'Analizando', error: 'Requiere atención' };
 function budgetHTML() {
   const la = Usage.left('anthropic'), lo = Usage.left('openai');
   const ba = Usage.v.anthropic.balance || 1, bo = Usage.v.openai.balance || 1;
@@ -639,8 +720,8 @@ function budgetHTML() {
   </button>`;
 }
 function renderLibrary(app) {
-  const q = S.q;
-  const list = S.meetings.filter(m => !q || [m.analysis?.title, m.titleHint, m.analysis?.tldr, (m.analysis?.tags || []).join(' '), (m.participants || []).join(' '), Object.values(m.speakers || {}).join(' ')].join(' ').toLowerCase().includes(q));
+  const q = S.q; const fq = fold(q);
+  const list = S.meetings.filter(m => !q || fold([m.analysis?.title, m.titleHint, m.analysis?.tldr, m.project, (m.analysis?.tags || []).join(' '), (m.participants || []).join(' '), Object.values(m.speakers || {}).join(' ')].join(' ')).includes(fq));
   const allActs = S.meetings.flatMap(m => m.analysis?.actions || []);
   const pending = allActs.filter(x => !x.done).length, doneN = allActs.length - pending;
   const now = new Date(); const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
@@ -670,17 +751,23 @@ function renderLibrary(app) {
       <div class="hstat">${ringSVG(Math.min(1, decisions / 30), '#A47BFF')}<div><b>${decisions}</b><span>Decisiones registradas</span></div></div>
     </div>
   </section>
-  ${Settings.v.anthropicKey ? budgetHTML() : ''}`}
-  <div class="sec-title"><h2>${q ? 'Resultados' : 'Reuniones recientes'}</h2><span class="muted" style="font-size:12.5px">${list.length} ${list.length === 1 ? 'reunión' : 'reuniones'}</span></div>
+  ${Settings.v.anthropicKey ? budgetHTML() : ''}
+  ${S.meetings.length ? weekCardHTML() : ''}
+  ${projectsRowHTML()}`}
+  ${q ? searchHitsHTML(q) : ''}
+  <div class="sec-title"><h2>${q ? 'Reuniones que coinciden' : 'Reuniones recientes'}</h2><span class="muted" style="font-size:12.5px">${list.length} ${list.length === 1 ? 'reunión' : 'reuniones'}</span></div>
   ${!S.loaded ? `<div class="empty"><p>Cargando…</p></div>` :
     list.length ? `<div class="grid-lib">${list.map((m, i) => cardHTML(m, i)).join('')}</div>`
-    : q ? `<div class="empty"><h3>Sin resultados</h3><p>Ninguna reunión coincide con “${esc(q)}”.</p></div>`
+    : q ? `<div class="empty-li" style="padding:14px 0">Ningún título o resumen coincide con “${esc(q)}”.</div>`
     : `<div class="empty">${icon('doc', 1.6, 34)}<h3>Aún no hay actas</h3><p style="max-width:48ch">Graba tu próxima conversación o importa un audio o una transcripción que ya tengas.</p><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"><button class="btn primary" data-nav="record">${icon('mic')}Grabar</button><button class="btn" data-nav="import">${icon('upload')}Importar</button><button class="btn ghost" id="load-demo">Ver un ejemplo</button></div></div>`}
   <p class="status-line">Todo se guarda solo en este dispositivo${S.meetings.length ? ' · respáldalo desde Ajustes' : ''}</p>`;
   $$('[data-open]', app).forEach(b => b.onclick = () => go('m/' + b.dataset.open));
   const rr = $('#rec-recover'); if (rr) rr.onclick = recoverRecording;
   const rd = $('#rec-discard'); if (rd) rd.onclick = async () => { const r = S.recovery; S.recovery = null; await DB.delChunks(r.recId); await DB.del('kv', 'activeRec'); render(); toast('Grabación descartada'); };
   const ld = $('#load-demo'); if (ld) ld.onclick = loadDemo;
+  $$('[data-hit]', app).forEach(b => b.onclick = () => { const [id, tab, t] = b.dataset.hit.split('|'); if (tab === 'transcripcion') { S.jump = +t; S.trqNext = S.q; } go('m/' + id + '/' + tab); });
+  $$('[data-proj]', app).forEach(b => b.onclick = () => go('p/' + encodeURIComponent(b.dataset.proj)));
+  if (q && !S.txIndex && !S.txBuilding) buildTxIndex().then(() => { if (S.route.view === 'library' && S.q) render(); });
 }
 function cardHTML(m, i = 0) {
   const a = m.analysis || {}; const acts = a.actions || []; const done = acts.filter(x => x.done).length;
@@ -701,7 +788,7 @@ function cardHTML(m, i = 0) {
 async function recoverRecording() {
   const r = S.recovery; S.recovery = null;
   toast('Recuperando la grabación…');
-  const m = await finishRecording({ recId: r.recId, mime: r.mime, parts: r.parts || [{ part: 0, offset: 0 }], marks: r.marks, notesLog: r.notesLog, live: r.live, meta: r.meta, durationSec: r.elapsed });
+  const m = await finishRecording({ recId: r.recId, mime: r.mime, parts: r.parts || [{ part: 0, offset: 0 }], marks: r.marks, notesLog: r.notesLog, live: r.live, photos: r.photos, meta: r.meta, durationSec: r.elapsed });
   go('m/' + m.id); if (m.status === 'queued') processMeeting(m.id);
 }
 
@@ -711,7 +798,7 @@ async function recoverRecording() {
 let recMeta = null;
 function renderRecord(app) {
   const st = Rec.state; const on = st !== 'idle'; const intr = st === 'interrupted';
-  recMeta = recMeta || { title: '', participants: '', template: 'general', context: '' };
+  recMeta = recMeta || { title: '', participants: '', template: 'general', context: '', project: '' };
   const liveCls = st === 'recording' ? 'on' : (st === 'paused' || intr) ? 'warn' : '';
   const liveTxt = st === 'recording' ? 'Grabando' : st === 'paused' ? 'En pausa' : intr ? 'Grabación en pausa' : 'Listo para grabar';
   app.innerHTML = `
@@ -728,9 +815,9 @@ function renderRecord(app) {
         <div class="cbtn-lbl"><button class="bigrec ${on && !intr ? 'on' : ''} ${intr ? 'resume' : ''}" id="r-main" aria-label="${intr ? 'Continuar grabando' : on ? 'Terminar y procesar' : 'Empezar a grabar'}"><span></span></button>${intr ? 'Continuar' : on ? 'Terminar' : 'Grabar'}</div>
         <div class="cbtn-lbl"><button class="cbtn" id="r-pause" ${st === 'recording' || st === 'paused' ? '' : 'disabled'} aria-label="${st === 'paused' ? 'Reanudar' : 'Pausar'}">${icon(st === 'paused' ? 'play' : 'pause', 2)}</button><span id="pause-lbl">${st === 'paused' ? 'Seguir' : 'Pausa'}</span></div>
       </div>
-      ${on && !intr ? `<div class="pill-row"><button class="pill cool" id="r-pocket">${icon('lock', 2)}Modo bolsillo</button></div>` : ''}
+      ${on && !intr ? `<div class="pill-row"><button class="pill cool" id="r-pocket">${icon('lock', 2)}Modo bolsillo</button><button class="pill" id="r-photo">${icon('camera', 2)}Foto</button><input type="file" id="r-photo-in" accept="image/*" capture="environment" hidden></div>` : ''}
       ${intr ? `<div class="pill-row"><button class="pill" id="r-end-now">${icon('stop', 2)}Terminar aquí y crear el acta</button></div>` : ''}
-      <div class="marks" id="marks">${Rec.marks.map(k => `<span class="mark ${k.auto ? 'auto' : ''}"><b>${fmtT(k.t)}</b>${esc(k.label || 'Momento importante')}</span>`).join('')}</div>
+      <div class="marks" id="marks">${Rec.marks.map(k => `<span class="mark ${k.auto ? 'auto' : ''}"><b>${fmtT(k.t)}</b>${esc(k.label || 'Momento importante')}</span>`).join('')}${Rec.photos.map(p => `<span class="mark photo"><b>${fmtT(p.t)}</b>${icon('camera', 2, 13)}Foto</span>`).join('')}</div>
       <div class="caption" id="caption" ${on && Rec.sr ? '' : 'hidden'}></div>
       ${on ? `<div style="display:flex;justify-content:center"><button class="btn sm ghost" id="r-discard">Descartar grabación</button></div><div id="discard-confirm"></div>` : ''}
     </section>
@@ -747,14 +834,28 @@ function renderRecord(app) {
         <div class="form" style="margin-top:12px;gap:14px">
           <div class="field"><label for="r-title">Título</label><input id="r-title" value="${esc(recMeta.title)}" placeholder="Claude propone uno"></div>
           <div class="field"><label for="r-people">Participantes</label><input id="r-people" value="${esc(recMeta.participants)}" placeholder="Camila, Diego, yo"><span class="hint">Ayuda a ponerle nombre a cada voz.</span></div>
-          <div class="field"><label for="r-tpl">Tipo de reunión</label><select id="r-tpl">${Object.entries(TEMPLATES).map(([k, t]) => `<option value="${k}" ${recMeta.template === k ? 'selected' : ''}>${t.name}</option>`).join('')}</select></div>
+          <div class="field"><label for="r-proj">Proyecto o cliente</label><input id="r-proj" list="proj-list" value="${esc(recMeta.project || '')}" placeholder="Opcional · une esta reunión con las anteriores" autocomplete="off"><datalist id="proj-list">${projectsList().map(p => `<option value="${esc(p)}">`).join('')}</datalist><span class="hint">Acta revisa las tareas pendientes de las reuniones anteriores del mismo proyecto.</span></div>
+          <div class="field"><label for="r-tpl">Tipo de reunión</label><select id="r-tpl">${tplOptions(recMeta.template)}</select></div>
           <div class="field"><label for="r-ctx">Contexto</label><textarea id="r-ctx" rows="2" placeholder="¿De qué proyecto se trata?">${esc(recMeta.context)}</textarea></div>
         </div>
       </section>
     </aside>
   </div>`;
-  const syncMeta = () => { recMeta = { title: $('#r-title').value, participants: $('#r-people').value, template: $('#r-tpl').value, context: $('#r-ctx').value }; if (Rec.state !== 'idle') { Rec.meta = metaFromForm(); Rec.saveActive(); } };
-  $$('#r-title,#r-people,#r-tpl,#r-ctx').forEach(el => el.addEventListener('input', syncMeta));
+  const syncMeta = () => { recMeta = { title: $('#r-title').value, participants: $('#r-people').value, template: $('#r-tpl').value, context: $('#r-ctx').value, project: $('#r-proj').value }; if (Rec.state !== 'idle') { Rec.meta = metaFromForm(); Rec.saveActive(); } };
+  $$('#r-title,#r-people,#r-tpl,#r-ctx,#r-proj').forEach(el => el.addEventListener('input', syncMeta));
+  $('#r-tpl').addEventListener('change', syncMeta);
+  const rph = $('#r-photo'), rpi = $('#r-photo-in');
+  if (rph) {
+    let guard = 0; const release = () => { clearTimeout(guard); guard = setTimeout(() => { Rec.capturing = false; }, 1500); };
+    rph.onclick = () => { Rec.capturing = true; clearTimeout(guard); guard = setTimeout(() => { Rec.capturing = false; }, 90000); rpi.value = ''; rpi.click(); };
+    rpi.addEventListener('cancel', release);
+    rpi.onchange = async () => {
+      release(); const f = rpi.files[0]; if (!f || Rec.state === 'idle') return;
+      const t = Math.round(Rec.elapsed() / 1000);
+      try { const ph = await savePhoto(f, Rec.recId, t); Rec.photos.push(ph); Rec.saveActive(); $('#marks').insertAdjacentHTML('beforeend', `<span class="mark photo"><b>${fmtT(t)}</b>${icon('camera', 2, 13)}Foto</span>`); toast('Foto guardada en el minuto ' + fmtT(t)); }
+      catch (e) { toast('No se pudo guardar la foto', 4000); }
+    };
+  }
   const finish = async () => {
     const btn = $('#r-main'); if (btn) btn.disabled = true; const ts = $('#timer-sub'); if (ts) ts.textContent = 'Guardando audio…';
     Rec.meta = metaFromForm(); Pocket.off();
@@ -782,7 +883,21 @@ function renderRecord(app) {
   startOrb();
   updateCaption();
 }
-function metaFromForm() { const g = id => ($(id)?.value || '').trim(); return { title: g('#r-title'), participants: g('#r-people').split(',').map(x => x.trim()).filter(Boolean), template: $('#r-tpl')?.value || 'general', context: g('#r-ctx') }; }
+function metaFromForm() { const g = id => ($(id)?.value || '').trim(); return { title: g('#r-title'), participants: g('#r-people').split(',').map(x => x.trim()).filter(Boolean), template: $('#r-tpl')?.value || 'general', context: g('#r-ctx'), project: g('#r-proj') }; }
+/* Photos: compressed on the phone, stored next to the meeting, never sent to any AI */
+async function savePhoto(file, owner, t) {
+  let bmp, w, h;
+  try { bmp = await createImageBitmap(file); w = bmp.width; h = bmp.height; }
+  catch { bmp = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = URL.createObjectURL(file); }); w = bmp.naturalWidth; h = bmp.naturalHeight; }
+  const k = Math.min(1, 1600 / Math.max(w, h)); const cw = Math.round(w * k), ch = Math.round(h * k);
+  const c = document.createElement('canvas'); c.width = cw; c.height = ch; c.getContext('2d').drawImage(bmp, 0, 0, cw, ch);
+  const blob = await new Promise(res => c.toBlob(res, 'image/jpeg', .82)) || file;
+  const key = 'ph:' + owner + ':' + uid(); await DB.put('photos', blob, key);
+  return { key, t, w: cw, h: ch };
+}
+const photoURLs = {};
+async function photoURL(key) { if (!photoURLs[key]) { const b = await DB.get('photos', key); if (!b) return ''; photoURLs[key] = URL.createObjectURL(b); } return photoURLs[key]; }
+async function hydratePhotos(root) { for (const img of $$('img[data-photo]', root)) { const u = await photoURL(img.dataset.photo); if (u) img.src = u; } }
 function updateCaption() { const c = $('#caption'); if (!c) return; const last = Rec.live.slice(-2).map(x => esc(x.text)).join(' '); c.hidden = !(Rec.state !== 'idle' && Rec.sr); c.innerHTML = `${last}${Rec.interim ? ` <em>${esc(Rec.interim)}</em>` : ''}` || 'Escuchando…'; }
 
 /* Orb visualizer: radial spectrum around a glowing core */
@@ -891,11 +1006,13 @@ function renderImport(app) {
         <div class="drop" id="drop"><span class="btn sm filebtn">${icon('upload')}Subir archivo<input id="i-txfile" type="file" accept=".txt,.md,.srt,.vtt,text/plain"></span><span>o pega el texto · .txt, .srt, .vtt</span></div>
         <textarea id="i-tx" class="mono-area" rows="12" placeholder="[0:00] Ana: Partamos por el alcance…&#10;[0:15] Diego: Yo propongo…">${esc(d.transcript)}</textarea><span class="hint" id="tx-info"></span>
       </div>`}
-      <div class="field"><span class="lbl">Tipo de reunión</span><div class="tpls" role="group">${Object.entries(TEMPLATES).map(([k, t]) => `<button type="button" class="tpl" data-tpl="${k}" aria-pressed="${d.template === k}"><b>${t.name}</b><span>${t.desc}</span></button>`).join('')}</div></div>
+      <div class="field"><span class="lbl">Tipo de reunión</span><div class="tpls" role="group">${Object.entries(TEMPLATES).filter(([, t]) => !t.group).map(([k, t]) => `<button type="button" class="tpl" data-tpl="${k}" aria-pressed="${d.template === k}"><b>${t.name}</b><span>${t.desc}</span></button>`).join('')}</div>
+        <span class="lbl" style="margin-top:6px">Por rubro <span class="muted" style="font-weight:400">· con ficha de datos del rubro</span></span><div class="tpls" role="group">${Object.entries(TEMPLATES).filter(([, t]) => t.group).map(([k, t]) => `<button type="button" class="tpl" data-tpl="${k}" aria-pressed="${d.template === k}"><b>${t.name}</b><span>${t.desc}</span></button>`).join('')}</div></div>
       <div class="row">
         <div class="field"><label for="i-title">Título</label><input id="i-title" value="${esc(d.title)}" placeholder="Claude propone uno"></div>
         <div class="field"><label for="i-date">Fecha</label><input id="i-date" type="date" value="${esc(d.date)}"></div>
         <div class="field"><label for="i-people">Participantes</label><input id="i-people" value="${esc(d.participants)}" placeholder="Camila, Diego, yo"></div>
+        <div class="field"><label for="i-proj">Proyecto o cliente</label><input id="i-proj" list="proj-list" value="${esc(d.project || '')}" placeholder="Opcional" autocomplete="off"><datalist id="proj-list">${projectsList().map(p => `<option value="${esc(p)}">`).join('')}</datalist></div>
       </div>
       <div class="row two">
         <div class="field"><label for="i-ctx">Contexto</label><textarea id="i-ctx" rows="2" placeholder="¿De qué proyecto se trata?">${esc(d.context)}</textarea></div>
@@ -911,7 +1028,7 @@ function renderImport(app) {
       <li><b>Android:</b> Grabadora (Pixel) o Grabadora de voz (Samsung) → Transcripción → compartir como texto.</li>
       <li><b>Meet, Zoom, Teams:</b> descarga la transcripción (.vtt o .txt) y súbela aquí.</li>
     </ol></section>`;
-  const sync = () => { d.title = $('#i-title').value; d.date = $('#i-date').value; d.participants = $('#i-people').value; d.context = $('#i-ctx').value; d.notes = $('#i-notes').value; if ($('#i-tx')) { d.transcript = $('#i-tx').value; const p = parseTranscript(d.transcript); $('#tx-info').textContent = p.segments.length ? `${nf(p.segments.length)} intervenciones · ${nf(wordCount(p.segments))} palabras${p.estimated ? ' · sin marcas de tiempo: se estimarán' : ''}` : ''; } };
+  const sync = () => { d.project = $('#i-proj').value; d.title = $('#i-title').value; d.date = $('#i-date').value; d.participants = $('#i-people').value; d.context = $('#i-ctx').value; d.notes = $('#i-notes').value; if ($('#i-tx')) { d.transcript = $('#i-tx').value; const p = parseTranscript(d.transcript); $('#tx-info').textContent = p.segments.length ? `${nf(p.segments.length)} intervenciones · ${nf(wordCount(p.segments))} palabras${p.estimated ? ' · sin marcas de tiempo: se estimarán' : ''}` : ''; } };
   $$('input,textarea', $('#imp-f')).forEach(el => el.addEventListener('input', sync)); sync();
   $$('[data-mode]').forEach(b => b.onclick = () => { sync(); d.mode = b.dataset.mode; renderImport(app); });
   $$('[data-tpl]').forEach(b => b.onclick = () => { d.template = b.dataset.tpl; $$('[data-tpl]').forEach(x => x.setAttribute('aria-pressed', x === b)); });
@@ -926,7 +1043,7 @@ function renderImport(app) {
   const ex = $('#i-example'); if (ex) ex.onclick = () => { $('#i-tx').value = EXAMPLE_TX; if (!$('#i-people').value) $('#i-people').value = 'Camila, Diego, Tú'; if (!$('#i-ctx').value) $('#i-ctx').value = 'Primera reunión para definir la app de reservas de una peluquería.'; sync(); };
   $('#imp-f').onsubmit = async e => {
     e.preventDefault(); sync(); const st = $('#imp-status');
-    const base = { id: uid(), createdAt: Date.now(), date: d.date || today(), titleHint: d.title.trim(), participants: d.participants.split(',').map(x => x.trim()).filter(Boolean), template: d.template, context: d.context.trim(), notes: d.notes.trim(), notesLog: [], marks: [], speakers: {}, status: 'queued', source: 'import' };
+    const base = { id: uid(), createdAt: Date.now(), date: d.date || today(), titleHint: d.title.trim(), participants: d.participants.split(',').map(x => x.trim()).filter(Boolean), template: d.template, context: d.context.trim(), project: (d.project || '').trim(), notes: d.notes.trim(), notesLog: [], marks: [], photos: [], speakers: {}, status: 'queued', source: 'import' };
     if (d.mode === 'audio') {
       if (!d.file) { st.innerHTML = '<p class="err">Elige el archivo de audio de la reunión.</p>'; return; }
       if (d.file.size > MAX_UPLOAD) { st.innerHTML = `<p class="err">El archivo pesa ${fmtBytes(d.file.size)}. El límite de transcripción es 25 MB: compártelo como M4A o MP3 desde la app de grabación, o recórtalo en partes.</p>`; return; }
@@ -964,15 +1081,23 @@ function renderMeeting(app, m) {
       ${m.durationSec ? `<span class="mono">${icon('time')}${esc(fmtT(m.durationSec))}${m.estimatedTimes ? ' aprox.' : ''}</span>` : ''}
       ${people.length ? `<span>${icon('users')}${esc(people.join(', '))}</span>` : ''}
       <span class="chip">${esc((TEMPLATES[m.template] || TEMPLATES.general).name)}</span>
+      <span id="proj-slot">${m.project ? `<button class="chip proj" id="m-proj-open" data-proj="${esc(m.project)}">${icon('folder', 2)}${esc(m.project)}</button><button class="chip ghosty" id="m-proj" aria-label="Cambiar proyecto">${icon('edit', 2)}</button>` : `<button class="chip ghosty" id="m-proj">${icon('folder', 2)}Asignar proyecto</button>`}</span>
     </div>
     <h1 id="m-title" contenteditable="true" spellcheck="false" title="Toca para cambiar el título">${esc(a.title)}</h1>
     ${(a.tags || []).length ? `<div style="display:flex;gap:6px;flex-wrap:wrap">${a.tags.map(t => `<span class="chip ${t === 'ejemplo' ? 'ex' : ''}">#${esc(t)}</span>`).join('')}</div>` : ''}
     <div class="m-actions">
       <button class="btn sm primary" id="m-report">${icon('report', 2)}Informe</button>
       <button class="btn sm" id="m-share">${icon('share')}Compartir</button>
-      <button class="btn sm" id="m-md">${icon('download')}Exportar .md</button>
+      <span class="menu-wrap"><button class="btn sm" id="m-exp" aria-haspopup="true" aria-expanded="false">${icon('download')}Exportar</button>
+        <span class="menu" id="m-exp-menu" hidden>
+          <button data-exp="docx">${icon('word', 2)}<span><b>Word (.docx)</b><small>Acta completa para editar</small></span></button>
+          <button data-exp="pdf">${icon('doc', 2)}<span><b>PDF</b><small>Informe infográfico</small></span></button>
+          <button data-exp="ics">${icon('cal', 2)}<span><b>Tareas al calendario</b><small>Archivo .ics con los plazos</small></span></button>
+          <button data-exp="md">${icon('text', 2)}<span><b>Markdown (.md)</b><small>Para Notion, Obsidian o Docs</small></span></button>
+        </span></span>
       <button class="btn sm" id="m-copy">${icon('copy')}Copiar resumen</button>
-      <span style="display:inline-flex;gap:6px;align-items:center"><select id="re-tpl" class="btn sm" aria-label="Tipo de análisis">${Object.entries(TEMPLATES).map(([k, t]) => `<option value="${k}" ${m.template === k ? 'selected' : ''}>${t.name}</option>`).join('')}</select><button class="btn sm" id="re-run">${icon('refresh')}Re-analizar</button></span>
+      <button class="btn sm" id="m-photo">${icon('camera')}Foto</button><input type="file" id="m-photo-in" accept="image/*" hidden>
+      <span style="display:inline-flex;gap:6px;align-items:center"><select id="re-tpl" class="btn sm" aria-label="Tipo de análisis">${tplOptions(m.template)}</select><button class="btn sm" id="re-run">${icon('refresh')}Re-analizar</button></span>
       <span id="del-slot"><button class="btn sm ghost danger" id="m-del">${icon('trash')}Eliminar</button></span>
     </div>
   </header></section>
@@ -984,7 +1109,19 @@ function renderMeeting(app, m) {
   h1.addEventListener('blur', async () => { const v = h1.textContent.trim(); if (v && v !== a.title) { a.title = v; await saveMeeting(m); toast('Título actualizado'); } else h1.textContent = a.title; });
   $('#m-share').onclick = () => shareMeeting(m);
   $('#m-report').onclick = () => { const b = $('[data-tab="informe"]'); if (b) { b.click(); b.scrollIntoView({ block: 'nearest', inline: 'center' }); } };
-  $('#m-md').onclick = async () => downloadText(slug(a.title) + '.md', await fullMd(m));
+  const expBtn = $('#m-exp'), expMenu = $('#m-exp-menu');
+  expBtn.onclick = e => { e.stopPropagation(); const open = expMenu.hidden; expMenu.hidden = !open; expBtn.setAttribute('aria-expanded', open); if (open) setTimeout(() => document.addEventListener('click', () => { expMenu.hidden = true; expBtn.setAttribute('aria-expanded', 'false'); }, { once: true }), 0); };
+  $$('[data-exp]', expMenu).forEach(b => b.onclick = async () => {
+    expMenu.hidden = true; const k = b.dataset.exp;
+    if (k === 'md') downloadText(slug(a.title) + '.md', await fullMd(m));
+    if (k === 'docx') { toast('Preparando el Word…'); try { await deliverFile(await meetingDocx(m), 'Acta en Word'); } catch (e) { toast('No se pudo crear el Word: ' + (e.message || 'error'), 5000); } }
+    if (k === 'ics') exportTasksICS([m]);
+    if (k === 'pdf') { const t = $('[data-tab="informe"]'); if (t) t.click(); setTimeout(() => { try { window.print(); } catch { toast('Usa “Guardar como imagen” en el informe.'); } }, 700); }
+  });
+  $('#m-proj').onclick = () => editProject(m);
+  const po = $('#m-proj-open'); if (po) po.onclick = () => go('p/' + encodeURIComponent(m.project));
+  $('#m-photo').onclick = () => { S.picking = true; setTimeout(() => { S.picking = false; }, 60000); $('#m-photo-in').value = ''; $('#m-photo-in').click(); };
+  $('#m-photo-in').onchange = async e => { const f = e.target.files[0]; if (!f) return; try { const ph = await savePhoto(f, m.id, null); m.photos = [...(m.photos || []), ph]; await saveMeeting(m); toast('Foto agregada a la reunión'); if ((S.route.tab || 'resumen') === 'resumen') renderTab(m); } catch { toast('No se pudo guardar la foto'); } };
   $('#m-copy').onclick = () => copyText(summaryText(m), 'Resumen copiado');
   $('#re-run').onclick = () => { processMeeting(m.id, { template: $('#re-tpl').value }); m.status = 'analyzing'; render(); };
   $('#m-del').onclick = () => { $('#del-slot').innerHTML = `<span class="confirm">¿Eliminar reunión, audio y acta?<button class="btn sm solid-danger" id="del-yes">Eliminar</button><button class="btn sm" id="del-no">Cancelar</button></span>`; $('#del-yes').onclick = async () => { await deleteMeeting(m.id); go(''); toast('Reunión eliminada'); }; $('#del-no').onclick = () => render(); };
@@ -999,24 +1136,26 @@ function renderProcessing(app, m) {
   else steps.push({ k: 'tx', t: 'Transcripción recibida', d: '', s: 'done' });
   steps.push({ k: 'an', t: 'Crear el acta con Claude', d: '', s: st === 'analyzing' ? 'run' : 'todo' });
   if (st === 'error') { const fail = steps.find(s => s.s === 'todo' || s.s === 'run'); if (fail) fail.s = 'fail'; }
+  if (st === 'waiting') { const nx = steps.find(s => s.s === 'todo'); if (nx) nx.d = 'Se hará solo al volver la conexión'; }
   const err = m.error;
   app.innerHTML = `
   <button class="btn ghost sm back" data-nav="library">${icon('back')}Reuniones</button>
   <section class="m-hero"><span class="aura a1"></span><span class="aura a2"></span><div class="m-head"><div class="m-meta"><span>${icon('cal')}${esc(fmtDate(m.date))}</span>${m.durationSec ? `<span class="mono">${icon('time')}${fmtT(m.durationSec)}</span>` : ''}</div><h1>${esc(m.analysis?.title || m.titleHint || 'Nueva reunión')}</h1></div></section>
   <section class="panel" style="max-width:720px">
-    <h2>${st === 'error' ? 'El acta necesita tu atención' : 'Preparando el acta'}</h2>
+    <h2>${st === 'error' ? 'El acta necesita tu atención' : st === 'waiting' ? 'Esperando internet' : 'Preparando el acta'}</h2>
+    ${st === 'waiting' ? `<div class="notice cool" style="margin-top:12px;display:flex;gap:10px;align-items:flex-start">${icon('wifioff', 2, 18)}<span><b>Grabaste sin conexión y está todo a salvo.</b> Acta transcribe y crea el acta sola apenas vuelva internet, aunque estés en otra pantalla.</span></div>` : ''}
     <div class="stepper">${steps.map(s => `<div class="pstep ${s.s}"><span class="dot">${s.s === 'done' ? icon('check', 3) : s.s === 'fail' ? '!' : ''}</span><div><b>${s.t}</b><small ${s.s === 'run' ? 'id="proc-detail"' : ''}>${esc(s.s === 'run' ? (S.progress[m.id] || 'Trabajando…') : s.s === 'fail' ? (err?.message || '') : s.d)}</small></div></div>`).join('')}</div>
     ${st === 'error' ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
       <button class="btn primary" id="p-retry">${icon('refresh')}Reintentar</button>
       ${/key|no_openai|no_anthropic/.test(err?.code || '') ? `<button class="btn" data-nav="settings">${icon('key')}Ir a Ajustes</button>` : ''}
       ${hasAudio ? `<button class="btn ghost" id="p-paste">Pegar transcripción</button>` : ''}
       <button class="btn ghost danger" id="p-del">${icon('trash')}Eliminar</button></div>
-      <div id="p-paste-box"></div>` : `<p class="muted" style="font-size:13px;margin-top:12px">${running ? 'Puedes revisar otras reuniones mientras tanto; mantén la app abierta hasta que termine.' : 'En cola…'}</p>`}
+      <div id="p-paste-box"></div>` : st === 'waiting' ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button class="btn" id="p-retry">${icon('refresh')}Probar ahora</button></div>` : `<p class="muted" style="font-size:13px;margin-top:12px">${running ? 'Puedes revisar otras reuniones mientras tanto; mantén la app abierta hasta que termine.' : 'En cola…'}</p>`}
     ${hasAudio ? `<div style="margin-top:16px"><audio controls preload="metadata" id="p-audio" style="width:100%"></audio></div>` : ''}
   </section>
   ${(m.marks?.length || m.notesLog?.length) ? `<section class="panel" style="max-width:720px;margin-top:16px"><div class="eyebrow">Lo que marcaste</div><div class="notes-log" style="margin-top:10px">${[...(m.marks || []).map(k => ({ t: k.t, text: '★ ' + (k.label || 'Momento importante') })), ...(m.notesLog || [])].sort((a, b) => a.t - b.t).map(n => `<div><b>${fmtT(n.t)}</b><span>${esc(n.text)}</span></div>`).join('')}</div></section>` : ''}`;
   if (hasAudio) DB.get('audio', m.audioParts[0].key).then(b => { const el = $('#p-audio'); if (b && el) el.src = URL.createObjectURL(b); });
-  const r = $('#p-retry'); if (r) r.onclick = () => processMeeting(m.id);
+  const r = $('#p-retry'); if (r) r.onclick = () => { if (!navigator.onLine) { toast('Todavía no hay conexión. Se procesará sola cuando vuelva.'); return; } processMeeting(m.id); };
   const pd = $('#p-del'); if (pd) pd.onclick = async () => { await deleteMeeting(m.id); go(''); toast('Reunión eliminada'); };
   const pp = $('#p-paste'); if (pp) pp.onclick = () => { $('#p-paste-box').innerHTML = `<div class="field" style="margin-top:14px"><label for="pp-tx">Transcripción</label><textarea id="pp-tx" class="mono-area" rows="8" placeholder="Pega aquí el texto de la reunión"></textarea><button class="btn primary" id="pp-go" style="justify-self:start">Usar este texto</button></div>`; $('#pp-go').onclick = async () => { const p = parseTranscript($('#pp-tx').value, m.durationSec ? m.durationSec / 60 : null); if (p.segments.length < 2) { toast('Pega la transcripción completa'); return; } await DB.put('transcripts', { segments: p.segments }, m.id); processMeeting(m.id); }; };
   if (st === 'queued' && !running) processMeeting(m.id);
@@ -1056,6 +1195,7 @@ function renderSummary(body, m, a, segs) {
   body.innerHTML = `
   <div class="tldr"><div class="eyebrow">En pocas palabras</div><p>${esc(a.tldr)}</p>
     ${a.mood ? `<div class="mood"><b>${esc(a.mood.label)}</b><span class="track"><i style="width:${a.mood.score}%"></i></span><span>${esc(a.mood.note)}</span></div>` : ''}</div>
+  ${continuityHTML(m, a)}
   <div class="stats">
     <div class="stat"><span class="si" style="background:var(--accent-soft);color:var(--ember)">${icon('time', 2)}</span><b class="mono">${dur ? fmtT(dur) : '—'}</b><span>Duración${m.estimatedTimes ? ' aprox.' : ''}</span></div>
     <div class="stat"><span class="si" style="background:var(--q-soft);color:var(--q)">${icon('text', 2)}</span><b>${nf(m.words || wordCount(segs))}</b><span>Palabras</span></div>
@@ -1068,29 +1208,37 @@ function renderSummary(body, m, a, segs) {
     ${marks.length ? `<div class="tl-marks">${marks.map(k => `<button data-jump="${k.t}" style="left:${Math.min(100, k.t / dur * 100)}%" title="${esc(k.label || 'Momento marcado')} · ${fmtT(k.t)}">${icon('bookmark', 2)}</button>`).join('')}</div>` : ''}
     <div class="tl-axis mono"><span>0:00</span><span>${fmtT(dur / 2)}</span><span>${fmtT(dur)}</span></div>
     <div class="tl-legend">${a.topics.map((t, i) => `<span><i style="background:${tc(i)}"></i>${esc(t.name)} <em>${fmtT(t.start)}</em></span>`).join('')}${marks.length ? `<span>${icon('bookmark', 2, 12)}Tus marcas</span>` : ''}</div></div></div>` : ''}
+  ${fichaHTML(m, a)}
   ${(a.keyPoints || []).length ? `<div class="sec"><div class="sec-h"><h2>Puntos clave</h2></div><div class="g3">${a.keyPoints.map((k, i) => `<div class="kp" style="--kc:${tc(i)}"><span class="kp-ic">${icon(k.icon, 2)}</span><h4>${esc(k.title)}</h4><p>${esc(k.detail)}</p></div>`).join('')}</div></div>` : ''}
   <div class="sec g2">
     ${box('Decisiones', 'var(--dec)', 'var(--dec-soft)', 'flag', (a.decisions || []).map(d => `<div class="li"><span class="mk" style="background:var(--dec)"></span><div>${esc(d.text)}${d.why ? `<small>${esc(d.why)}</small>` : ''}</div></div>`).join(''), (a.decisions || []).length)}
     <div class="box"><div class="box-h"><span class="ic" style="background:var(--act-soft);color:var(--act)">${icon('check', 2.2)}</span><h3>Tareas</h3><span class="n">${done} de ${acts.length} hechas</span></div>
-      ${acts.length ? acts.map((t, i) => taskHTML(t, `${m.id}|${i}`)).join('') : '<div class="empty-li">Nada registrado.</div>'}</div>
+      ${acts.length ? acts.map((t, i) => taskHTML(t, `${m.id}|${i}`)).join('') : '<div class="empty-li">Nada registrado.</div>'}
+      ${acts.some(t => !t.done) ? `<div class="box-foot"><button class="btn sm" id="s-ics">${icon('cal')}Pasar tareas al calendario</button></div>` : ''}</div>
   </div>
+  ${followHTML(m, a)}
   <div class="sec g3">
     ${box('Ideas', 'var(--idea)', 'var(--idea-soft)', 'idea', (a.ideas || []).map(d => `<div class="li"><span class="mk" style="background:var(--idea)"></span><div>${esc(d.text)}${d.note ? `<small>${esc(d.note)}</small>` : ''}</div></div>`).join(''), (a.ideas || []).length)}
     ${box('Riesgos', 'var(--risk)', 'var(--risk-soft)', 'risk', (a.risks || []).map(d => `<div class="li"><span class="mk" style="background:${sevC(d.severity)}"></span><div>${esc(d.text)}<span class="sev" style="background:${sevS(d.severity)};color:${sevC(d.severity)}">${d.severity}</span></div></div>`).join(''), (a.risks || []).length)}
     ${box('Preguntas abiertas', 'var(--q)', 'var(--q-soft)', 'question', (a.questions || []).map(d => `<div class="li"><span class="mk" style="background:var(--q)"></span><div>${esc(d.text)}</div></div>`).join(''), (a.questions || []).length)}
   </div>
+  ${photosHTML(m)}
   ${talkTime(m, segs)}
   ${(a.numbers || []).length ? `<div class="sec"><div class="sec-h"><h2>Cifras mencionadas</h2></div><div class="nums">${a.numbers.map(n => `<div class="num"><b>${esc(n.value)}</b><span>${esc(n.label)}</span></div>`).join('')}</div></div>` : ''}
-  ${(a.quotes || []).length ? `<div class="sec"><div class="sec-h"><h2>Frases para recordar</h2></div><div class="quotes">${a.quotes.map(q => `<figure class="quote"><p>“${esc(q.text)}”</p><small>${esc(q.who)}${q.t != null ? ` · <button class="tlink" data-jump="${q.t}">${fmtT(q.t)}</button>` : ''}</small></figure>`).join('')}</div></div>` : ''}
+  ${(a.quotes || []).length ? `<div class="sec"><div class="sec-h"><h2>Frases para recordar</h2></div><div class="quotes">${a.quotes.map(q => `<figure class="quote"><p>“${esc(q.text)}”</p><small>${esc(q.who)}${q.t != null ? ` · <button class="tlink" data-jump="${q.t}">${fmtT(q.t)}</button>${m.audioParts?.length ? ` · <button class="tlink" data-clipq="${q.t}">${icon('scissors', 2, 12)} clip de audio</button>` : ''}` : ''}</small></figure>`).join('')}</div></div>` : ''}
   ${(a.nextSteps || []).length ? `<div class="sec"><div class="sec-h"><h2>Próximos pasos</h2></div><div class="steps">${a.nextSteps.map(s => `<div class="step"><span>${esc(s)}</span></div>`).join('')}</div></div>` : ''}`;
   drawDensity(m, segs, dur);
   bindTasks(body);
+  bindSummaryExtras(body, m, a, segs);
   $$('[data-topic],[data-jump]', body).forEach(b => b.onclick = () => { S.jump = +(b.dataset.topic ?? b.dataset.jump); S.route.tab = 'transcripcion'; history.replaceState(null, '', '#m/' + m.id + '/transcripcion'); $$('[data-tab]').forEach(x => x.setAttribute('aria-selected', x.dataset.tab === 'transcripcion')); renderTab(m); });
 }
 function taskHTML(t, ref, extra = '') {
-  return `<label class="task ${t.done ? 'done' : ''}"><input type="checkbox" data-task="${esc(ref)}" ${t.done ? 'checked' : ''}><div><div class="tx">${esc(t.task)}</div><div class="sub"><span>${icon('users')} ${esc(t.owner)}</span>${t.due ? `<span>${icon('cal')} ${esc(t.due)}</span>` : ''}${extra}</div></div><span class="prio ${t.priority}">${t.priority}</span></label>`;
+  const [mid] = ref.split('|'); const m = meetingById(mid); const d = m ? taskDate(t, m) : '';
+  return `<div class="task ${t.done ? 'done' : ''}"><input type="checkbox" data-task="${esc(ref)}" ${t.done ? 'checked' : ''} aria-label="Marcar como hecha"><div><div class="tx">${esc(t.task)}</div><div class="sub"><span>${icon('users')} ${esc(t.owner)}</span>${t.due || d ? `<span>${icon('cal')} ${esc(t.due || '')}${d ? ` <em class="mono">${esc(shortDate(d))}</em>` : ''}</span>` : ''}${t.closedBy ? `<span class="closed">${icon('check', 2.4)} cerrada en otra reunión</span>` : ''}${extra}</div></div><div class="task-side"><span class="prio ${t.priority}">${t.priority}</span>${t.done ? '' : `<button class="calbtn" data-cal="${esc(ref)}" aria-label="Agregar al calendario">${icon('cal', 2)}</button>`}</div></div>`;
 }
 function bindTasks(root) {
+  $$('[data-cal]', root).forEach(b => b.onclick = e => { e.preventDefault(); const [id, i] = b.dataset.cal.split('|'); const m = meetingById(id); const t = m?.analysis?.actions?.[+i]; if (t) calendarSheet(m, t); });
+  $$('.task .tx', root).forEach(el => el.onclick = () => { const cb = el.closest('.task').querySelector('[data-task]'); cb.checked = !cb.checked; cb.dispatchEvent(new Event('change')); });
   $$('[data-task]', root).forEach(cb => cb.onchange = async () => {
     const [id, i] = cb.dataset.task.split('|'); const m = meetingById(id); if (!m?.analysis) return;
     m.analysis.actions[+i].done = cb.checked; cb.closest('.task').classList.toggle('done', cb.checked);
@@ -1148,7 +1296,7 @@ function renderTranscript(body, m, a, segs) {
   ${hasAudio ? `<label class="switch" style="align-items:center"><input type="checkbox" id="follow" ${Settings.v.followAudio ? 'checked' : ''}><span style="font-size:13px">Seguir el audio</span></label>` : ''}
   <button class="btn sm" id="tr-copy" style="margin-left:auto">${icon('copy')}Copiar texto</button></div>
   <div class="tr" id="tr"></div>`;
-  const marks = [...(m.marks || []).map(k => ({ t: k.t, text: k.label || 'Momento marcado', kind: 'mark' })), ...(m.notesLog || []).map(n => ({ t: n.t, text: n.text, kind: 'note' }))].sort((x, y) => x.t - y.t);
+  const marks = [...(m.marks || []).map(k => ({ t: k.t, text: k.label || 'Momento marcado', kind: 'mark' })), ...(m.notesLog || []).map(n => ({ t: n.t, text: n.text, kind: 'note' })), ...(m.photos || []).filter(p => p.t != null).map(p => ({ t: p.t, key: p.key, kind: 'photo' }))].sort((x, y) => x.t - y.t);
   const draw = () => {
     const q = S.trq.trim().toLowerCase(); let html = '', ti = -1, hits = 0, mi = 0;
     const rx = q ? new RegExp(esc(S.trq.trim()).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi') : null;
@@ -1156,15 +1304,18 @@ function renderTranscript(body, m, a, segs) {
       if (!q) {
         const idx = topics.findIndex(t => x.t >= t.start && x.t < t.end);
         if (idx !== ti && idx >= 0) { ti = idx; html += `<div class="seg-topic" style="color:${tc(idx)}"><i style="background:${tc(idx)}"></i>${esc(topics[idx].name)}</div>`; }
-        while (mi < marks.length && marks[mi].t <= x.t) { const mk = marks[mi++]; html += `<div class="seg-mark">${icon(mk.kind === 'mark' ? 'bookmark' : 'edit', 2)}<span class="mono" style="font-size:12px">${fmtT(mk.t)}</span><span>${esc(mk.text)}</span></div>`; }
+        while (mi < marks.length && marks[mi].t <= x.t) { const mk = marks[mi++]; if (mk.kind === 'photo') { html += `<button class="seg-photo" data-ph="${esc(mk.key)}"><img data-photo="${esc(mk.key)}" alt="Foto del minuto ${fmtT(mk.t)}"><span class="mono">${icon('camera', 2, 12)} ${fmtT(mk.t)}</span></button>`; continue; } html += `<div class="seg-mark">${icon(mk.kind === 'mark' ? 'bookmark' : 'edit', 2)}<span class="mono" style="font-size:12px">${fmtT(mk.t)}</span><span>${esc(mk.text)}</span></div>`; }
       } else if (!x.text.toLowerCase().includes(q) && !spkName(m, x.s).toLowerCase().includes(q)) return;
       hits++;
       let t = esc(x.text); if (rx) t = t.replace(rx, s => `<mark>${s}</mark>`);
-      html += `<div class="seg" id="seg-${k}" data-t="${x.t}"><button class="tlink" data-play="${x.t}">${fmtT(x.t)}</button><div>${x.s ? `<span class="who" style="color:${tc(spkIndex(m, x.s))}">${esc(spkName(m, x.s))}</span>` : ''}${t}</div></div>`;
+      html += `<div class="seg" id="seg-${k}" data-t="${x.t}"><div class="seg-t"><button class="tlink" data-play="${x.t}">${fmtT(x.t)}</button>${hasAudio ? `<button class="clipbtn" data-clip="${k}" aria-label="Crear clip de audio desde ${fmtT(x.t)}" title="Clip de audio">${icon('scissors', 2)}</button>` : ''}</div><div>${x.s ? `<span class="who" style="color:${tc(spkIndex(m, x.s))}">${esc(spkName(m, x.s))}</span>` : ''}${t}</div></div>`;
     });
     $('#tr').innerHTML = html || '<div class="empty-li">Sin coincidencias.</div>';
     $('#tr-count').textContent = q ? `${hits} ${hits === 1 ? 'coincidencia' : 'coincidencias'}` : `${segs.length} intervenciones`;
     $$('[data-play]').forEach(b => b.onclick = () => { if (hasAudio) Player.seek(+b.dataset.play); else toast('Esta reunión no tiene audio guardado.'); });
+    $$('[data-clip]').forEach(b => b.onclick = () => { const k = +b.dataset.clip; const x = segs[k]; let end = x.end || (segs[k + 1]?.t ?? x.t + 15); end = Math.max(x.t + 6, Math.min(x.t + 90, end + .5)); Player.el?.pause(); clipSheet(m, Math.max(0, x.t - .5), end); });
+    $$('[data-ph]', $('#tr')).forEach(b => b.onclick = () => photoSheet(m, b.dataset.ph));
+    hydratePhotos($('#tr'));
   };
   draw();
   $('#trq').addEventListener('input', e => { S.trq = e.target.value; draw(); });
@@ -1221,6 +1372,556 @@ function renderAsk(body, m, a, segs) {
 }
 
 /* =========================================================
+   Summary extras: continuity, sector card, follow-up message, photos
+   ========================================================= */
+const DOW = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+const isoD = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+const shortDate = iso => { try { return new Date(iso + 'T12:00:00').toLocaleDateString('es-CL', { weekday: 'short', day: 'numeric', month: 'short' }); } catch { return iso; } };
+function parseDue(text, base) {
+  const s = fold(text).replace(/setiembre/g, 'septiembre'); if (!s.trim()) return '';
+  const b = new Date((base || today()) + 'T12:00:00'); if (isNaN(b)) return '';
+  const add = n => { const d = new Date(b); d.setDate(d.getDate() + n); return isoD(d); };
+  const words = { un: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, diez: 10, quince: 15 };
+  let r;
+  if (/\bhoy\b|esta tarde|esta noche/.test(s)) return isoD(b);
+  if (/pasado manana/.test(s)) return add(2);
+  if (/\bmanana\b/.test(s)) return add(1);
+  if ((r = s.match(/en (\d+|un|una|dos|tres|cuatro|cinco|seis|siete|diez|quince) (dia|dias|semana|semanas|mes|meses)\b/))) { const n = +r[1] || words[r[1]] || 1; return add(n * (/semana/.test(r[2]) ? 7 : /mes/.test(r[2]) ? 30 : 1)); }
+  if ((r = s.match(/(\d{1,2}) de (enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?: de (\d{4}))?/))) { let y = +r[3] || b.getFullYear(); let d = new Date(y, MONTHS.indexOf(r[2]), +r[1], 12); if (!r[3] && d < b - 864e5 * 2) d = new Date(y + 1, MONTHS.indexOf(r[2]), +r[1], 12); return isoD(d); }
+  if ((r = s.match(/\b(\d{1,2})[\/.-](\d{1,2})(?:[\/.-](\d{2,4}))?\b/))) { let y = r[3] ? (+r[3] < 100 ? 2000 + +r[3] : +r[3]) : b.getFullYear(); let d = new Date(y, +r[2] - 1, +r[1], 12); if (!r[3] && d < b - 864e5 * 2) d = new Date(y + 1, +r[2] - 1, +r[1], 12); if (!isNaN(d) && +r[2] <= 12) return isoD(d); }
+  if (/fin(es)? de mes|final de mes|fin del mes/.test(s)) { const d = new Date(b.getFullYear(), b.getMonth() + 1, 0, 12); return isoD(d); }
+  if (/proxima semana|semana que viene|siguiente semana/.test(s)) return add(((8 - b.getDay()) % 7) || 7);
+  if (/fin de semana/.test(s)) return add(((6 - b.getDay()) + 7) % 7 || 7);
+  for (let i = 0; i < 7; i++) if (new RegExp('\\b' + DOW[i] + '\\b').test(s)) { let diff = (i - b.getDay() + 7) % 7 || 7; if (/proximo|siguiente|que viene/.test(s) && diff < 7 && /semana/.test(s)) diff += 7; return add(diff); }
+  return '';
+}
+const taskDate = (t, m) => t.dueDate || parseDue(t.due, m.date);
+
+function continuityHTML(m, a) {
+  const prev = a.previousTasks || [];
+  if (!a.continuity && !prev.length && !m.project) return '';
+  const all = m.project ? projectMeetings(m.project) : [];
+  const pos = all.findIndex(x => x.id === m.id);
+  const st = { hecha: ['var(--act)', 'var(--act-soft)', 'Hecha'], 'en curso': ['var(--q)', 'var(--q-soft)', 'En curso'], 'sin novedad': ['var(--muted)', 'var(--glass-2)', 'Sin novedad'] };
+  const rows = prev.map(p => { const [mid, i] = p.ref.split('|'); const pm = meetingById(mid); const t = pm?.analysis?.actions?.[+i]; if (!t) return ''; const c = st[p.status] || st['sin novedad']; return `<div class="li"><span class="mk" style="background:${c[0]}"></span><div>${esc(t.task)} <span class="sev" style="background:${c[1]};color:${c[0]}">${c[2]}</span><small>${esc(t.owner)} · de <button class="tlink" data-open="${esc(pm.id)}">${esc(pm.analysis.title)}</button>${p.note ? ' · ' + esc(p.note) : ''}</small></div></div>`; }).join('');
+  if (!a.continuity && !rows) return m.project && all.length > 1 ? `<div class="cont slim"><span class="cont-ic">${icon('folder', 2)}</span><span>Reunión ${pos + 1} de ${all.length} del proyecto <button class="tlink" data-proj="${esc(m.project)}">${esc(m.project)}</button></span></div>` : '';
+  return `<div class="sec cont"><div class="cont-h"><span class="cont-ic">${icon('folder', 2)}</span><div><div class="eyebrow">Desde la reunión anterior${m.project ? ` · <button class="tlink" data-proj="${esc(m.project)}">${esc(m.project)}</button>` : ''}${pos >= 0 && all.length > 1 ? ` · ${pos + 1} de ${all.length}` : ''}</div>${a.continuity ? `<p>${esc(a.continuity)}</p>` : ''}</div></div>${rows ? `<div class="box">${rows}</div>` : ''}</div>`;
+}
+function fichaHTML(m, a) {
+  const f = a.ficha || []; if (!f.length) return '';
+  const tpl = TEMPLATES[m.template];
+  return `<div class="sec"><div class="sec-h"><h2>Ficha ${tpl?.group ? '· ' + esc(tpl.name) : ''}</h2><button class="btn sm ghost" id="ficha-copy">${icon('copy')}Copiar</button></div><div class="ficha">${f.map(x => { const none = /^no se mencion/i.test(x.value); return `<div class="fi ${none ? 'none' : ''}"><span>${esc(x.label)}</span><b>${esc(x.value)}</b></div>`; }).join('')}</div></div>`;
+}
+function localFollow(m, a) {
+  const acts = (a.actions || []).filter(t => !t.done); const dec = a.decisions || [];
+  const wa = [`Hola, les comparto lo que acordamos en *${a.title}* (${fmtDate(m.date)}):`, ''];
+  if (dec.length) { wa.push('*Acuerdos*'); dec.slice(0, 6).forEach(d => wa.push('• ' + d.text)); wa.push(''); }
+  if (acts.length) { wa.push('*Tareas*'); acts.slice(0, 8).forEach(t => wa.push(`• ${t.task} — ${t.owner}${t.due ? ' (' + t.due + ')' : ''}`)); wa.push(''); }
+  wa.push('Si algo no quedó bien reflejado, me avisan. ¡Gracias!');
+  const em = ['Hola:', '', `Les envío el resumen de la reunión "${a.title}" del ${fmtDate(m.date)}.`, '', a.tldr, ''];
+  if (dec.length) { em.push('Acuerdos:'); dec.forEach(d => em.push('- ' + d.text)); em.push(''); }
+  if (acts.length) { em.push('Tareas:'); acts.forEach(t => em.push(`- ${t.task} — ${t.owner}${t.due ? ' · ' + t.due : ''}`)); em.push(''); }
+  if (a.nextSteps?.length) { em.push('Próximos pasos:'); a.nextSteps.forEach((x, i) => em.push(`${i + 1}. ${x}`)); em.push(''); }
+  em.push('Quedo atento a cualquier comentario.', '', 'Saludos.');
+  return { whatsapp: wa.join('\n'), emailSubject: 'Resumen y acuerdos: ' + a.title, emailBody: em.join('\n') };
+}
+function followHTML(m, a) {
+  const f = a.followUp || localFollow(m, a); const mode = S.followMode || 'whatsapp';
+  return `<div class="sec follow"><div class="sec-h"><h2>Mensaje de seguimiento</h2><span class="count">Listo para enviar · puedes editarlo</span></div>
+    <div class="panel fu"><div class="fu-top"><div class="seg-ctl" role="group" aria-label="Formato"><button data-fu="whatsapp" aria-pressed="${mode === 'whatsapp'}">${icon('chat', 2, 14)} WhatsApp</button><button data-fu="email" aria-pressed="${mode === 'email'}">${icon('mail', 2, 14)} Correo</button></div></div>
+    ${mode === 'email' ? `<input class="fu-subj" id="fu-subj" value="${esc(f.emailSubject)}" aria-label="Asunto">` : ''}
+    <textarea class="fu-text" id="fu-text" rows="${mode === 'email' ? 12 : 9}" aria-label="Mensaje">${esc(mode === 'email' ? f.emailBody : f.whatsapp)}</textarea>
+    <div class="fu-actions">${mode === 'whatsapp' ? `<button class="btn primary sm" id="fu-send">${icon('send', 2)}Enviar por WhatsApp</button>` : `<button class="btn primary sm" id="fu-send">${icon('mail', 2)}Abrir en el correo</button>`}<button class="btn sm" id="fu-copy">${icon('copy')}Copiar</button>${a.followUp ? '' : '<span class="hint">Mensaje armado con el acta. Las próximas actas lo traerán redactado por Claude.</span>'}</div></div></div>`;
+}
+function photosHTML(m) {
+  const ph = (m.photos || []); if (!ph.length) return '';
+  return `<div class="sec"><div class="sec-h"><h2>Fotos de la reunión</h2><span class="count">${ph.length} · toca para ver</span></div><div class="photos">${ph.map(p => `<button class="ph" data-ph="${esc(p.key)}"><img data-photo="${esc(p.key)}" alt="Foto${p.t != null ? ' del minuto ' + fmtT(p.t) : ''}">${p.t != null ? `<span class="mono">${fmtT(p.t)}</span>` : ''}</button>`).join('')}</div></div>`;
+}
+function bindSummaryExtras(body, m, a, segs) {
+  $$('[data-open]', body).forEach(b => b.onclick = () => go('m/' + b.dataset.open));
+  $$('[data-proj]', body).forEach(b => b.onclick = () => go('p/' + encodeURIComponent(b.dataset.proj)));
+  const fc = $('#ficha-copy'); if (fc) fc.onclick = () => copyText((a.ficha || []).map(x => `${x.label}: ${x.value}`).join('\n'), 'Ficha copiada');
+  const ics = $('#s-ics'); if (ics) ics.onclick = () => exportTasksICS([m]);
+  $$('[data-fu]', body).forEach(b => b.onclick = () => { S.followMode = b.dataset.fu; renderSummary(body, m, a, segs); $('.follow')?.scrollIntoView({ block: 'nearest' }); });
+  const txt = $('#fu-text');
+  if (txt) {
+    const mode = S.followMode || 'whatsapp';
+    const save = async () => { a.followUp = a.followUp || localFollow(m, a); if (mode === 'email') { a.followUp.emailBody = txt.value; a.followUp.emailSubject = $('#fu-subj').value; } else a.followUp.whatsapp = txt.value; await saveMeeting(m); };
+    txt.addEventListener('change', save); $('#fu-subj')?.addEventListener('change', save);
+    $('#fu-copy').onclick = () => copyText((mode === 'email' ? $('#fu-subj').value + '\n\n' : '') + txt.value, 'Mensaje copiado');
+    $('#fu-send').onclick = () => { if (mode === 'email') location.href = `mailto:?subject=${encodeURIComponent($('#fu-subj').value)}&body=${encodeURIComponent(txt.value)}`; else window.open('https://wa.me/?text=' + encodeURIComponent(txt.value), '_blank', 'noopener'); };
+  }
+  $$('[data-clipq]', body).forEach(b => b.onclick = () => { const t = +b.dataset.clipq; const seg = segs.find(x => x.t >= t - 1) || {}; clipSheet(m, Math.max(0, t - 1), Math.max(t + 8, Math.min(t + 45, seg.end || t + 15))); });
+  $$('[data-ph]', body).forEach(b => b.onclick = () => photoSheet(m, b.dataset.ph));
+  hydratePhotos(body);
+}
+
+/* =========================================================
+   Bottom sheet
+   ========================================================= */
+function sheet(html, onMount, cls = '') {
+  closeSheet();
+  const bg = document.createElement('div'); bg.className = 'sheet-bg';
+  bg.innerHTML = `<div class="sheet ${cls}" role="dialog" aria-modal="true"><button class="sheet-x" aria-label="Cerrar">${icon('back', 2)}</button>${html}</div>`;
+  document.body.appendChild(bg); requestAnimationFrame(() => bg.classList.add('in'));
+  bg.addEventListener('click', e => { if (e.target === bg || e.target.closest('.sheet-x')) closeSheet(); });
+  onMount && onMount(bg.firstElementChild);
+  return bg.firstElementChild;
+}
+function closeSheet() { const b = $('.sheet-bg'); if (!b) return; b.dispatchEvent(new Event('closing')); b.remove(); }
+async function deliverFile(file, title) {
+  if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], title }); return; } catch (e) { if (e.name === 'AbortError') return; } }
+  const url = URL.createObjectURL(file); const l = document.createElement('a'); l.href = url; l.download = file.name; document.body.appendChild(l); l.click(); setTimeout(() => { URL.revokeObjectURL(url); l.remove(); }, 2000); toast('Archivo descargado: ' + file.name);
+}
+
+/* =========================================================
+   Calendar (.ics and Google Calendar link)
+   ========================================================= */
+function buildICS(evts) {
+  const e2 = t => String(t || '').replace(/\\/g, '\\\\').replace(/\r?\n/g, '\\n').replace(/,/g, '\\,').replace(/;/g, '\;');
+  const fl = line => { let out = ''; while (line.length > 72) { out += line.slice(0, 72) + '\r\n '; line = line.slice(72); } return out + line; };
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+  const next = iso => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + 1); return isoD(d).replace(/-/g, ''); };
+  const L = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Acta//Reuniones//ES', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:Tareas de Acta'];
+  evts.forEach(e => L.push('BEGIN:VEVENT', 'UID:' + e.uid + '@acta.app', 'DTSTAMP:' + stamp, 'DTSTART;VALUE=DATE:' + e.date.replace(/-/g, ''), 'DTEND;VALUE=DATE:' + next(e.date), 'SUMMARY:' + e2(e.title), 'DESCRIPTION:' + e2(e.desc), 'TRANSP:TRANSPARENT', 'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + e2(e.title), 'TRIGGER:PT9H', 'END:VALARM', 'END:VEVENT'));
+  L.push('END:VCALENDAR');
+  return L.map(fl).join('\r\n') + '\r\n';
+}
+const taskEvent = (m, t, date) => ({ uid: (t.id || uid()) + '-' + m.id, date, title: t.task + (t.owner && t.owner !== 'Sin asignar' ? ' · ' + t.owner : ''), desc: `Tarea de la reunión "${m.analysis?.title || ''}" (${fmtDate(m.date)}).${t.due ? ' Plazo dicho: ' + t.due + '.' : ''} Prioridad ${t.priority}.` });
+const gcalURL = ev => { const d0 = ev.date.replace(/-/g, ''); const d = new Date(ev.date + 'T12:00:00'); d.setDate(d.getDate() + 1); return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent(ev.title) + '&dates=' + d0 + '/' + isoD(d).replace(/-/g, '') + '&details=' + encodeURIComponent(ev.desc); };
+function exportTasksICS(meetings) {
+  const evs = []; let undated = 0;
+  meetings.forEach(m => (m.analysis?.actions || []).forEach(t => { if (t.done) return; const d = taskDate(t, m); if (d) evs.push(taskEvent(m, t, d)); else undated++; }));
+  if (!evs.length) { toast(undated ? 'Ninguna tarea pendiente tiene fecha. Toca el ícono de calendario en una tarea para elegirla.' : 'No hay tareas pendientes.', 5000); return; }
+  deliverFile(new File([buildICS(evs)], 'tareas-acta.ics', { type: 'text/calendar' }), 'Tareas');
+  if (undated) setTimeout(() => toast(`${evs.length} con fecha al calendario · ${undated} sin fecha quedaron fuera`, 4500), 400);
+}
+function calendarSheet(m, t) {
+  const d0 = taskDate(t, m) || (() => { const d = new Date(); d.setDate(d.getDate() + 1); return isoD(d); })();
+  sheet(`<div class="eyebrow">Agregar al calendario</div><h3>${esc(t.task)}</h3><p class="muted">${esc(t.owner)}${t.due ? ' · plazo dicho: ' + esc(t.due) : ''}</p>
+    <div class="field" style="margin-top:14px"><label for="cal-d">Fecha</label><input type="date" id="cal-d" value="${d0}"></div>
+    <div class="sheet-actions"><a class="btn primary" id="cal-g" target="_blank" rel="noopener">${icon('cal', 2)}Google Calendar</a><button class="btn" id="cal-i">${icon('download')}Calendario del teléfono (.ics)</button></div>
+    <p class="hint">El evento dura todo el día y te avisa a las 9:00.</p>`, el => {
+    const upd = () => { $('#cal-g', el).href = gcalURL(taskEvent(m, t, $('#cal-d', el).value || d0)); };
+    upd(); $('#cal-d', el).addEventListener('change', async () => { upd(); t.dueDate = $('#cal-d', el).value; await saveMeeting(m); });
+    $('#cal-g', el).addEventListener('click', () => setTimeout(closeSheet, 300));
+    $('#cal-i', el).onclick = () => { deliverFile(new File([buildICS([taskEvent(m, t, $('#cal-d', el).value || d0)])], slug(t.task).slice(0, 40) + '.ics', { type: 'text/calendar' }), t.task); closeSheet(); };
+  });
+}
+
+/* =========================================================
+   Audio clips (cut on the phone, nothing is uploaded)
+   ========================================================= */
+function wavBytes(samples, sr) {
+  const n = samples.length; const buf = new ArrayBuffer(44 + n * 2); const v = new DataView(buf);
+  const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2, true);
+  for (let i = 0, o = 44; i < n; i++, o += 2) { const x = Math.max(-1, Math.min(1, samples[i])); v.setInt16(o, x < 0 ? x * 0x8000 : x * 0x7FFF, true); }
+  return buf;
+}
+async function decodeClip(blob, off, dur) {
+  const SR = 22050; const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext; if (!OAC) throw new Error('sin OfflineAudioContext');
+  const ctx = new OAC(1, SR, SR); const ab = await blob.arrayBuffer();
+  const buf = await new Promise((res, rej) => { try { const pr = ctx.decodeAudioData(ab, res, rej); if (pr && pr.then) pr.then(res, rej); } catch (e) { rej(e); } });
+  const sr = buf.sampleRate; const a = Math.max(0, Math.floor(off * sr)), b = Math.min(buf.length, Math.floor((off + dur) * sr));
+  if (b - a < sr * .5) throw new Error('El audio de ese tramo está vacío');
+  const ch = buf.numberOfChannels; const out = new Float32Array(b - a);
+  for (let c = 0; c < ch; c++) { const d = buf.getChannelData(c); for (let k = a; k < b; k++) out[k - a] += d[k] / ch; }
+  const fade = Math.min(out.length / 2, Math.floor(sr * .04)); for (let i = 0; i < fade; i++) { out[i] *= i / fade; out[out.length - 1 - i] *= i / fade; }
+  return new Blob([wavBytes(out, sr)], { type: 'audio/wav' });
+}
+async function liveClip(blob, off, dur, onStatus) {
+  const url = URL.createObjectURL(blob); const el = new Audio(); el.preload = 'auto'; el.src = url;
+  const AC = window.AudioContext || window.webkitAudioContext; const ctx = new AC();
+  try {
+    const src = ctx.createMediaElementSource(el); const dest = ctx.createMediaStreamDestination(); src.connect(dest);
+    await new Promise((res, rej) => { el.onloadedmetadata = res; el.onerror = () => rej(new Error('No se pudo leer el audio')); setTimeout(res, 5000); });
+    el.currentTime = off; await new Promise(r => { el.onseeked = r; setTimeout(r, 5000); });
+    const mime = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm'].find(t => MediaRecorder.isTypeSupported?.(t)) || '';
+    const rec = new MediaRecorder(dest.stream, mime ? { mimeType: mime, audioBitsPerSecond: 64000 } : undefined); const chunks = [];
+    rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+    const done = new Promise(r => { rec.onstop = r; });
+    await ctx.resume(); await el.play(); rec.start(500); const t0 = performance.now();
+    await new Promise(r => { const iv = setInterval(() => { const e = (performance.now() - t0) / 1000; onStatus && onStatus(`Preparando el clip… ${Math.min(dur, e).toFixed(0)} de ${Math.round(dur)} s`); if (e >= dur || el.ended) { clearInterval(iv); r(); } }, 250); });
+    rec.stop(); el.pause(); await done;
+    return new Blob(chunks, { type: (rec.mimeType || mime || 'audio/webm').split(';')[0] });
+  } finally { try { ctx.close(); } catch {} URL.revokeObjectURL(url); }
+}
+async function cutAudio(m, start, end, onStatus) {
+  const parts = m.audioParts || []; if (!parts.length) throw new Error('Esta reunión no tiene audio guardado');
+  let i = 0; parts.forEach((p, k) => { if (p.offset <= start + .01) i = k; });
+  const p = parts[i]; const pEnd = parts[i + 1] ? parts[i + 1].offset : (m.durationSec || end); end = Math.min(end, pEnd);
+  const blob = await DB.get('audio', p.key); if (!blob) throw new Error('No encuentro el audio en este dispositivo');
+  const off = start - (p.offset || 0), dur = Math.max(1, end - start);
+  if (pEnd - p.offset <= 1800) { try { onStatus && onStatus('Cortando el audio…'); return await decodeClip(blob, off, dur); } catch (e) { console.warn('decode clip', e); } }
+  return liveClip(blob, off, dur, onStatus);
+}
+function clipSheet(m, start, end) {
+  const total = m.durationSec || end; let s0 = Math.max(0, Math.round(start)), e0 = Math.min(total, Math.round(end)); if (e0 - s0 < 3) e0 = Math.min(total, s0 + 10);
+  let prev = null;
+  sheet(`<div class="eyebrow">Clip de audio</div><h3>Comparte el momento exacto</h3><p class="muted">Se corta aquí en el teléfono y lo mandas por WhatsApp, correo o donde quieras.</p>
+    <div class="clip-range">
+      <div><span>Desde</span><b class="mono" id="c-s"></b><div class="nudge"><button data-cs="-5">−5 s</button><button data-cs="5">+5 s</button></div></div>
+      <div><span>Hasta</span><b class="mono" id="c-e"></b><div class="nudge"><button data-ce="-5">−5 s</button><button data-ce="5">+5 s</button><button data-ce="15">+15 s</button></div></div>
+    </div>
+    <p class="hint" id="c-len"></p>
+    <div class="sheet-actions"><button class="btn" id="c-play">${icon('play', 2)}Escuchar</button><button class="btn primary" id="c-share">${icon('share', 2)}Compartir clip</button></div>
+    <p class="hint" id="c-st"></p>`, el => {
+    const upd = () => { $('#c-s', el).textContent = fmtT(s0); $('#c-e', el).textContent = fmtT(e0); $('#c-len', el).textContent = `Duración ${e0 - s0} s · máximo 2 minutos`; };
+    upd();
+    $$('[data-cs]', el).forEach(b => b.onclick = () => { s0 = Math.max(0, Math.min(e0 - 2, s0 + +b.dataset.cs)); if (e0 - s0 > 120) e0 = s0 + 120; upd(); });
+    $$('[data-ce]', el).forEach(b => b.onclick = () => { e0 = Math.min(total, Math.max(s0 + 2, e0 + +b.dataset.ce)); if (e0 - s0 > 120) s0 = e0 - 120; upd(); });
+    $('#c-play', el).onclick = async () => {
+      if (prev && !prev.paused) { prev.pause(); return; }
+      const parts = m.audioParts; let i = 0; parts.forEach((p, k) => { if (p.offset <= s0 + .01) i = k; });
+      const u = await Player.url(parts[i].key); prev = new Audio(u); const off = s0 - parts[i].offset;
+      prev.addEventListener('loadedmetadata', () => { prev.currentTime = off; prev.play().catch(() => {}); }, { once: true });
+      prev.addEventListener('timeupdate', () => { if (prev.currentTime >= off + (e0 - s0)) prev.pause(); });
+    };
+    $('#c-share', el).onclick = async () => {
+      const btn = $('#c-share', el); btn.disabled = true; const st = $('#c-st', el);
+      try {
+        const blob = await cutAudio(m, s0, e0, t => { st.textContent = t; });
+        const ext = blob.type.includes('wav') ? 'wav' : extFor(blob.type);
+        const file = new File([blob], `clip-${slug(m.analysis?.title || 'reunion').slice(0, 30)}-${fmtT(s0).replace(/:/g, 'm')}.${ext}`, { type: blob.type });
+        st.textContent = `Clip listo · ${fmtBytes(file.size)}`;
+        await deliverFile(file, (m.analysis?.title || 'Reunión') + ' · ' + fmtT(s0));
+      } catch (e) { st.textContent = 'No se pudo crear el clip: ' + (e.message || 'error'); }
+      finally { btn.disabled = false; }
+    };
+  });
+  $('.sheet-bg')?.addEventListener('closing', () => { try { prev?.pause(); } catch {} });
+}
+
+/* =========================================================
+   Photo viewer and project editor
+   ========================================================= */
+async function photoSheet(m, key) {
+  const p = (m.photos || []).find(x => x.key === key); if (!p) return;
+  const u = await photoURL(key);
+  sheet(`<img class="ph-big" src="${u}" alt="Foto de la reunión"><div class="sheet-actions">${p.t != null && m.analysis ? `<button class="btn sm" id="ph-go">${icon('time')}Ir al minuto ${fmtT(p.t)}</button>` : ''}<button class="btn sm" id="ph-share">${icon('share')}Compartir</button><button class="btn sm ghost danger" id="ph-del">${icon('trash')}Eliminar</button></div>`, el => {
+    const g = $('#ph-go', el); if (g) g.onclick = () => { closeSheet(); S.jump = p.t; go('m/' + m.id + '/transcripcion'); };
+    $('#ph-share', el).onclick = async () => { const b = await DB.get('photos', key); deliverFile(new File([b], `foto-${slug(m.analysis?.title)}-${p.t != null ? fmtT(p.t).replace(/:/g, 'm') : 'extra'}.jpg`, { type: 'image/jpeg' }), 'Foto'); };
+    $('#ph-del', el).onclick = async () => { m.photos = m.photos.filter(x => x.key !== key); await DB.del('photos', key); await saveMeeting(m); closeSheet(); render(); toast('Foto eliminada'); };
+  }, 'photo');
+}
+function editProject(m) {
+  const list = projectsList();
+  sheet(`<div class="eyebrow">Proyecto o cliente</div><h3>¿A qué proyecto pertenece esta reunión?</h3><p class="muted">Las reuniones del mismo proyecto se conectan: Acta revisa qué tareas anteriores se cumplieron y te muestra el historial completo.</p>
+    <div class="field" style="margin-top:12px"><input id="pj-in" list="pj-list" value="${esc(m.project || '')}" placeholder="Ej.: Peluquería Camila" autocomplete="off"><datalist id="pj-list">${list.map(p => `<option value="${esc(p)}">`).join('')}</datalist></div>
+    ${list.length ? `<div class="pj-chips">${list.map(p => `<button class="chip" data-pj="${esc(p)}">${icon('folder', 2)}${esc(p)}</button>`).join('')}</div>` : ''}
+    <div class="sheet-actions"><button class="btn primary" id="pj-save">Guardar</button>${m.project ? '<button class="btn ghost" id="pj-clear">Quitar del proyecto</button>' : ''}</div>`, el => {
+    $$('[data-pj]', el).forEach(b => b.onclick = () => { $('#pj-in', el).value = b.dataset.pj; });
+    const save = async v => { const before = m.project || ''; m.project = v.trim(); await saveMeeting(m); closeSheet(); render(); if (m.project && m.project !== before && m.analysis) { const prev = projectMeetings(m.project, m.id).filter(x => x.analysis && (x.date || '') <= (m.date || '')).length; toast(prev ? 'Guardado. Toca Re-analizar para conectar las tareas de reuniones anteriores.' : 'Proyecto guardado', 5000); } else toast(m.project ? 'Proyecto guardado' : 'Reunión sin proyecto'); };
+    $('#pj-save', el).onclick = () => save($('#pj-in', el).value);
+    const c = $('#pj-clear', el); if (c) c.onclick = () => save('');
+    $('#pj-in', el).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save(e.target.value); } });
+  });
+}
+
+/* =========================================================
+   Global search (titles, acta, notes and every transcript, all on the phone)
+   ========================================================= */
+async function buildTxIndex() {
+  S.txBuilding = true;
+  try { const idx = {}; for (const m of S.meetings) { const t = await DB.get('transcripts', m.id); idx[m.id] = (t && t.segments) || []; } S.txIndex = idx; }
+  finally { S.txBuilding = false; }
+}
+function snippet(text, fq, q) {
+  const f = fold(text); const i = f.indexOf(fq); if (i < 0) return esc(text.slice(0, 120));
+  const a = Math.max(0, i - 50), b = Math.min(text.length, i + fq.length + 70);
+  return (a ? '…' : '') + esc(text.slice(a, i)) + '<mark>' + esc(text.slice(i, i + fq.length)) + '</mark>' + esc(text.slice(i + fq.length, b)) + (b < text.length ? '…' : '');
+}
+function searchHitsHTML(q) {
+  const fq = fold(q); if (fq.length < 2) return '';
+  const hits = [];
+  for (const m of S.meetings) {
+    const a = m.analysis || {}; const title = a.title || m.titleHint || 'Reunión';
+    const push = (kind, text, tab, t) => { if (text && fold(text).includes(fq)) hits.push({ m, title, kind, text: String(text), tab, t: t ?? '' }); };
+    (a.decisions || []).forEach(d => push('Decisión', d.text, 'resumen'));
+    (a.actions || []).forEach(x => push('Tarea', `${x.task} — ${x.owner}`, 'resumen'));
+    (a.keyPoints || []).forEach(k => push('Punto clave', `${k.title}: ${k.detail}`, 'resumen'));
+    (a.ideas || []).forEach(d => push('Idea', d.text, 'resumen'));
+    (a.questions || []).forEach(d => push('Pregunta', d.text, 'resumen'));
+    (a.ficha || []).forEach(d => push('Ficha', `${d.label}: ${d.value}`, 'resumen'));
+    (m.notesLog || []).forEach(n => push('Tu nota', n.text, 'transcripcion', n.t));
+    if (m.notes) push('Tu nota', m.notes, 'resumen');
+    const segs = S.txIndex?.[m.id] || [];
+    segs.forEach(x => { if (fold(x.text).includes(fq)) hits.push({ m, title, kind: x.s ? spkName(m, x.s) : 'Transcripción', text: x.text, tab: 'transcripcion', t: x.t, tx: true }); });
+  }
+  const shown = hits.slice(0, 60);
+  return `<section class="sec hits"><div class="sec-title"><h2>Dentro de tus reuniones</h2><span class="muted" style="font-size:12.5px">${!S.txIndex ? 'Buscando en las transcripciones…' : `${hits.length} ${hits.length === 1 ? 'coincidencia' : 'coincidencias'}${hits.length > 60 ? ' · se muestran 60' : ''}`}</span></div>
+    ${shown.length ? `<div class="hitlist">${shown.map(h => `<button class="hit" data-hit="${esc(h.m.id)}|${h.tab}|${h.t}"><span class="hk ${h.tx ? 'tx' : ''}">${esc(h.kind)}</span><span class="ht">${snippet(h.text, fq, q)}</span><span class="hm">${esc(h.title)} · ${esc(fmtDate(h.m.date))}${h.t !== '' ? ` · <b class="mono">${fmtT(h.t)}</b>` : ''}</span></button>`).join('')}</div>` : S.txIndex ? `<div class="empty-li" style="padding:6px 0 4px">Nadie dijo “${esc(q)}” en tus reuniones.</div>` : ''}
+  </section>`;
+}
+
+/* =========================================================
+   Weekly summary (computed on the phone, no AI)
+   ========================================================= */
+function weekRange(off = 0) { const d = new Date(); d.setHours(12, 0, 0, 0); const dow = (d.getDay() + 6) % 7; d.setDate(d.getDate() - dow + off * 7); const e = new Date(d); e.setDate(e.getDate() + 6); return { start: isoD(d), end: isoD(e), s: d, e }; }
+function weekData(off = 0) {
+  const r = weekRange(off);
+  const ms = S.meetings.filter(m => m.date >= r.start && m.date <= r.end).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  const ready = ms.filter(m => m.analysis);
+  const acts = ready.flatMap(m => (m.analysis.actions || []).map(t => ({ m, t })));
+  const decisions = ready.flatMap(m => (m.analysis.decisions || []).map(d => ({ m, d })));
+  const secs = ms.reduce((a, m) => a + (m.durationSec || 0), 0);
+  const perDay = [0, 0, 0, 0, 0, 0, 0]; ms.forEach(m => { const k = (new Date(m.date + 'T12:00:00').getDay() + 6) % 7; perDay[k] += (m.durationSec || 0) / 60; });
+  const people = new Map(); ready.forEach(m => ((m.analysis.participants?.length ? m.analysis.participants : m.participants) || []).forEach(p => { if (!/^(t[uú]|yo)$/i.test(p.trim())) people.set(p, (people.get(p) || 0) + 1); }));
+  const due = S.meetings.filter(m => m.analysis).flatMap(m => (m.analysis.actions || []).map((t, i) => ({ m, t, i, d: taskDate(t, m) }))).filter(x => !x.t.done && x.d && x.d <= r.end).sort((a, b) => a.d.localeCompare(b.d));
+  const projects = [...new Set(ms.map(m => m.project).filter(Boolean))];
+  return { r, ms, ready, acts, decisions, secs, perDay, people: [...people.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6), due, projects };
+}
+function weekLabel(r) { const f = d => d.toLocaleDateString('es-CL', { day: 'numeric', month: 'short' }); return `${f(r.s)} – ${f(r.e)}`; }
+function weekCardHTML() {
+  const w = weekData(0); const pend = w.acts.filter(x => !x.t.done).length;
+  return `<button class="weekcard rise" data-nav="week"><span class="wk-ic">${icon('week', 2)}</span><span class="wk-tx"><b>Tu semana</b><span>${w.ms.length} ${w.ms.length === 1 ? 'reunión' : 'reuniones'} · ${w.decisions.length} decisiones · ${pend} tareas abiertas${w.due.length ? ` · <em>${w.due.length} con plazo vencido o esta semana</em>` : ''}</span></span><span class="wk-go">Ver resumen ${icon('back', 2)}</span></button>`;
+}
+function weekText(w) {
+  const L = [`Resumen de mi semana (${weekLabel(w.r)})`, `${w.ms.length} reuniones · ${(w.secs / 3600).toFixed(1).replace('.', ',')} h · ${w.decisions.length} decisiones · ${w.acts.length} tareas nuevas (${w.acts.filter(x => x.t.done).length} hechas)`, ''];
+  if (w.decisions.length) { L.push('Decisiones:'); w.decisions.forEach(x => L.push(`- ${x.d.text} (${x.m.analysis.title})`)); L.push(''); }
+  if (w.due.length) { L.push('Tareas con plazo:'); w.due.forEach(x => L.push(`- ${shortDate(x.d)}: ${x.t.task} — ${x.t.owner}`)); L.push(''); }
+  const open = w.acts.filter(x => !x.t.done); if (open.length) { L.push('Pendientes de la semana:'); open.forEach(x => L.push(`- ${x.t.task} — ${x.t.owner}`)); }
+  return L.join('\n').trim();
+}
+function renderWeek(app) {
+  const w = weekData(S.weekOff); const max = Math.max(...w.perDay, 1); const days = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+  const done = w.acts.filter(x => x.t.done).length; const today0 = today();
+  app.innerHTML = `
+  <div class="page-head"><div><div class="eyebrow">Resumen semanal</div><h1>${S.weekOff === 0 ? 'Tu semana' : S.weekOff === -1 ? 'La semana pasada' : 'Semana del ' + esc(weekLabel(w.r))}</h1><p>${esc(weekLabel(w.r))} · se calcula en tu teléfono con tus actas, sin costo.</p></div>
+    <div class="seg-ctl"><button id="wk-prev" aria-label="Semana anterior">‹ Anterior</button><button id="wk-next" ${S.weekOff >= 0 ? 'disabled' : ''} aria-label="Semana siguiente">Siguiente ›</button></div></div>
+  <div class="tools-row"><button class="btn sm primary" id="wk-share">${icon('share')}Compartir</button><button class="btn sm" id="wk-copy">${icon('copy')}Copiar texto</button><button class="btn sm" id="wk-img">${icon('image', 2)}Guardar imagen</button>${w.due.length ? `<button class="btn sm" id="wk-ics">${icon('cal')}Plazos al calendario</button>` : ''}</div>
+  <section class="weekboard" id="weekboard">
+    <div class="wb-head"><div><div class="eyebrow">Acta · resumen semanal</div><h2>${esc(weekLabel(w.r))}</h2></div><span class="brand-mark sm"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2"/></svg></span></div>
+    <div class="stats s4">
+      <div class="stat"><span class="si" style="background:var(--accent-soft);color:var(--ember)">${icon('mic', 2)}</span><b>${w.ms.length}</b><span>Reuniones</span></div>
+      <div class="stat"><span class="si" style="background:var(--q-soft);color:var(--q)">${icon('time', 2)}</span><b>${(w.secs / 3600).toFixed(1).replace('.', ',')}<small style="font-size:15px;color:var(--muted)"> h</small></b><span>Conversadas</span></div>
+      <div class="stat"><span class="si" style="background:var(--dec-soft);color:var(--dec)">${icon('flag', 2)}</span><b>${w.decisions.length}</b><span>Decisiones</span></div>
+      <div class="stat"><span class="si" style="background:var(--act-soft);color:var(--act)">${icon('check', 2.4)}</span><b>${done}<span style="font-size:17px;color:var(--muted)">/${w.acts.length}</span></b><span>Tareas hechas</span></div>
+    </div>
+    <div class="wb-grid">
+      <div class="panel wb-days"><div class="eyebrow">Minutos por día</div><div class="days">${w.perDay.map((v, i) => `<div class="day"><i style="height:${Math.max(3, v / max * 100)}%;${v ? '' : 'opacity:.25'}"></i><span>${days[i]}</span><em class="mono">${v ? Math.round(v) : ''}</em></div>`).join('')}</div></div>
+      <div class="panel"><div class="eyebrow">Con quién te reuniste</div>${w.people.length ? `<div class="wb-people">${w.people.map(([n, c], i) => `<span><span class="av" style="background:${AV_COLORS[i % 6]}">${esc(initials(n))}</span>${esc(n)} <em>${c}</em></span>`).join('')}</div>` : '<p class="muted" style="font-size:13px;margin-top:10px">Sin participantes registrados.</p>'}
+        ${w.projects.length ? `<div class="eyebrow" style="margin-top:16px">Proyectos</div><div class="pj-chips">${w.projects.map(p => `<button class="chip" data-proj="${esc(p)}">${icon('folder', 2)}${esc(p)}</button>`).join('')}</div>` : ''}</div>
+    </div>
+    ${w.due.length ? `<div class="sec"><div class="sec-h"><h2>Plazos vencidos o de esta semana</h2><span class="count">${w.due.length}</span></div><div class="box">${w.due.map(x => `<div class="li"><span class="mk" style="background:${x.d < today0 ? 'var(--risk)' : 'var(--idea)'}"></span><div>${esc(x.t.task)}<small>${esc(x.t.owner)} · <b class="${x.d < today0 ? 'late' : ''}">${x.d < today0 ? 'venció ' : ''}${esc(shortDate(x.d))}</b> · <button class="tlink" data-open="${esc(x.m.id)}">${esc(x.m.analysis.title)}</button></small></div></div>`).join('')}</div></div>` : ''}
+    <div class="sec g2">
+      ${box('Decisiones de la semana', 'var(--dec)', 'var(--dec-soft)', 'flag', w.decisions.map(x => `<div class="li"><span class="mk" style="background:var(--dec)"></span><div>${esc(x.d.text)}<small>${esc(x.m.analysis.title)} · ${esc(shortDate(x.m.date))}</small></div></div>`).join(''), w.decisions.length)}
+      ${box('Tareas nuevas', 'var(--act)', 'var(--act-soft)', 'check', w.acts.map(x => `<div class="li"><span class="mk" style="background:${x.t.done ? 'var(--act)' : 'var(--faint)'}"></span><div style="${x.t.done ? 'text-decoration:line-through;color:var(--muted)' : ''}">${esc(x.t.task)}<small>${esc(x.t.owner)}${x.t.due ? ' · ' + esc(x.t.due) : ''}</small></div></div>`).join(''), `${done}/${w.acts.length}`)}
+    </div>
+    <div class="sec"><div class="sec-h"><h2>Reuniones</h2></div>${w.ms.length ? `<div class="wb-meets">${w.ms.map(m => `<button class="wb-m" data-open="${esc(m.id)}"><span class="mono">${esc(shortDate(m.date))}</span><b>${esc(m.analysis?.title || m.titleHint || 'Reunión')}</b><span>${m.analysis ? esc(m.analysis.tldr) : esc(STATUS_TXT[m.status] || '')}</span></button>`).join('')}</div>` : `<div class="empty-li">No hubo reuniones esta semana.</div>`}</div>
+  </section>`;
+  $('#wk-prev').onclick = () => { S.weekOff--; render(); };
+  $('#wk-next').onclick = () => { if (S.weekOff < 0) { S.weekOff++; render(); } };
+  $('#wk-copy').onclick = () => copyText(weekText(w), 'Resumen copiado');
+  $('#wk-share').onclick = () => shareText('Mi semana', weekText(w));
+  $('#wk-img').onclick = async () => {
+    const b = $('#wk-img'); b.disabled = true;
+    try { const lib = await loadH2I(); const node = $('#weekboard'); const opts = { pixelRatio: 2, backgroundColor: '#07080D', width: Math.min(900, node.offsetWidth) };
+      let blob; try { blob = await lib.toBlob(node, opts); } catch { blob = await lib.toBlob(node, { ...opts, skipFonts: true }); }
+      await deliverFile(new File([blob], `semana-${w.r.start}.png`, { type: 'image/png' }), 'Mi semana'); }
+    catch (e) { toast('No se pudo crear la imagen', 4000); } finally { b.disabled = false; }
+  };
+  const ic = $('#wk-ics'); if (ic) ic.onclick = () => { const evs = w.due.map(x => taskEvent(x.m, x.t, x.d)); deliverFile(new File([buildICS(evs)], `plazos-${w.r.start}.ics`, { type: 'text/calendar' }), 'Plazos'); };
+  $$('[data-open]', app).forEach(b => b.onclick = () => go('m/' + b.dataset.open));
+  $$('[data-proj]', app).forEach(b => b.onclick = () => go('p/' + encodeURIComponent(b.dataset.proj)));
+}
+
+/* =========================================================
+   Projects (meetings linked over time)
+   ========================================================= */
+function projectStats(name) {
+  const ms = projectMeetings(name); const ready = ms.filter(m => m.analysis);
+  const acts = ready.flatMap(m => (m.analysis.actions || []).map((t, i) => ({ m, t, i })));
+  return { ms, ready, acts, open: acts.filter(x => !x.t.done), decisions: ready.flatMap(m => (m.analysis.decisions || []).map(d => ({ m, d }))), last: ms[ms.length - 1], secs: ms.reduce((a, m) => a + (m.durationSec || 0), 0) };
+}
+function projectsRowHTML() {
+  const ps = projectsList(); if (!ps.length) return '';
+  return `<div class="sec-title" style="margin-top:22px"><h2>Proyectos</h2><button class="btn sm ghost" data-nav="projects">Ver todos</button></div><div class="pj-row">${ps.slice(0, 12).map(p => { const st = projectStats(p); return `<button class="pj" data-proj="${esc(p)}"><span class="pj-ic">${icon('folder', 2)}</span><b>${esc(p)}</b><span>${st.ms.length} ${st.ms.length === 1 ? 'reunión' : 'reuniones'} · ${st.open.length} abiertas</span></button>`; }).join('')}</div>`;
+}
+function renderProjects(app) {
+  const ps = projectsList();
+  app.innerHTML = `<button class="btn ghost sm back" data-nav="library">${icon('back')}Inicio</button>
+  <div class="page-head"><div><div class="eyebrow">Continuidad</div><h1>Proyectos</h1><p>Cada proyecto junta sus reuniones en orden. En la siguiente reunión, Acta revisa qué tareas se cumplieron.</p></div></div>
+  ${ps.length ? `<div class="grid-lib">${ps.map(p => { const st = projectStats(p); return `<button class="mcard pjcard" data-proj="${esc(p)}"><div class="mc-band"><i style="flex:1;background:var(--g-cool)"></i></div><div class="mc-body"><div class="mcard-meta"><span class="mono">${st.last ? esc(fmtDate(st.last.date)) : ''}</span></div><h3>${icon('folder', 2, 18)} ${esc(p)}</h3><p class="tl">${st.ms.length} ${st.ms.length === 1 ? 'reunión' : 'reuniones'} · ${(st.secs / 3600).toFixed(1).replace('.', ',')} h · ${st.decisions.length} decisiones</p><div class="mc-foot"><span></span><div class="mc-kpis"><span style="color:var(--act)">${icon('check', 2.4)}<b>${st.acts.length - st.open.length}/${st.acts.length}</b></span></div></div></div></button>`; }).join('')}</div>`
+    : `<div class="empty">${icon('folder', 1.6, 34)}<h3>Aún no hay proyectos</h3><p style="max-width:52ch">Al grabar, escribe el proyecto o cliente en “Detalles de la reunión”. También puedes asignarlo desde cualquier acta con <b>Asignar proyecto</b>.</p></div>`}`;
+  $$('[data-proj]', app).forEach(b => b.onclick = () => go('p/' + encodeURIComponent(b.dataset.proj)));
+}
+function projectText(name, st) {
+  const L = [`Estado del proyecto ${name} — ${fmtDate(today())}`, `${st.ms.length} reuniones · ${st.decisions.length} decisiones · ${st.open.length} tareas abiertas`, ''];
+  if (st.last?.analysis) L.push(`Última reunión (${fmtDate(st.last.date)}): ${st.last.analysis.tldr}`, '');
+  if (st.decisions.length) { L.push('Decisiones:'); st.decisions.forEach(x => L.push(`- ${x.d.text} (${shortDate(x.m.date)})`)); L.push(''); }
+  if (st.open.length) { L.push('Tareas abiertas:'); st.open.forEach(x => L.push(`- ${x.t.task} — ${x.t.owner}${x.t.due ? ' · ' + x.t.due : ''}`)); }
+  return L.join('\n').trim();
+}
+function renderProject(app, name) {
+  const st = projectStats(name);
+  if (!st.ms.length) { app.innerHTML = `<div class="empty"><h3>Proyecto sin reuniones</h3><p>Puede que se haya renombrado.</p><button class="btn" data-nav="projects">Ver proyectos</button></div>`; return; }
+  const doneN = st.acts.length - st.open.length;
+  app.innerHTML = `<button class="btn ghost sm back" data-nav="projects">${icon('back')}Proyectos</button>
+  <section class="m-hero rise"><span class="aura a1"></span><span class="aura a2"></span><header class="m-head">
+    <div class="m-meta"><span>${icon('folder')}Proyecto</span><span>${icon('cal')}Desde ${esc(fmtDate(st.ms[0].date))}</span></div>
+    <h1>${esc(name)}</h1>
+    <div class="m-actions"><button class="btn sm primary" id="pj-rec">${icon('mic', 2)}Grabar reunión de este proyecto</button><button class="btn sm" id="pj-share">${icon('share')}Compartir estado</button>${st.open.length ? `<button class="btn sm" id="pj-ics">${icon('cal')}Tareas al calendario</button>` : ''}<button class="btn sm ghost" id="pj-ren">${icon('edit')}Renombrar</button></div>
+  </header></section>
+  <div class="stats s4">
+    <div class="stat"><span class="si" style="background:var(--accent-soft);color:var(--ember)">${icon('mic', 2)}</span><b>${st.ms.length}</b><span>Reuniones</span></div>
+    <div class="stat"><span class="si" style="background:var(--q-soft);color:var(--q)">${icon('time', 2)}</span><b>${(st.secs / 3600).toFixed(1).replace('.', ',')}<small style="font-size:15px;color:var(--muted)"> h</small></b><span>Conversadas</span></div>
+    <div class="stat"><span class="si" style="background:var(--dec-soft);color:var(--dec)">${icon('flag', 2)}</span><b>${st.decisions.length}</b><span>Decisiones</span></div>
+    <div class="stat"><span class="si" style="background:var(--act-soft);color:var(--act)">${icon('check', 2.4)}</span><b>${doneN}<span style="font-size:17px;color:var(--muted)">/${st.acts.length}</span></b><span>Tareas hechas</span></div>
+  </div>
+  <div class="sec"><div class="sec-h"><h2>Línea de tiempo</h2><span class="count">De la primera a la última reunión</span></div>
+    <div class="pj-tl">${st.ms.map((m, k) => `<button class="pj-step" data-open="${esc(m.id)}"><span class="dot">${k + 1}</span><span class="mono">${esc(fmtDate(m.date))}</span><b>${esc(m.analysis?.title || m.titleHint || 'Reunión')}</b>${m.analysis?.continuity ? `<em>${esc(m.analysis.continuity)}</em>` : ''}<span class="muted">${m.analysis ? esc(m.analysis.tldr) : esc(STATUS_TXT[m.status] || '')}</span></button>`).join('')}</div></div>
+  <div class="sec g2">
+    <div class="box"><div class="box-h"><span class="ic" style="background:var(--act-soft);color:var(--act)">${icon('check', 2.2)}</span><h3>Tareas abiertas del proyecto</h3><span class="n">${st.open.length}</span></div>${st.open.length ? st.open.map(x => taskHTML(x.t, `${x.m.id}|${x.i}`, `<span>${esc(shortDate(x.m.date))}</span>`)).join('') : '<div class="empty-li">Todo al día.</div>'}</div>
+    ${box('Decisiones en orden', 'var(--dec)', 'var(--dec-soft)', 'flag', st.decisions.map(x => `<div class="li"><span class="mk" style="background:var(--dec)"></span><div>${esc(x.d.text)}<small>${esc(shortDate(x.m.date))} · ${esc(x.m.analysis.title)}</small></div></div>`).join(''), st.decisions.length)}
+  </div>`;
+  $$('[data-open]', app).forEach(b => b.onclick = () => go('m/' + b.dataset.open));
+  bindTasks(app);
+  $('#pj-rec').onclick = () => { recMeta = { title: '', participants: '', template: st.last?.template || 'general', context: '', project: name }; go('record'); };
+  $('#pj-share').onclick = () => shareText('Proyecto ' + name, projectText(name, st));
+  const ic = $('#pj-ics'); if (ic) ic.onclick = () => exportTasksICS(st.ready);
+  $('#pj-ren').onclick = () => sheet(`<div class="eyebrow">Renombrar proyecto</div><h3>${esc(name)}</h3><div class="field" style="margin-top:12px"><input id="rn-in" value="${esc(name)}"></div><div class="sheet-actions"><button class="btn primary" id="rn-ok">Guardar</button></div>`, el => {
+    $('#rn-ok', el).onclick = async () => { const v = $('#rn-in', el).value.trim(); if (!v) return; for (const m of st.ms) { m.project = v; await saveMeeting(m); } closeSheet(); go('p/' + encodeURIComponent(v)); toast('Proyecto renombrado'); };
+  });
+}
+
+/* =========================================================
+   Word export: a real .docx built on the phone (tiny zip writer)
+   ========================================================= */
+const CRC_T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+const crc32 = u8 => { let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = CRC_T[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+function zipStore(files) {
+  const enc = new TextEncoder(); const chunks = []; const central = []; let off = 0;
+  const d = new Date(); const time = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1); const date = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+  for (const [name, data] of files) {
+    const nb = enc.encode(name); const body = typeof data === 'string' ? enc.encode(data) : data; const crc = crc32(body);
+    const h = new DataView(new ArrayBuffer(30)); h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true); h.setUint16(10, time, true); h.setUint16(12, date, true); h.setUint32(14, crc, true); h.setUint32(18, body.length, true); h.setUint32(22, body.length, true); h.setUint16(26, nb.length, true); h.setUint16(28, 0, true);
+    chunks.push(new Uint8Array(h.buffer), nb, body);
+    const c = new DataView(new ArrayBuffer(46)); c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(10, 0, true); c.setUint16(12, time, true); c.setUint16(14, date, true); c.setUint32(16, crc, true); c.setUint32(20, body.length, true); c.setUint32(24, body.length, true); c.setUint16(28, nb.length, true); c.setUint32(42, off, true);
+    central.push(new Uint8Array(c.buffer), nb); off += 30 + nb.length + body.length;
+  }
+  const csize = central.reduce((a, x) => a + x.length, 0);
+  const e = new DataView(new ArrayBuffer(22)); e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, csize, true); e.setUint32(16, off, true);
+  return new Blob([...chunks, ...central, new Uint8Array(e.buffer)], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+}
+async function meetingDocx(m) {
+  const a = m.analysis || {}; const segs = await getSegments(m.id);
+  const x = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
+  const run = (t, o = {}) => `<w:r><w:rPr>${o.b ? '<w:b/>' : ''}${o.i ? '<w:i/>' : ''}${o.c ? `<w:color w:val="${o.c}"/>` : ''}${o.sz ? `<w:sz w:val="${o.sz}"/>` : ''}</w:rPr><w:t xml:space="preserve">${x(t)}</w:t></w:r>`;
+  const rich = t => String(t).split(/(\*\*[^*]+\*\*)/).map(s => /^\*\*.+\*\*$/.test(s) ? run(s.slice(2, -2), { b: true }) : run(s)).join('');
+  const P = (content, style, extra = '') => `<w:p><w:pPr>${style ? `<w:pStyle w:val="${style}"/>` : ''}${extra}</w:pPr>${content}</w:p>`;
+  const para = (t, style) => P(rich(t), style);
+  const bullet = (t, sub) => P(run('•  ', { c: 'E2553A' }) + rich(t) + (sub ? run('  — ' + sub, { c: '6B7280' }) : ''), 'Lista');
+  const H1 = t => para(t, 'Heading1'), H2 = t => para(t, 'Heading2');
+  const cell = (t, o = {}) => `<w:tc><w:tcPr>${o.w ? `<w:tcW w:w="${o.w}" w:type="dxa"/>` : ''}${o.fill ? `<w:shd w:val="clear" w:color="auto" w:fill="${o.fill}"/>` : ''}</w:tcPr><w:p><w:pPr><w:spacing w:before="40" w:after="40"/></w:pPr>${run(t, { b: o.b, c: o.c, sz: 20 })}</w:p></w:tc>`;
+  const table = (head, rows, widths) => `<w:tbl><w:tblPr><w:tblStyle w:val="Tabla"/><w:tblW w:w="5000" w:type="pct"/><w:tblBorders><w:top w:val="single" w:sz="4" w:color="D9DCE3"/><w:bottom w:val="single" w:sz="4" w:color="D9DCE3"/><w:insideH w:val="single" w:sz="4" w:color="E6E8EE"/></w:tblBorders><w:tblCellMar><w:left w:w="100" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>${widths.map(w => `<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>
+    <w:tr><w:trPr><w:tblHeader/></w:trPr>${head.map((h, i) => cell(h, { b: true, fill: 'F3F4F7', w: widths[i] })).join('')}</w:tr>${rows.map(r => `<w:tr>${r.map((c, i) => cell(c, { w: widths[i] })).join('')}</w:tr>`).join('')}</w:tbl>${P('', '')}`;
+  const people = (a.participants?.length ? a.participants : m.participants) || [];
+  const B = [];
+  B.push(para(a.title || 'Acta de reunión', 'Title'));
+  B.push(P(run([fmtDate(m.date), m.durationSec ? 'Duración ' + fmtT(m.durationSec) : '', people.length ? people.join(', ') : '', m.project ? 'Proyecto: ' + m.project : ''].filter(Boolean).join('   ·   '), { c: '6B7280' }), ''));
+  B.push(H1('Resumen'), para(a.tldr || ''));
+  if (a.continuity) B.push(H2('Desde la reunión anterior'), para(a.continuity));
+  if (a.ficha?.length) { B.push(H1('Ficha')); B.push(table(['Campo', 'Detalle'], a.ficha.map(f => [f.label, f.value]), [2800, 6200])); }
+  if (a.keyPoints?.length) { B.push(H1('Puntos clave')); a.keyPoints.forEach(k => B.push(bullet(`**${k.title}:** ${k.detail}`))); }
+  if (a.decisions?.length) { B.push(H1('Decisiones')); a.decisions.forEach(d => B.push(bullet(d.text, d.why))); }
+  if (a.actions?.length) { B.push(H1('Tareas')); B.push(table(['Tarea', 'Responsable', 'Plazo', 'Prioridad', 'Estado'], a.actions.map(t => [t.task, t.owner, t.due || (taskDate(t, m) ? shortDate(taskDate(t, m)) : '—'), t.priority, t.done ? 'Hecha' : 'Pendiente']), [3900, 1700, 1400, 1000, 1000])); }
+  if (a.topics?.length) { B.push(H1('Temas tratados')); a.topics.forEach(t => B.push(bullet(`**${t.name}** (${fmtT(t.start)})`, t.summary))); }
+  if (a.ideas?.length) { B.push(H2('Ideas')); a.ideas.forEach(d => B.push(bullet(d.text, d.note))); }
+  if (a.risks?.length) { B.push(H2('Riesgos')); a.risks.forEach(d => B.push(bullet(d.text, 'severidad ' + d.severity))); }
+  if (a.questions?.length) { B.push(H2('Preguntas abiertas')); a.questions.forEach(d => B.push(bullet(d.text))); }
+  if (a.numbers?.length) { B.push(H2('Cifras mencionadas')); a.numbers.forEach(n => B.push(bullet(`**${n.value}** ${n.label}`))); }
+  if (a.quotes?.length) { B.push(H2('Frases para recordar')); a.quotes.forEach(q => B.push(P(run('“' + q.text + '”', { i: true }) + run('  — ' + q.who, { c: '6B7280' }), 'Lista'))); }
+  if (a.nextSteps?.length) { B.push(H1('Próximos pasos')); a.nextSteps.forEach((s2, i) => B.push(P(run(`${i + 1}.  `, { b: true, c: 'E2553A' }) + rich(s2), 'Lista'))); }
+  const f = a.followUp; if (f?.emailBody) { B.push(H1('Mensaje de seguimiento')); B.push(para('Asunto: ' + f.emailSubject)); f.emailBody.split('\n').forEach(l => B.push(para(l))); }
+  if (a.brief) { B.push(P('', '', '<w:pageBreakBefore/>')); a.brief.split('\n').forEach(l => { const h = l.match(/^(#{1,3})\s+(.*)$/); const li = l.match(/^\s*[-*]\s+(.*)$/); if (h) B.push(para(h[2], h[1].length === 1 ? 'Heading1' : 'Heading2')); else if (li) B.push(bullet(li[1])); else if (l.trim()) B.push(para(l)); }); }
+  if (segs.length) { B.push(P('', '', '<w:pageBreakBefore/>'), H1('Transcripción')); segs.forEach(sg => B.push(P(run(fmtT(sg.t) + '   ', { c: '9AA0AE', sz: 18 }) + (sg.s ? run(spkName(m, sg.s) + ': ', { b: true }) : '') + run(sg.text), 'Transcripcion'))); }
+  B.push(P(run('Acta creada con Acta · ' + fmtDate(today()), { c: '9AA0AE', sz: 16 }), ''));
+  const doc = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>${B.join('')}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="567" w:footer="567" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+  const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+<w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:eastAsia="Calibri" w:cs="Calibri"/><w:sz w:val="22"/><w:szCs w:val="22"/><w:lang w:val="es-CL"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="120" w:line="288" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults>
+<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:rPr><w:color w:val="1F2430"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="80"/></w:pPr><w:rPr><w:b/><w:sz w:val="48"/><w:color w:val="12141B"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:pPr><w:keepNext/><w:spacing w:before="320" w:after="100"/><w:pBdr><w:bottom w:val="single" w:sz="6" w:space="2" w:color="FF7A45"/></w:pBdr><w:outlineLvl w:val="0"/></w:pPr><w:rPr><w:b/><w:sz w:val="30"/><w:color w:val="12141B"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:pPr><w:keepNext/><w:spacing w:before="220" w:after="80"/><w:outlineLvl w:val="1"/></w:pPr><w:rPr><w:b/><w:sz w:val="25"/><w:color w:val="7C5CFF"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Lista"><w:name w:val="Lista Acta"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="60"/><w:ind w:left="360" w:hanging="260"/></w:pPr></w:style>
+<w:style w:type="paragraph" w:styleId="Transcripcion"><w:name w:val="Transcripción"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="60"/></w:pPr><w:rPr><w:sz w:val="20"/></w:rPr></w:style>
+<w:style w:type="table" w:styleId="Tabla"><w:name w:val="Tabla Acta"/><w:tblPr><w:tblCellMar><w:top w:w="40" w:type="dxa"/><w:bottom w:w="40" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style>
+</w:styles>`;
+  const files = [
+    ['[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>'],
+    ['_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/></Relationships>'],
+    ['docProps/core.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${x(a.title || 'Acta')}</dc:title><dc:creator>Acta</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${new Date().toISOString().replace(/\.\d+/, '')}</dcterms:created></cp:coreProperties>`],
+    ['word/_rels/document.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'],
+    ['word/document.xml', doc], ['word/styles.xml', styles]
+  ];
+  return new File([zipStore(files)], slug(a.title) + '.docx', { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+}
+
+/* =========================================================
+   App lock: Face ID / huella (WebAuthn on this device) with a PIN as backup
+   ========================================================= */
+const b64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const unb64u = s => { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; return Uint8Array.from(atob(s), c => c.charCodeAt(0)); };
+const Lock = {
+  locked: false, hiddenAt: 0, after: null, pin: '',
+  enabled() { return !!(Settings.v.lockOn && Settings.v.lockPin); },
+  async bioAvailable() { try { return !!(window.PublicKeyCredential && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()); } catch { return false; } },
+  async hash(pin, salt) { const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(salt + ':' + pin)); return b64u(d); },
+  async register() {
+    const cred = await navigator.credentials.create({ publicKey: { challenge: crypto.getRandomValues(new Uint8Array(32)), rp: { name: 'Acta', id: location.hostname }, user: { id: crypto.getRandomValues(new Uint8Array(16)), name: 'Acta en este teléfono', displayName: 'Acta' }, pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }], authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'discouraged' }, timeout: 60000, attestation: 'none' } });
+    return b64u(cred.rawId);
+  },
+  async bio() {
+    const challenge = crypto.getRandomValues(new Uint8Array(32));
+    const a = await navigator.credentials.get({ publicKey: { challenge, rpId: location.hostname, allowCredentials: [{ type: 'public-key', id: unb64u(Settings.v.lockCred), transports: ['internal'] }], userVerification: 'required', timeout: 60000 } });
+    const cd = JSON.parse(new TextDecoder().decode(a.response.clientDataJSON)); const flags = new Uint8Array(a.response.authenticatorData)[32];
+    return cd.type === 'webauthn.get' && cd.challenge === b64u(challenge) && !!(flags & 4);
+  },
+  show(after) {
+    if (after) this.after = after; this.locked = true; this.pin = '';
+    const el = $('#lock'); const bio = !!Settings.v.lockCred;
+    el.innerHTML = `<div class="lock-in"><span class="brand-mark lg"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2"/></svg></span><h2>${after ? 'Confirma que eres tú' : 'Acta está bloqueada'}</h2><p>${bio ? 'Usa Face ID o tu huella, o escribe tu PIN.' : 'Escribe tu PIN.'}</p>
+      ${bio ? `<button class="btn primary lg" id="lk-bio">${icon('face', 2)}Desbloquear</button>` : ''}
+      <div class="pin-dots" id="lk-dots">${'<i></i>'.repeat(4)}</div><p class="lk-err" id="lk-err"></p>
+      <div class="keypad">${[1, 2, 3, 4, 5, 6, 7, 8, 9, '', 0, '⌫'].map(k => k === '' ? '<span></span>' : `<button data-k="${k}">${k}</button>`).join('')}</div>${after ? '<button class="btn ghost sm" id="lk-cancel">Cancelar</button>' : ''}</div>`;
+    el.hidden = false; document.body.classList.add('locked');
+    const b = $('#lk-bio'); if (b) b.onclick = () => this.tryBio();
+    const c = $('#lk-cancel'); if (c) c.onclick = () => { this.after = null; this.hide(); };
+    $$('[data-k]', el).forEach(k => k.onclick = () => this.key(k.dataset.k));
+  },
+  async tryBio() { try { if (await this.bio()) this.unlock(); else $('#lk-err').textContent = 'No se pudo verificar. Usa tu PIN.'; } catch (e) { $('#lk-err').textContent = e.name === 'NotAllowedError' ? 'Cancelado. Puedes usar tu PIN.' : 'Face ID no disponible ahora. Usa tu PIN.'; } },
+  async key(k) {
+    if (k === '⌫') this.pin = this.pin.slice(0, -1); else if (this.pin.length < 4) this.pin += k;
+    $$('#lk-dots i').forEach((d, i) => d.classList.toggle('on', i < this.pin.length)); $('#lk-err').textContent = '';
+    if (this.pin.length === 4) { const ok = (await this.hash(this.pin, Settings.v.lockSalt)) === Settings.v.lockPin; if (ok) this.unlock(); else { this.pin = ''; const d = $('#lk-dots'); d.classList.add('shake'); setTimeout(() => { d.classList.remove('shake'); $$('#lk-dots i').forEach(x => x.classList.remove('on')); }, 420); $('#lk-err').textContent = 'PIN incorrecto'; if (navigator.vibrate) navigator.vibrate(80); } }
+  },
+  unlock() { const fn = this.after; this.after = null; this.hide(); if (fn) fn(); },
+  hide() { this.locked = false; const el = $('#lock'); el.hidden = true; el.innerHTML = ''; document.body.classList.remove('locked'); }
+};
+document.addEventListener('visibilitychange', () => {
+  if (!Lock.enabled()) return;
+  if (document.visibilityState === 'hidden') { if (!Rec.capturing && !S.picking) Lock.hiddenAt = Date.now(); }
+  else if (Lock.hiddenAt && !Lock.locked && Date.now() - Lock.hiddenAt >= Math.max(5, +Settings.v.lockAfter || 0) * 1000) { Lock.hiddenAt = 0; Lock.show(); }
+  else Lock.hiddenAt = 0;
+});
+function pinSheet(onDone) {
+  let first = '', cur = '';
+  sheet(`<div class="eyebrow">Bloqueo</div><h3 id="ps-t">Crea un PIN de 4 dígitos</h3><p class="muted" id="ps-s">Sirve de respaldo si Face ID o la huella no funcionan.</p><div class="pin-dots" id="ps-dots">${'<i></i>'.repeat(4)}</div><p class="lk-err" id="ps-err"></p><div class="keypad">${[1, 2, 3, 4, 5, 6, 7, 8, 9, '', 0, '⌫'].map(k => k === '' ? '<span></span>' : `<button data-pk="${k}">${k}</button>`).join('')}</div>`, el => {
+    const dots = () => $$('#ps-dots i', el).forEach((d, i) => d.classList.toggle('on', i < cur.length));
+    $$('[data-pk]', el).forEach(b => b.onclick = async () => {
+      const k = b.dataset.pk; if (k === '⌫') cur = cur.slice(0, -1); else if (cur.length < 4) cur += k; dots(); $('#ps-err', el).textContent = '';
+      if (cur.length < 4) return;
+      if (!first) { first = cur; cur = ''; setTimeout(dots, 150); $('#ps-t', el).textContent = 'Repite el PIN'; $('#ps-s', el).textContent = 'Para confirmar.'; return; }
+      if (cur !== first) { first = ''; cur = ''; setTimeout(dots, 150); $('#ps-t', el).textContent = 'Crea un PIN de 4 dígitos'; $('#ps-err', el).textContent = 'No coincidían. Inténtalo de nuevo.'; return; }
+      const salt = b64u(crypto.getRandomValues(new Uint8Array(12))); Settings.set({ lockSalt: salt, lockPin: await Lock.hash(cur, salt) }); closeSheet(); onDone && onDone();
+    });
+  }, 'pinsheet');
+}
+
+/* =========================================================
    Tasks view (all meetings)
    ========================================================= */
 function renderTasks(app) {
@@ -1233,11 +1934,13 @@ function renderTasks(app) {
   <div class="tools-row">
     <div class="seg-ctl" role="group" aria-label="Filtro"><button data-tf="pending" aria-pressed="${S.taskFilter === 'pending'}">Pendientes</button><button data-tf="all" aria-pressed="${S.taskFilter === 'all'}">Todas</button></div>
     ${owners.length ? `<select id="t-owner" class="btn sm" aria-label="Responsable"><option value="">Todos los responsables</option>${owners.map(o => `<option ${S.ownerFilter === o ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>` : ''}
+    ${pend ? `<button class="btn sm" id="t-ics">${icon('cal')}Pendientes al calendario</button>` : ''}
   </div>
   ${groups.length ? groups.map(({ m, items }) => `<section class="tgroup"><h3><button data-open="${esc(m.id)}">${esc(m.analysis.title)}</button><small>${esc(fmtDate(m.date))}</small></h3><div class="box">${items.map(({ t, i }) => taskHTML(t, `${m.id}|${i}`)).join('')}</div></section>`).join('')
     : `<div class="empty">${icon('check', 1.6, 34)}<h3>${ready.length ? 'Todo al día' : 'Sin tareas todavía'}</h3><p>${ready.length ? 'No hay tareas pendientes con este filtro.' : 'Las tareas aparecen aquí cuando Acta procesa tus reuniones.'}</p></div>`}`;
   $$('[data-tf]').forEach(b => b.onclick = () => { S.taskFilter = b.dataset.tf; render(); });
   const so = $('#t-owner'); if (so) so.onchange = e => { S.ownerFilter = e.target.value; render(); };
+  const ti = $('#t-ics'); if (ti) ti.onclick = () => exportTasksICS(ready);
   $$('[data-open]', app).forEach(b => b.onclick = () => go('m/' + b.dataset.open));
   bindTasks(app);
 }
@@ -1250,6 +1953,8 @@ async function renderSettings(app) {
   let est = null; try { est = await navigator.storage?.estimate?.(); } catch {}
   let persisted = false; try { persisted = await navigator.storage?.persisted?.(); } catch {}
   const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  const bioOK = await Lock.bioAvailable();
+  if (S.route.view !== 'settings') return;
   app.innerHTML = `
   <div class="page-head"><div><div class="eyebrow">Ajustes</div><h1>Configura Acta</h1><p>Todo queda guardado solo en este dispositivo.</p></div></div>
   <div class="set-grid">
@@ -1282,6 +1987,7 @@ async function renderSettings(app) {
           <div class="field"><label for="s-lang">Idioma de las reuniones</label><select id="s-lang"><option value="es" ${v.language === 'es' ? 'selected' : ''}>Español</option><option value="en" ${v.language === 'en' ? 'selected' : ''}>Inglés</option><option value="pt" ${v.language === 'pt' ? 'selected' : ''}>Portugués</option><option value="auto" ${v.language === 'auto' ? 'selected' : ''}>Detectar automáticamente</option></select></div>
           <div class="field"><label for="s-br">Calidad de grabación</label><select id="s-br"><option value="32000" ${+v.bitrate === 32000 ? 'selected' : ''}>Estándar · voz clara, ~14 MB por hora</option><option value="64000" ${+v.bitrate === 64000 ? 'selected' : ''}>Alta · ~29 MB por hora</option></select></div>
         </div>
+        <div class="field"><label for="s-vocab">Vocabulario de tu trabajo</label><textarea id="s-vocab" rows="3" placeholder="Nombres, marcas, clientes y términos que usas. Ej.: Camila Rojas, Peluquería Lumière, Transbank, UF, Bsale">${esc(v.vocab || '')}</textarea><span class="hint">Acta corrige estas palabras en la transcripción y en el acta. Sepáralas con comas.</span></div>
         <label class="switch"><input type="checkbox" id="s-cap" ${v.captions ? 'checked' : ''}><span><b>Subtítulos en vivo</b><small>Muestra el texto mientras grabas, usando el dictado del teléfono. En algunos Android puede interferir con el micrófono.</small></span></label>
       </div>
     </section>
@@ -1290,6 +1996,7 @@ async function renderSettings(app) {
       <li>Si igual se bloquea, Acta guarda todo lo grabado y te ofrece <b>Continuar</b> en la misma reunión.</li>
       <li>Para que no se apague sola: Ajustes del iPhone → Pantalla y brillo → <b>Bloqueo automático</b> → un tiempo largo durante tus reuniones.</li>
       <li><b>Android:</b> la grabación sigue con la pantalla apagada.</li></ol></section>
+    <section class="panel" id="lock-panel">${lockPanelHTML(bioOK)}</section>
     <section class="panel">
       <h2>Almacenamiento y respaldo</h2>
       ${est ? `<div style="margin-top:12px;display:grid;gap:8px"><div class="store-bar"><i style="width:${Math.min(100, est.usage / est.quota * 100).toFixed(1)}%"></i></div><span class="muted" style="font-size:13px">${fmtBytes(est.usage)} usados de ${fmtBytes(est.quota)} disponibles${persisted ? ' · protegido contra borrado automático' : ''}</span></div>` : ''}
@@ -1305,7 +2012,7 @@ async function renderSettings(app) {
       <li>Tus reuniones, audios y actas viven en este dispositivo.</li>
       <li>El audio se envía a OpenAI solo para transcribirlo; el texto se envía a Anthropic solo para crear el acta y responder preguntas.</li>
       <li>Avísales a los participantes que estás grabando.</li></ol></section>
-    <p class="status-line">Acta 2.0</p>
+    <p class="status-line">Acta 3.0</p>
   </div>`;
   const keyIn = (id, k) => $(id).addEventListener('change', e => { Settings.set({ [k]: e.target.value.trim() }); toast('Clave guardada'); });
   keyIn('#k-anthropic', 'anthropicKey'); keyIn('#k-openai', 'openaiKey');
@@ -1324,12 +2031,32 @@ async function renderSettings(app) {
   $('#s-lang').onchange = e => Settings.set({ language: e.target.value });
   $('#s-br').onchange = e => Settings.set({ bitrate: +e.target.value });
   $('#s-cap').onchange = e => Settings.set({ captions: e.target.checked });
+  $('#s-vocab').addEventListener('change', e => { Settings.set({ vocab: e.target.value }); toast(`Vocabulario guardado · ${vocabList().length} palabras`); });
+  bindLockSettings(app);
   $$('[data-wset]').forEach(b => b.onclick = () => { const p = b.dataset.wset; const v = parseFloat(($('#w-' + p + '-val').value || '').replace(',', '.')); if (!(v >= 0)) { toast('Escribe el saldo en dólares, por ejemplo 4.85'); return; } Usage.set(p, v); toast('Saldo ajustado'); renderSettings(app); });
   $$('[data-wtop]').forEach(b => b.onclick = () => { const p = b.dataset.wtop; const v = parseFloat(($('#w-' + p + '-top').value || '').replace(',', '.')); if (!(v > 0)) { toast('Escribe el monto que recargaste, por ejemplo 5'); return; } Usage.topup(p, v); toast('Recarga sumada'); renderSettings(app); });
   const sp = $('#s-persist'); if (sp) sp.onclick = async () => { let ok = false; try { ok = await navigator.storage.persist(); } catch {} toast(ok ? 'Tus datos quedaron protegidos' : 'El navegador no lo permitió. Instalar la app suele habilitarlo.'); renderSettings(app); };
   $('#s-export').onclick = exportBackup;
   $('#s-import').onchange = e => importBackup(e.target.files[0]);
   $('#s-wipe').onclick = () => { $('#wipe-slot').innerHTML = `<span class="confirm">Se borrarán todas las reuniones, audios y actas de este dispositivo.<button class="btn sm solid-danger" id="w-yes">Borrar todo</button><button class="btn sm" id="w-no">Cancelar</button></span>`; $('#w-yes').onclick = async () => { await DB.clearAll(); S.meetings = []; toast('Datos borrados'); renderSettings(app); }; $('#w-no').onclick = () => renderSettings(app); };
+}
+function lockPanelHTML(bioOK) {
+  const v = Settings.v; const on = Lock.enabled();
+  return `<h2>Bloqueo con Face ID</h2><p class="muted" style="font-size:13.5px;margin-top:6px">Pide Face ID, huella o PIN para abrir Acta. Evita que alguien que tome tu teléfono desbloqueado lea tus reuniones. La grabación sigue aunque la app esté bloqueada.</p>
+    ${on ? `<div class="lock-state">${icon('lock', 2)}<span><b>Activado</b> · ${v.lockCred ? 'Face ID o huella, y PIN de respaldo' : 'con PIN'}</span></div>
+      <div class="field" style="margin-top:12px"><label for="s-lockafter">Bloquear al salir de la app</label><select id="s-lockafter"><option value="5" ${+v.lockAfter <= 5 ? 'selected' : ''}>De inmediato</option><option value="60" ${+v.lockAfter === 60 ? 'selected' : ''}>Después de 1 minuto</option><option value="300" ${+v.lockAfter === 300 ? 'selected' : ''}>Después de 5 minutos</option><option value="900" ${+v.lockAfter === 900 ? 'selected' : ''}>Después de 15 minutos</option></select></div>
+      <div class="tools-row" style="margin-top:12px">${!v.lockCred && bioOK ? `<button class="btn sm primary" id="lk-addbio">${icon('face', 2)}Agregar Face ID</button>` : ''}<button class="btn sm" id="lk-test">Probar bloqueo</button><button class="btn sm" id="lk-pin">Cambiar PIN</button><button class="btn sm ghost danger" id="lk-off">Desactivar</button></div>`
+    : `<div class="tools-row" style="margin-top:14px"><button class="btn primary" id="lk-on">${icon(bioOK ? 'face' : 'lock', 2)}${bioOK ? 'Activar Face ID / huella' : 'Activar con PIN'}</button></div>${bioOK ? '' : '<p class="hint" style="margin-top:6px">Este navegador no ofrece Face ID para apps web; se usará un PIN. En iPhone funciona mejor con la app instalada en la pantalla de inicio.</p>'}`}`;
+}
+function bindLockSettings(app) {
+  const re = async () => { const p = $('#lock-panel'); if (p) { p.innerHTML = lockPanelHTML(await Lock.bioAvailable()); bindLockSettings(app); } };
+  const addBio = async () => { try { const id = await Lock.register(); Settings.set({ lockCred: id }); toast('Face ID activado'); } catch (e) { toast(e.name === 'NotAllowedError' ? 'Se canceló Face ID. Queda activo el PIN.' : 'No se pudo activar Face ID aquí. Queda activo el PIN.', 5000); } re(); };
+  const on = $('#lk-on'); if (on) on.onclick = async () => { const bio = await Lock.bioAvailable(); pinSheet(async () => { Settings.set({ lockOn: true, lockAfter: 60 }); if (bio) await addBio(); else { toast('Bloqueo con PIN activado'); re(); } }); };
+  const ab = $('#lk-addbio'); if (ab) ab.onclick = addBio;
+  const la = $('#s-lockafter'); if (la) la.onchange = e => { Settings.set({ lockAfter: +e.target.value }); toast('Guardado'); };
+  const t = $('#lk-test'); if (t) t.onclick = () => Lock.show();
+  const pc = $('#lk-pin'); if (pc) pc.onclick = () => Lock.show(() => pinSheet(() => toast('PIN cambiado')));
+  const off = $('#lk-off'); if (off) off.onclick = () => Lock.show(() => { Settings.set({ lockOn: false, lockCred: '', lockPin: '', lockSalt: '' }); toast('Bloqueo desactivado'); re(); });
 }
 async function exportBackup() {
   const meetings = await DB.all('meetings'); const transcripts = {};
@@ -1610,9 +2337,30 @@ async function loadDemo() {
     nextSteps: ['Recibir fotos y logo (miércoles)', 'Recibir presupuesto por etapa (viernes)', 'Cerrar requisitos con agenda por profesional', 'Diseñar pantallas principales', 'Desarrollar la v1 y probar con clientes reales', 'Lanzar el 15 de noviembre'],
     brief: '# Brief: App de reservas para la peluquería\n\n## Contexto\nLa peluquería pierde unas diez llamadas al día y cerca del 20% de los clientes no llega a su hora.\n\n## Objetivo\nQue los clientes reserven solos y bajar las inasistencias.\n\n## Alcance v1\n- Web app instalable en el celular\n- Reserva autónoma de horas\n- Agenda por profesional (3 personas, 4 los sábados)\n- Aviso por WhatsApp a la dueña en cada reserva\n- Recordatorio por WhatsApp al cliente el día antes\n- Diseño con colores, logo y fotos del local\n\n## Fuera de alcance (v2)\n- Cobro de abono al reservar\n\n## Pendientes\n- Presupuesto final por etapa (Diego, viernes)\n- Fotos y logo (Camila, miércoles)\n- Definir cancelaciones y reagendamientos'
   };
+  const ago = n => { const d = new Date(); d.setDate(d.getDate() - n); return isoD(d); };
+  const d1 = ago(7), d2 = today();
+  analysis.actions[0].dueDate = parseDue('viernes', d1); analysis.actions[1].dueDate = parseDue('miércoles', d1); analysis.actions[1].done = true;
+  analysis.followUp = { whatsapp: `Hola Camila y Diego, les dejo lo que acordamos hoy para la *app de reservas*:\n\n*Acuerdos*\n• Versión 1 como web app instalable, con agenda por profesional\n• Recordatorios por WhatsApp desde la v1\n• El abono queda para la v2\n• Lanzamiento meta: 15 de noviembre\n\n*Tareas*\n• Diego: presupuesto por etapa (viernes)\n• Camila: fotos y logo (miércoles)\n• Yo: diseño con la identidad del local\n\nSi algo no quedó bien, me avisan. ¡Gracias!`, emailSubject: 'Acuerdos: app de reservas para la peluquería', emailBody: `Hola Camila y Diego:\n\nLes envío el resumen de nuestra reunión sobre la app de reservas.\n\nAcuerdos:\n- La versión 1 será una web app instalable, con agenda por profesional.\n- Los recordatorios por WhatsApp entran en la v1 (aprox. $30.000 al mes).\n- El cobro de abono queda para la v2.\n- Lanzamiento meta: 15 de noviembre.\n\nTareas:\n- Diego: presupuesto final con detalle por etapa, el viernes.\n- Camila: fotos de cortes y logo, el miércoles.\n- Yo: diseño de la interfaz con la identidad del local.\n\nQuedo atento a cualquier comentario.\n\nSaludos.` };
+  analysis.ficha = [];
   await DB.put('transcripts', { segments: segs }, id);
-  await saveMeeting({ id, createdAt: Date.now() - 86400000, date: today(), durationSec: 350, participants: ['Camila', 'Diego', 'Tú'], template: 'proyecto', context: 'Primera reunión para definir la app de reservas.', notes: '', notesLog: [{ t: 95, text: 'Preguntar costo exacto de WhatsApp Business' }], marks: [{ t: 140, label: 'Decisión WhatsApp' }], audioParts: [], speakers: {}, status: 'ready', words: wordCount(segs), analysis });
-  go('m/' + id);
+  await saveMeeting({ id, createdAt: Date.now() - 7 * 86400000, date: d1, durationSec: 350, participants: ['Camila', 'Diego', 'Tú'], template: 'proyecto', project: 'Peluquería Camila', context: 'Primera reunión para definir la app de reservas.', notes: '', notesLog: [{ t: 95, text: 'Preguntar costo exacto de WhatsApp Business' }], marks: [{ t: 140, label: 'Decisión WhatsApp' }], photos: [], audioParts: [], speakers: {}, status: 'ready', words: wordCount(segs), analysis });
+  const id2 = 'ejemplo-' + uid();
+  const tx2 = `[0:00] Tú: Retomemos lo de la semana pasada. Camila, gracias por las fotos y el logo, ya están en el diseño.\n[0:14] Diego: El presupuesto lo mando mañana, me faltó cotizar el envío de WhatsApp con el proveedor nuevo.\n[0:35] Camila: Les cuento que los sábados ahora somos cinco, entró una colorista.\n[0:52] Tú: Perfecto, la agenda por profesional ya lo soporta. Lo dejo configurado con cinco.\n[1:10] Diego: Propongo hacer una prueba con diez clientas reales antes del lanzamiento.\n[1:25] Camila: Buenísimo, yo elijo a las clientas. Les aviso el lunes.\n[1:40] Tú: Entonces decidimos piloto con diez clientas la primera semana de noviembre.`;
+  const segs2 = parseTranscript(tx2).segments;
+  const a2 = { title: 'Revisión de avance: app de reservas', tldr: 'El diseño ya usa las fotos y el logo de Camila. El presupuesto de Diego se atrasa un día por la cotización de WhatsApp. Se decidió un piloto con diez clientas reales la primera semana de noviembre.', mood: { label: 'En marcha', score: 74, note: 'Avance concreto y un atraso menor.' }, tags: ['ejemplo', 'seguimiento'], participants: ['Tú', 'Camila', 'Diego'], speakers: [],
+    keyPoints: [{ title: 'Diseño con marca', detail: 'Fotos y logo ya integrados.', icon: 'design' }, { title: 'Presupuesto atrasado', detail: 'Falta cotizar WhatsApp con un proveedor nuevo.', icon: 'money' }, { title: 'Equipo de sábado', detail: 'Ahora son cinco con la nueva colorista.', icon: 'people' }],
+    topics: [{ name: 'Avance', start: 0, end: 35, summary: 'Diseño y presupuesto.' }, { name: 'Equipo', start: 35, end: 70, summary: 'Cinco profesionales los sábados.' }, { name: 'Piloto', start: 70, end: 110, summary: 'Prueba con clientas reales.' }],
+    decisions: [{ text: 'Piloto con diez clientas reales la primera semana de noviembre', why: 'Probar antes del lanzamiento' }],
+    actions: [{ id: uid(), task: 'Enviar presupuesto con la cotización de WhatsApp', owner: 'Diego', due: 'mañana', dueDate: parseDue('mañana', d2), priority: 'alta', done: false }, { id: uid(), task: 'Elegir las diez clientas del piloto', owner: 'Camila', due: 'lunes', dueDate: parseDue('lunes', d2), priority: 'media', done: false }, { id: uid(), task: 'Configurar la agenda con cinco profesionales los sábados', owner: 'Tú', due: '', dueDate: '', priority: 'media', done: false }],
+    ideas: [], risks: [{ text: 'El atraso del presupuesto puede mover el inicio del desarrollo', severity: 'baja' }], questions: [], numbers: [{ value: '10', label: 'clientas en el piloto' }, { value: '5', label: 'profesionales los sábados' }], quotes: [{ text: 'Yo elijo a las clientas. Les aviso el lunes.', who: 'Camila', t: 85 }],
+    mindmap: { center: 'Avance', branches: [{ label: 'Hecho', children: ['Fotos y logo'] }, { label: 'Atrasado', children: ['Presupuesto'] }, { label: 'Nuevo', children: ['Piloto 10 clientas', 'Colorista sábados'] }] },
+    nextSteps: ['Recibir presupuesto', 'Elegir clientas', 'Lanzar piloto'], brief: '', ficha: [], corrections: [],
+    continuity: 'Se cumplió la entrega de fotos y logo y el diseño avanzó. El presupuesto sigue pendiente, ahora para mañana. Lo nuevo: un piloto con clientas reales y un quinto profesional los sábados.',
+    previousTasks: [{ ref: id + '|0', status: 'en curso', note: 'Llega mañana' }, { ref: id + '|1', status: 'hecha', note: '' }, { ref: id + '|2', status: 'en curso', note: 'Ya usa las fotos y el logo' }],
+    followUp: { whatsapp: 'Hola Camila y Diego, resumen de hoy:\n\n*Avance*\n• Diseño ya con fotos y logo ✅\n• Presupuesto: llega mañana\n\n*Nuevo acuerdo*\n• Piloto con 10 clientas la primera semana de noviembre\n\n*Tareas*\n• Diego: presupuesto (mañana)\n• Camila: elegir clientas (lunes)\n• Yo: agenda con 5 profesionales los sábados', emailSubject: 'Avance app de reservas y piloto', emailBody: 'Hola Camila y Diego:\n\nResumen de la revisión de avance.\n\n- El diseño ya incorpora fotos y logo.\n- Diego envía el presupuesto mañana.\n- Acordamos un piloto con diez clientas la primera semana de noviembre.\n\nSaludos.' } };
+  await DB.put('transcripts', { segments: segs2 }, id2);
+  await saveMeeting({ id: id2, createdAt: Date.now() - 3600000, date: d2, durationSec: 110, participants: ['Camila', 'Diego', 'Tú'], template: 'uno', project: 'Peluquería Camila', context: '', notes: '', notesLog: [], marks: [], photos: [], audioParts: [], speakers: {}, status: 'ready', words: wordCount(segs2), analysis: a2 });
+  go('m/' + id2);
 }
 
 /* =========================================================
@@ -1627,9 +2375,11 @@ document.addEventListener('dblclick', e => { if (!e.target.closest('input,textar
    ========================================================= */
 (async () => {
   try { await loadMeetings(); } catch (e) { S.loaded = true; toast('No se pudo abrir el almacenamiento del navegador. Revisa que no estés en modo privado.', 6000); }
+  if (Lock.enabled()) Lock.show();
   try { const r = await DB.get('kv', 'activeRec'); if (r && r.recId) { const ch = await DB.chunksFor(r.recId); if (ch.length) S.recovery = r; else await DB.del('kv', 'activeRec'); } } catch {}
   onRoute();
-  for (const m of S.meetings) if (['queued', 'transcribing', 'analyzing'].includes(m.status)) processMeeting(m.id);
+  if (!navigator.onLine) document.body.classList.add('offline');
+  for (const m of S.meetings) if (['queued', 'transcribing', 'analyzing', 'waiting'].includes(m.status)) processMeeting(m.id);
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 })();
 })();
