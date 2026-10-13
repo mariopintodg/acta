@@ -836,3 +836,9 @@ body.offline .netpill{transform:translate(-50%,0)}
 .stats.s4{grid-template-columns:repeat(4,minmax(0,1fr))}
 @media (max-width:720px){.stats.s4{grid-template-columns:repeat(2,minmax(0,1fr))}.stats.s4 .stat:last-child{grid-column:auto}}
 .notice svg{width:18px;height:18px;flex:none;margin-top:2px;color:var(--q)}.netpill{white-space:nowrap}
+.file-ready{display:flex;gap:12px;align-items:center;margin-top:14px;background:var(--glass);border:1px solid var(--stroke);border-radius:var(--r-md);padding:12px 14px}
+.fr-ic{width:42px;height:42px;border-radius:12px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;flex:none}
+.fr-ic svg{width:20px;height:20px}
+.file-ready b{display:block;font-size:14px;word-break:break-all}
+.file-ready small{color:var(--muted);font-size:12px}
+.sheet-actions .btn.lg{flex:1;min-width:200px}

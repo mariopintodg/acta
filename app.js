@@ -1114,9 +1114,9 @@ function renderMeeting(app, m) {
   $$('[data-exp]', expMenu).forEach(b => b.onclick = async () => {
     expMenu.hidden = true; const k = b.dataset.exp;
     if (k === 'md') downloadText(slug(a.title) + '.md', await fullMd(m));
-    if (k === 'docx') { toast('Preparando el Word…'); try { await deliverFile(await meetingDocx(m), 'Acta en Word'); } catch (e) { toast('No se pudo crear el Word: ' + (e.message || 'error'), 5000); } }
+    if (k === 'docx') { toast('Preparando el Word…'); try { deliverFile(await meetingDocx(m), 'Acta en Word'); } catch (e) { toast('No se pudo crear el Word: ' + (e.message || 'error'), 5000); } }
     if (k === 'ics') exportTasksICS([m]);
-    if (k === 'pdf') { const t = $('[data-tab="informe"]'); if (t) t.click(); setTimeout(() => { try { window.print(); } catch { toast('Usa “Guardar como imagen” en el informe.'); } }, 700); }
+    if (k === 'pdf') { const t = $('[data-tab="informe"]'); if (t) t.click(); setTimeout(async () => exportReport(m, a, await getSegments(m.id), 'pdf'), 400); }
   });
   $('#m-proj').onclick = () => editProject(m);
   const po = $('#m-proj-open'); if (po) po.onclick = () => go('p/' + encodeURIComponent(m.project));
@@ -1470,9 +1470,24 @@ function sheet(html, onMount, cls = '') {
   return bg.firstElementChild;
 }
 function closeSheet() { const b = $('.sheet-bg'); if (!b) return; b.dispatchEvent(new Event('closing')); b.remove(); }
-async function deliverFile(file, title) {
-  if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], title }); return; } catch (e) { if (e.name === 'AbortError') return; } }
-  const url = URL.createObjectURL(file); const l = document.createElement('a'); l.href = url; l.download = file.name; document.body.appendChild(l); l.click(); setTimeout(() => { URL.revokeObjectURL(url); l.remove(); }, 2000); toast('Archivo descargado: ' + file.name);
+/* Files: iPhone only lets a page share or save a file right after a tap, and an installed web app
+   cannot use normal downloads. So the file is prepared first and then offered with its own button. */
+const IS_STANDALONE = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const canShareFile = f => { try { return !!(navigator.canShare && navigator.canShare({ files: [f] })); } catch { return false; } };
+function plainDownload(file) { const url = URL.createObjectURL(file); const l = document.createElement('a'); l.href = url; l.download = file.name; document.body.appendChild(l); l.click(); setTimeout(() => { URL.revokeObjectURL(url); l.remove(); }, 4000); }
+function deliverFile(file, title) {
+  const share = canShareFile(file); const isTouch = matchMedia('(pointer:coarse)').matches;
+  if (!share && !isTouch) { plainDownload(file); toast('Archivo descargado: ' + file.name); return; }
+  const ext = (file.name.split('.').pop() || '').toUpperCase();
+  const url = URL.createObjectURL(file);
+  sheet(`<div class="eyebrow">Archivo listo</div><h3>${esc(title || file.name)}</h3>
+    <div class="file-ready"><span class="fr-ic">${icon(/PNG|JPG/.test(ext) ? 'image' : ext === 'DOCX' ? 'word' : ext === 'ICS' ? 'cal' : 'doc', 2)}</span><span><b>${esc(file.name)}</b><small>${ext} · ${fmtBytes(file.size)}</small></span></div>
+    <div class="sheet-actions">${share ? `<button class="btn primary lg" id="fr-share">${icon('share', 2)}Compartir o guardar</button>` : ''}<a class="btn ${share ? '' : 'primary lg'}" id="fr-open" href="${url}" target="_blank" rel="noopener" ${share ? '' : `download="${esc(file.name)}"`}>${icon(share ? 'doc' : 'download', 2)}${share ? 'Abrir' : 'Descargar'}</a></div>
+    <p class="hint">${share ? 'En el menú elige WhatsApp, Correo, o <b>Guardar en Archivos</b> para dejarlo en tu teléfono.' : 'Si no se descarga, toca Abrir y usa el botón compartir del navegador.'}</p>`, el => {
+    const b = $('#fr-share', el);
+    if (b) b.onclick = async () => { try { await navigator.share({ files: [file] }); closeSheet(); } catch (e) { if (e.name !== 'AbortError') { try { await navigator.share({ files: [file], title: title || file.name }); closeSheet(); } catch (e2) { if (e2.name !== 'AbortError') toast('No se pudo compartir. Prueba con Abrir.', 4500); } } } };
+  });
+  $('.sheet-bg')?.addEventListener('closing', () => setTimeout(() => URL.revokeObjectURL(url), 60000));
 }
 
 /* =========================================================
@@ -1586,7 +1601,7 @@ function clipSheet(m, start, end) {
         const ext = blob.type.includes('wav') ? 'wav' : extFor(blob.type);
         const file = new File([blob], `clip-${slug(m.analysis?.title || 'reunion').slice(0, 30)}-${fmtT(s0).replace(/:/g, 'm')}.${ext}`, { type: blob.type });
         st.textContent = `Clip listo · ${fmtBytes(file.size)}`;
-        await deliverFile(file, (m.analysis?.title || 'Reunión') + ' · ' + fmtT(s0));
+        deliverFile(file, 'Clip ' + fmtT(s0) + '–' + fmtT(e0));
       } catch (e) { st.textContent = 'No se pudo crear el clip: ' + (e.message || 'error'); }
       finally { btn.disabled = false; }
     };
@@ -1720,7 +1735,7 @@ function renderWeek(app) {
     const b = $('#wk-img'); b.disabled = true;
     try { const lib = await loadH2I(); const node = $('#weekboard'); const opts = { pixelRatio: 2, backgroundColor: '#07080D', width: Math.min(900, node.offsetWidth) };
       let blob; try { blob = await lib.toBlob(node, opts); } catch { blob = await lib.toBlob(node, { ...opts, skipFonts: true }); }
-      await deliverFile(new File([blob], `semana-${w.r.start}.png`, { type: 'image/png' }), 'Mi semana'); }
+      deliverFile(new File([blob], `semana-${w.r.start}.png`, { type: 'image/png' }), 'Mi semana'); }
     catch (e) { toast('No se pudo crear la imagen', 4000); } finally { b.disabled = false; }
   };
   const ic = $('#wk-ics'); if (ic) ic.onclick = () => { const evs = w.due.map(x => taskEvent(x.m, x.t, x.d)); deliverFile(new File([buildICS(evs)], `plazos-${w.r.start}.ics`, { type: 'text/calendar' }), 'Plazos'); };
@@ -2162,31 +2177,57 @@ function reportHTML(m, a, segs) {
 </article>`;
 }
 function renderReport(body, m, a, segs) {
-  body.innerHTML = `<div class="rep-tools"><button class="btn primary sm" id="rp-png">${icon('image', 2)}Guardar como imagen</button><button class="btn sm" id="rp-pdf">${icon('doc')}PDF / Imprimir</button><span class="hint">Informe listo para enviar por WhatsApp o correo.</span></div><div class="rep-frame rise">${reportHTML(m, a, segs)}</div>`;
-  $('#rp-png').onclick = () => exportReportPNG(m, a, segs);
-  $('#rp-pdf').onclick = () => { try { window.print(); } catch { toast('Tu navegador no permite imprimir desde aquí. Usa “Guardar como imagen”.'); } };
+  body.innerHTML = `<div class="rep-tools"><button class="btn primary sm" id="rp-png">${icon('image', 2)}Guardar como imagen</button><button class="btn sm" id="rp-pdf">${icon('doc')}Descargar PDF</button><span class="hint">Informe listo para enviar por WhatsApp o correo.</span></div><div class="rep-frame rise">${reportHTML(m, a, segs)}</div>`;
+  $('#rp-png').onclick = () => exportReport(m, a, segs, 'png');
+  $('#rp-pdf').onclick = () => exportReport(m, a, segs, 'pdf');
 }
 function loadH2I() {
   if (window.htmlToImage) return Promise.resolve(window.htmlToImage);
   return new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'h2i.js'; s.onload = () => res(window.htmlToImage); s.onerror = () => rej(new Error('No se pudo cargar el generador de imágenes. Revisa tu conexión.')); document.head.appendChild(s); });
 }
-async function exportReportPNG(m, a, segs) {
-  const btn = $('#rp-png'); if (btn) { btn.disabled = true; btn.lastChild.textContent = 'Generando…'; }
+async function exportReport(m, a, segs, kind = 'png') {
+  const btn = $(kind === 'pdf' ? '#rp-pdf' : '#rp-png'); const label = btn?.lastChild?.textContent; if (btn) { btn.disabled = true; btn.lastChild.textContent = 'Generando…'; }
+  toast(kind === 'pdf' ? 'Armando el PDF…' : 'Armando la imagen…', 2500);
   const wrap = document.createElement('div'); wrap.className = 'rep-export'; wrap.innerHTML = reportHTML(m, a, segs); document.body.appendChild(wrap);
   const node = wrap.firstElementChild;
   try {
     const lib = await loadH2I();
     try { await document.fonts?.ready; } catch {}
     const opts = { pixelRatio: 2, backgroundColor: '#ffffff', width: 1080 };
-    let blob;
-    try { await lib.toBlob(node, opts); blob = await lib.toBlob(node, opts); }
-    catch { blob = await lib.toBlob(node, { ...opts, skipFonts: true }); }
-    if (!blob) throw new Error('El navegador no generó la imagen.');
-    const file = new File([blob], slug(a.title) + '-informe.png', { type: 'image/png' });
-    if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], title: a.title }); } catch (e) { if (e.name !== 'AbortError') throw e; } }
-    else { const url = URL.createObjectURL(file); const l = document.createElement('a'); l.href = url; l.download = file.name; document.body.appendChild(l); l.click(); setTimeout(() => { URL.revokeObjectURL(url); l.remove(); }, 1500); toast('Imagen descargada'); }
-  } catch (e) { toast('No se pudo crear la imagen: ' + (e.message || 'error'), 5000); }
-  finally { wrap.remove(); if (btn) { btn.disabled = false; btn.lastChild.textContent = 'Guardar como imagen'; } }
+    const go = async o => kind === 'pdf' ? lib.toJpeg(node, { ...o, quality: .9 }) : lib.toBlob(node, o);
+    let out;
+    try { await go(opts); out = await go(opts); } catch { out = await go({ ...opts, skipFonts: true }); }
+    if (!out) throw new Error('El navegador no generó la imagen.');
+    let file;
+    if (kind === 'pdf') { const pdf = await jpegToPdf(out); file = new File([pdf], slug(a.title) + '-informe.pdf', { type: 'application/pdf' }); }
+    else file = new File([out], slug(a.title) + '-informe.png', { type: 'image/png' });
+    deliverFile(file, kind === 'pdf' ? 'Informe en PDF' : 'Informe en imagen');
+  } catch (e) { toast('No se pudo crear el archivo: ' + (e.message || 'error'), 5000); }
+  finally { wrap.remove(); if (btn) { btn.disabled = false; btn.lastChild.textContent = label; } }
+}
+/* A real PDF (A4 pages) made from the report image, no printing needed */
+async function jpegToPdf(dataUrl) {
+  const bin = atob(dataUrl.split(',')[1]); const jpg = Uint8Array.from(bin, c => c.charCodeAt(0));
+  const img = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = dataUrl; });
+  const W = 595.28, PH = 841.89, H = W * img.naturalHeight / img.naturalWidth; const pages = Math.max(1, Math.ceil(H / PH - 0.02));
+  const enc = new TextEncoder(); const parts = []; const offs = []; let len = 0;
+  const add = x => { const u = typeof x === 'string' ? enc.encode(x) : x; parts.push(u); len += u.length; };
+  const obj = (n, body) => { offs[n] = len; add(`${n} 0 obj\n`); body(); add('\nendobj\n'); };
+  add('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n');
+  const kids = []; for (let i = 0; i < pages; i++) kids.push(`${4 + i * 2} 0 R`);
+  obj(1, () => add('<< /Type /Catalog /Pages 2 0 R >>'));
+  obj(2, () => add(`<< /Type /Pages /Kids [${kids.join(' ')}] /Count ${pages} >>`));
+  obj(3, () => { add(`<< /Type /XObject /Subtype /Image /Width ${img.naturalWidth} /Height ${img.naturalHeight} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpg.length} >>\nstream\n`); add(jpg); add('\nendstream'); });
+  for (let i = 0; i < pages; i++) {
+    const pn = 4 + i * 2, cn = pn + 1; const y = (PH - H + i * PH).toFixed(2);
+    const cs = `q ${W.toFixed(2)} 0 0 ${H.toFixed(2)} 0 ${y} cm /Im0 Do Q`;
+    obj(pn, () => add(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W.toFixed(2)} ${PH.toFixed(2)}] /Resources << /XObject << /Im0 3 0 R >> >> /Contents ${cn} 0 R >>`));
+    obj(cn, () => add(`<< /Length ${cs.length} >>\nstream\n${cs}\nendstream`));
+  }
+  const n = 4 + pages * 2; const xref = len;
+  add(`xref\n0 ${n}\n0000000000 65535 f \n` + offs.slice(1, n).map(o => String(o).padStart(10, '0') + ' 00000 n \n').join(''));
+  add(`trailer\n<< /Size ${n} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`);
+  return new Blob(parts, { type: 'application/pdf' });
 }
 
 /* =========================================================
@@ -2264,7 +2305,8 @@ async function fullMd(m) {
   if (segs.length) { L.push('---', '', '## Transcripción', ''); segs.forEach(x => L.push(`\`${fmtT(x.t)}\` ${x.s ? `**${spkName(m, x.s)}:** ` : ''}${x.text}  `)); }
   return L.join('\n');
 }
-function downloadText(name, text, type = 'text/markdown') {
+function downloadText(name, text, type = 'text/markdown') { deliverFile(new File([text], name, { type: type + ';charset=utf-8' }), name); }
+function _oldDownloadText(name, text, type = 'text/markdown') {
   const blob = new Blob([text], { type: type + ';charset=utf-8' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
@@ -2273,11 +2315,7 @@ async function shareText(title, text) {
   if (navigator.share) { try { await navigator.share({ title, text }); return; } catch (e) { if (e.name === 'AbortError') return; } }
   copyText(text, 'Copiado para compartir');
 }
-async function shareMeeting(m) {
-  const a = m.analysis; const file = new File([await fullMd(m)], slug(a.title) + '.md', { type: 'text/markdown' });
-  if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ title: a.title, text: summaryText(m), files: [file] }); return; } catch (e) { if (e.name === 'AbortError') return; } }
-  shareText(a.title, summaryText(m));
-}
+async function shareMeeting(m) { shareText(m.analysis.title, summaryText(m)); }
 function copyText(text, ok) { try { navigator.clipboard.writeText(text).then(() => toast(ok), () => fallbackCopy(text, ok)); } catch { fallbackCopy(text, ok); } }
 function fallbackCopy(text, ok) { const ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select(); let r = false; try { r = document.execCommand('copy'); } catch {} ta.remove(); toast(r ? ok : 'No se pudo copiar'); }
 function md(src) {
