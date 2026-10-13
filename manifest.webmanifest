@@ -1,0 +1,21 @@
+{
+  "name": "Acta — reuniones que se convierten en trabajo",
+  "short_name": "Acta",
+  "description": "Graba tus reuniones y conviértelas en actas visuales: transcripción con hablantes, decisiones, tareas, mapa mental y brief del proyecto.",
+  "lang": "es",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0E1016",
+  "theme_color": "#0E1016",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Grabar reunión", "short_name": "Grabar", "url": "./#record", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Tareas pendientes", "short_name": "Tareas", "url": "./#tasks", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}
