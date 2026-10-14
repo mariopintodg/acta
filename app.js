@@ -602,6 +602,8 @@ const Rec = {
     this.state = 'recording'; this.lastStart = performance.now();
     this.saveActive(); this.lockScreen(); if (Settings.v.captions || !Settings.v.openaiKey) this.startCaptions();
     window.addEventListener('beforeunload', this.guard); document.addEventListener('visibilitychange', this.onHide); window.addEventListener('pagehide', this.onHide);
+    document.removeEventListener('visibilitychange', this.onVis); document.addEventListener('visibilitychange', this.onVis); window.addEventListener('pageshow', this.onVis);
+    try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission().catch(() => {}); } catch {}
     this.tick = setInterval(() => { if (this.state === 'recording' && this.elapsed() / 1000 - this.partStartSec >= PART_SEC) this.rotate(); this.saveActive(); }, 5000);
   },
   startPart(p) {
@@ -612,7 +614,22 @@ const Rec = {
     mr.start(4000); this.mr = mr; this.part = p; this.partStartSec = this.elapsed() / 1000;
   },
   attachAnalyser() { try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); const src = this.ctx.createMediaStreamSource(this.stream); this.analyser = this.ctx.createAnalyser(); this.analyser.fftSize = 1024; this.analyser.smoothingTimeConstant = .7; src.connect(this.analyser); } catch {} },
-  watchTracks() { this.stream?.getAudioTracks().forEach(t => t.addEventListener('ended', () => { if (this.state === 'recording' && this.stream && this.stream.getAudioTracks().includes(t)) this.interrupt('El micrófono se detuvo'); })); },
+  watchTracks() { this.stream?.getAudioTracks().forEach(t => {
+    t.addEventListener('ended', () => { if (this.state === 'recording' && this.stream && this.stream.getAudioTracks().includes(t)) this.interrupt('Otra app ocupó el micrófono'); });
+    /* Android: WhatsApp (audio o llamada) toma el micrófono y la pista queda "muda"; marcamos el hueco y seguimos solos al soltarlo */
+    t.addEventListener('mute', () => { if (this.state === 'recording' && this.stream?.getAudioTracks().includes(t)) { this.muteAt = Math.round(this.elapsed() / 1000); this.marks.push({ t: this.muteAt, label: 'Micrófono ocupado por otra app', auto: true }); this.saveActive(); this.notifyPause(); } });
+    t.addEventListener('unmute', () => { if (this.muteAt != null && this.stream?.getAudioTracks().includes(t)) { this.marks.push({ t: Math.round(this.elapsed() / 1000), label: 'Micrófono recuperado', auto: true }); this.muteAt = null; this.saveActive(); this.clearPauseNote(); } });
+  }); },
+  async notifyPause() { try { if (document.visibilityState === 'hidden' && 'Notification' in window && Notification.permission === 'granted') { const reg = await navigator.serviceWorker?.ready; reg?.showNotification('Acta: grabación en pausa', { body: 'Otra app usó el micrófono. Vuelve a Acta y la grabación sigue sola.', icon: 'icon-192.png', badge: 'icon-192.png', tag: 'acta-rec', renotify: true, requireInteraction: true, data: { url: './#record' } }); } } catch {} },
+  async clearPauseNote() { try { const reg = await navigator.serviceWorker?.getRegistration(); (await reg?.getNotifications({ tag: 'acta-rec' }) || []).forEach(n => n.close()); } catch {} },
+  async autoContinue() {
+    if (this.state !== 'interrupted' || this.resuming) return; this.resuming = true;
+    for (let i = 0; i < 6 && this.state === 'interrupted'; i++) {
+      try { await this.continueAfter(); this.clearPauseNote(); if (navigator.vibrate) navigator.vibrate(80); toast('Grabación reanudada sola · lo anterior está guardado'); if (S.route.view === 'record') render(); break; }
+      catch { await sleep(1500); } /* el micrófono puede seguir ocupado unos segundos (p. ej. al cortar una llamada) */
+    }
+    this.resuming = false; if (this.state === 'interrupted' && S.route.view === 'record') render();
+  },
   onHide: e => { const hidden = document.visibilityState === 'hidden' || (e && e.type === 'pagehide'); if (hidden && Rec.state === 'recording' && Rec.isIOS && !Rec.capturing) Rec.interrupt('Pantalla bloqueada o app en segundo plano'); },
   interrupt(reason) {
     if (this.state !== 'recording') return;
@@ -624,7 +641,9 @@ const Rec = {
     this.marks.push({ t: Math.round(this.activeMs / 1000), label: 'Pausa automática · ' + reason, auto: true });
     this.saveActive();
     try { Pocket.off(); } catch {}
+    this.notifyPause();
     if (S.route.view === 'record') render();
+    if (document.visibilityState === 'visible') setTimeout(() => this.autoContinue(), 1200);
   },
   async continueAfter() {
     if (this.state !== 'interrupted') return;
@@ -665,11 +684,11 @@ const Rec = {
     this.stream?.getTracks().forEach(t => t.stop()); this.stream = null;
     try { this.ctx?.close(); } catch {} this.ctx = null; this.analyser = null;
     this.stopCaptions(); this.wake?.release?.().catch(() => {}); this.wake = null;
-    window.removeEventListener('beforeunload', this.guard); document.removeEventListener('visibilitychange', this.onVis); document.removeEventListener('visibilitychange', this.onHide); window.removeEventListener('pagehide', this.onHide);
+    window.removeEventListener('beforeunload', this.guard); document.removeEventListener('visibilitychange', this.onVis); document.removeEventListener('visibilitychange', this.onHide); window.removeEventListener('pagehide', this.onHide); window.removeEventListener('pageshow', this.onVis); this.clearPauseNote();
   },
   guard(e) { e.preventDefault(); e.returnValue = ''; },
   async lockScreen() { try { if ('wakeLock' in navigator && (!this.wake || this.wake.released)) { this.wake = await navigator.wakeLock.request('screen'); document.removeEventListener('visibilitychange', this.onVis); document.addEventListener('visibilitychange', this.onVis); } } catch {} },
-  onVis: async () => { if (document.visibilityState === 'visible' && Rec.state !== 'idle' && (!Rec.wake || Rec.wake.released)) { try { Rec.wake = await navigator.wakeLock.request('screen'); } catch {} } if (document.visibilityState === 'visible' && Rec.state === 'interrupted') { if (navigator.vibrate) navigator.vibrate([60, 60, 60]); render(); } },
+  onVis: async () => { if (document.visibilityState === 'visible' && Rec.state !== 'idle' && (!Rec.wake || Rec.wake.released)) { try { Rec.wake = await navigator.wakeLock.request('screen'); } catch {} } if (document.visibilityState === 'visible' && Rec.state === 'interrupted') { render(); Rec.autoContinue(); } },
   startCaptions() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SR) return;
     const sr = new SR(); sr.lang = Settings.v.language && Settings.v.language !== 'auto' ? (Settings.v.language === 'es' ? 'es-CL' : Settings.v.language) : 'es-CL'; sr.continuous = true; sr.interimResults = true;
@@ -899,7 +918,7 @@ function renderRecord(app) {
         <span class="rec-size" id="rec-size">${on ? '' : (Settings.v.openaiKey ? 'Hablantes · alta precisión' : 'Dictado del teléfono')}</span>
       </div>
       <div class="orb-wrap"><canvas id="orb" aria-hidden="true"></canvas><div class="orb-center"><div class="timer" id="timer">${fmtClock(Rec.elapsed())}</div><div class="timer-sub" id="timer-sub">${intr ? 'Toca continuar para seguir' : on ? (st === 'paused' ? 'Pausado' : 'Escuchando') : 'Toca el botón para empezar'}</div></div></div>
-      ${intr ? `<div class="interrupt"><b>La grabación se pausó sola</b><span>El iPhone corta el micrófono de las apps web cuando se bloquea la pantalla o cambias de app. Lo grabado hasta ahora está a salvo. Toca <b>Continuar</b> y seguirá en la misma reunión.</span></div>` : ''}
+      ${intr ? `<div class="interrupt"><b>${Rec.resuming ? 'Retomando la grabación…' : 'La grabación se pausó'}</b><span>${Rec.isIOS ? 'El iPhone no deja que una app web use el micrófono mientras estás en otra app (WhatsApp, llamadas) o con la pantalla bloqueada.' : 'Otra app (WhatsApp, una llamada) tomó el micrófono.'} Lo grabado está a salvo y al volver a Acta sigue sola en la misma reunión. Si no sigue, toca <b>Continuar</b>.</span></div>` : ''}
       <div class="controls">
         <div class="cbtn-lbl"><button class="cbtn" id="r-mark" ${st === 'recording' ? '' : 'disabled'} aria-label="Marcar momento importante">${icon('bookmark', 1.9)}</button>Marcar</div>
         <div class="cbtn-lbl"><button class="bigrec ${on && !intr ? 'on' : ''} ${intr ? 'resume' : ''}" id="r-main" aria-label="${intr ? 'Continuar grabando' : on ? 'Terminar y procesar' : 'Empezar a grabar'}"><span></span></button>${intr ? 'Continuar' : on ? 'Terminar' : 'Grabar'}</div>

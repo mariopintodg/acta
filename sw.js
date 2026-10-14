@@ -1,5 +1,5 @@
 /* Acta service worker: app shell offline, network-first for the app files, cache-first for fonts. API calls are never cached. */
-const VERSION = 'acta-v3.5.0';
+const VERSION = 'acta-v3.5.1';
 const SHELL = ['./', './privacidad.html', './index.html', './app.css', './app.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './favicon.png', './h2i.js'];
 
 self.addEventListener('install', e => {
@@ -29,5 +29,5 @@ self.addEventListener('fetch', e => {
 self.addEventListener('notificationclick', e => {
   e.notification.close();
   const url = (e.notification.data && e.notification.data.url) || './';
-  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => { for (const c of list) { if ('focus' in c) { c.navigate(url).catch(() => {}); return c.focus(); } } return self.clients.openWindow(url); }));
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => { for (const c of list) { if ('focus' in c) { if (e.notification.tag !== 'acta-rec') c.navigate(url).catch(() => {}); return c.focus(); } } return self.clients.openWindow(url); }));
 });
