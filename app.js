@@ -108,7 +108,11 @@ const PART_SEC = 5 * 60; /* recordings are saved in 5-minute pieces so they can 
 /* =========================================================
    Settings (localStorage — only this device)
    ========================================================= */
-const DEFAULTS = { anthropicKey: '', openaiKey: '', claudeModel: 'claude-sonnet-5-5', sttModel: 'gpt-4o-transcribe-diarize', language: 'es', theme: 'system', captions: false, bitrate: 32000, followAudio: true, vocab: '', lockOn: false, lockCred: '', lockPin: '', lockSalt: '', lockAfter: 60, myName: '', brandName: '', brandColor: '', brandLogo: '', signature: '', folioNext: 1 };
+const DEFAULTS = { anthropicKey: '', openaiKey: '', claudeModel: 'claude-sonnet-5-5', sttModel: 'gpt-4o-transcribe-diarize', language: 'es', theme: 'system', captions: false, bitrate: 32000, followAudio: true, vocab: '', lockOn: false, lockCred: '', lockPin: '', lockSalt: '', lockAfter: 60, myName: '', brandName: '', brandColor: '', brandLogo: '', signature: '', folioNext: 1, admin: null, viewAsClient: false, adminPin: '', adminSalt: '', planName: 'Plan Pro', planMinutes: 600, planRenewDay: 1, profileOrg: '' };
+/* Customer view vs administrator view: customers never see keys, models or dollar balances */
+const isAdmin = () => Settings.v.admin === true;
+const adminView = () => isAdmin() && !Settings.v.viewAsClient;
+function applyMode() { document.body.classList.toggle('admin', adminView()); }
 const vocabList = () => String(Settings.v.vocab || '').split(/[\n,;]+/).map(x => x.trim()).filter(Boolean).slice(0, 120);
 const Settings = {
   v: { ...DEFAULTS },
@@ -809,10 +813,12 @@ function renderLibrary(app) {
   const thisMonth = S.meetings.filter(m => (m.createdAt || 0) >= monthStart);
   const hours = S.meetings.reduce((a, m) => a + (m.durationSec || 0), 0) / 3600;
   const decisions = S.meetings.reduce((a, m) => a + (m.analysis?.decisions?.length || 0), 0);
-  const needsKeys = !Settings.v.anthropicKey || !Settings.v.openaiKey;
-  const low = Settings.v.anthropicKey && (Usage.left('anthropic') < 1 || (Settings.v.openaiKey && Usage.left('openai') < 1));
+  const needsKeys = adminView() && (!Settings.v.anthropicKey || !Settings.v.openaiKey);
+  const notActive = !isAdmin() && (!Settings.v.anthropicKey || !Settings.v.openaiKey);
+  const low = adminView() && Settings.v.anthropicKey && (Usage.left('anthropic') < 1 || (Settings.v.openaiKey && Usage.left('openai') < 1));
   app.innerHTML = `
   ${S.recovery ? `<div class="notice" style="margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:220px"><b>Hay una grabación sin terminar</b> de ${fmtT(S.recovery.elapsed)}. La app se cerró mientras grababas, pero el audio quedó guardado.</span><button class="btn sm primary" id="rec-recover">Recuperar y procesar</button><button class="btn sm ghost danger" id="rec-discard">Descartar</button></div>` : ''}
+  ${notActive && S.loaded ? `<div class="notice info" style="margin-bottom:14px"><b>Tu cuenta aún no está activada.</b> Puedes grabar y tus reuniones quedan guardadas; las actas se crearán apenas se active tu plan.</div>` : ''}
   ${needsKeys && S.loaded ? `<div class="notice info" style="margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:220px">${S.meetings.some(m => !String(m.id).startsWith('ejemplo-')) || !IS_STANDALONE ? `<b>Faltan tus claves en esta pantalla.</b> ${IS_STANDALONE ? 'Pégalas de nuevo en Ajustes; desde ahora quedan con respaldo.' : 'Estás en el navegador, no en la app instalada: Safari, el ícono de inicio y los links de WhatsApp guardan sus datos por separado. Abre Acta desde el ícono de tu pantalla de inicio.'}` : '<b>Configura Acta en 2 minutos.</b> Agrega tus claves de Claude y OpenAI para transcribir con hablantes y crear las actas.'}</span><button class="btn sm primary" data-nav="settings">${icon('key')}Ir a Ajustes</button></div>` : ''}
   ${low ? `<div class="notice" style="margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:220px"><b>Te queda poco saldo.</b> Recarga en la consola del proveedor para no quedarte sin actas en medio de una reunión.</span><button class="btn sm" data-nav="settings">Ver saldo</button></div>` : ''}
   ${q ? '' : `<section class="home-hero rise">
@@ -832,7 +838,7 @@ function renderLibrary(app) {
       <div class="hstat">${ringSVG(Math.min(1, decisions / 30), '#A47BFF')}<div><b>${decisions}</b><span>Decisiones registradas</span></div></div>
     </div>
   </section>
-  ${Settings.v.anthropicKey ? budgetHTML() : ''}
+  ${adminView() ? (Settings.v.anthropicKey ? budgetHTML() : '') : planHTML(true)}
   ${S.meetings.length ? reviewCardHTML() + owedCardHTML() + weekCardHTML() : ''}
   ${peopleRowHTML()}
   ${projectsRowHTML()}`}
@@ -1283,10 +1289,10 @@ function renderProcessing(app, m) {
   if (hasAudio) steps.push({ k: 'saved', t: 'Audio guardado en el dispositivo', d: `${fmtT(m.durationSec)} · ${fmtBytes(m.audioParts.reduce((a, p) => a + (p.size || 0), 0))}`, s: 'done' });
   if (hasAudio) steps.push({ k: 'tr', t: Settings.v.sttModel === 'gpt-4o-transcribe-diarize' ? 'Transcribir e identificar hablantes' : 'Transcribir', d: '', s: st === 'transcribing' ? 'run' : ((st === 'analyzing' || m.hasTranscript) ? 'done' : 'todo') });
   else steps.push({ k: 'tx', t: 'Transcripción recibida', d: '', s: 'done' });
-  steps.push({ k: 'an', t: 'Crear el acta con Claude', d: '', s: st === 'analyzing' ? 'run' : 'todo' });
+  steps.push({ k: 'an', t: adminView() ? 'Crear el acta con Claude' : 'Crear el acta', d: '', s: st === 'analyzing' ? 'run' : 'todo' });
   if (st === 'error') { const fail = steps.find(s => s.s === 'todo' || s.s === 'run'); if (fail) fail.s = 'fail'; }
   if (st === 'waiting') { const nx = steps.find(s => s.s === 'todo'); if (nx) nx.d = 'Se hará solo al volver la conexión'; }
-  const err = m.error;
+  const err = m.error && !adminView() && /key|no_openai|no_anthropic|openai_|anthropic_|429|saldo/i.test((m.error.code || '') + ' ' + (m.error.message || '')) ? { ...m.error, message: 'El servicio no está disponible en este momento. Tu grabación está a salvo: toca Reintentar más tarde o escribe a soporte.' } : m.error;
   app.innerHTML = `
   <button class="btn ghost sm back" data-nav="library">${icon('back')}Reuniones</button>
   <section class="m-hero"><span class="aura a1"></span><span class="aura a2"></span><div class="m-head"><div class="m-meta"><span>${icon('cal')}${esc(fmtDate(m.date))}</span>${m.durationSec ? `<span class="mono">${icon('time')}${fmtT(m.durationSec)}</span>` : ''}</div><h1>${esc(m.analysis?.title || m.titleHint || 'Nueva reunión')}</h1></div></section>
@@ -1298,7 +1304,7 @@ function renderProcessing(app, m) {
     ${running && 'Notification' in window && Notification.permission === 'default' ? `<button class="btn sm ghost" id="p-notify" style="margin-top:10px">${icon('time')}Avisarme cuando esté lista</button>` : ''}
     ${st === 'error' ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
       <button class="btn primary" id="p-retry">${icon('refresh')}Reintentar</button>
-      ${/key|no_openai|no_anthropic/.test(err?.code || '') ? `<button class="btn" data-nav="settings">${icon('key')}Ir a Ajustes</button>` : ''}
+      ${adminView() && /key|no_openai|no_anthropic/.test(err?.code || '') ? `<button class="btn" data-nav="settings">${icon('key')}Ir a Ajustes</button>` : ''}
       ${hasAudio ? `<button class="btn ghost" id="p-paste">Pegar transcripción</button>` : ''}
       <button class="btn ghost danger" id="p-del">${icon('trash')}Eliminar</button></div>
       <div id="p-paste-box"></div>` : st === 'waiting' ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button class="btn" id="p-retry">${icon('refresh')}Probar ahora</button></div>` : `<p class="muted" style="font-size:13px;margin-top:12px">${running ? 'Puedes revisar otras reuniones mientras tanto; mantén la app abierta hasta que termine.' : 'En cola…'}</p>`}
@@ -2151,6 +2157,19 @@ async function meetingDocx(m) {
   if (a.numbers?.length) { B.push(H2('Cifras mencionadas')); a.numbers.forEach(n => B.push(bullet(`**${n.value}** ${n.label}`))); }
   if (a.quotes?.length) { B.push(H2('Frases para recordar')); a.quotes.forEach(q => B.push(P(run('“' + q.text + '”', { i: true }) + run('  — ' + q.who, { c: '6B7280' }), 'Lista'))); }
   if (a.nextSteps?.length) { B.push(H1('Próximos pasos')); a.nextSteps.forEach((s2, i) => B.push(P(run(`${i + 1}.  `, { b: true, c: 'E2553A' }) + rich(s2), 'Lista'))); }
+  if (a.extended) {
+    const x = a.extended; B.push(P('', '', '<w:pageBreakBefore/>'), para('Informe extendido', 'Title'));
+    B.push(H1('Resumen ejecutivo')); String(x.executive || '').split('\n').filter(l => l.trim()).forEach(l => B.push(para(l.replace(/^[-*]\s+/, '• '))));
+    if (x.context) { B.push(H2('Contexto y objetivo')); B.push(para(x.context)); }
+    (x.topics || []).forEach((t, i) => { B.push(H1(`${i + 1}. ${t.name} (${fmtT(t.start || 0)}–${fmtT(t.end || 0)})`)); String(t.summary || '').split('\n').filter(l => l.trim()).forEach(l => B.push(para(l))); (t.points || []).forEach(pt => B.push(bullet(pt))); (t.voices || []).forEach(v => B.push(bullet(`**${v.who}:** ${v.said}`))); });
+    if (x.decisions?.length) { B.push(H1('Registro de decisiones')); B.push(table(['Decisión', 'Contexto', 'Propuso'], x.decisions.map(d => [d.text, d.context || '', d.proposedBy || '']), [3200, 4200, 1600])); }
+    if (x.actions?.length) { B.push(H1('Plan de acción detallado')); B.push(table(['Tarea', 'Responsable', 'Plazo', 'Detalle'], x.actions.map(t => [t.task, t.owner || '', t.due || '', t.detail || '']), [2800, 1500, 1200, 3500])); }
+    if (x.risks?.length) { B.push(H1('Riesgos y mitigación')); B.push(table(['Riesgo', 'Impacto', 'Mitigación'], x.risks.map(r => [r.text, r.impact || '', r.mitigation || '']), [3000, 2400, 3600])); }
+    if (x.positions?.length) { B.push(H1('Postura de cada participante')); x.positions.forEach(p => B.push(bullet(`**${p.person}:** ${p.stance}`))); }
+    if (x.pending?.length) { B.push(H1('Temas pendientes')); x.pending.forEach(p => B.push(bullet(p.text, p.suggestion ? 'sugerencia: ' + p.suggestion : ''))); }
+    if (x.chronology?.length) { B.push(H1('Minuta cronológica')); x.chronology.forEach(c => B.push(P(run(fmtT(c.t || 0) + '   ', { c: '9AA0AE', sz: 18 }) + run(c.text), 'Lista'))); }
+    if (x.conclusions) { B.push(H1('Conclusiones')); B.push(para(x.conclusions)); }
+  }
   if (a.study) {
     const st = a.study;
     if (st.exam?.length) { B.push(H1('Entra en la prueba')); st.exam.forEach(x => B.push(bullet(x.text))); }
@@ -2536,8 +2555,7 @@ function brandSettingsHTML() {
   const v = Settings.v;
   return `<h2>Tu marca y tu firma</h2><p class="muted" style="font-size:13.5px;margin-top:6px">Tus informes, PDF y Word salen con tu logo, tu color y tu firma. Se ve como un documento de tu empresa, no de una app.</p>
     <div class="form">
-      <div class="row two"><div class="field"><label for="b-me">Tu nombre</label><input id="b-me" value="${esc(v.myName || '')}" placeholder="Mario Pinto"><span class="hint">Separa lo que te deben de lo que tú debes.</span></div>
-      <div class="field"><label for="b-name">Empresa o marca</label><input id="b-name" value="${esc(v.brandName || '')}" placeholder="Pinto Consultores"></div></div>
+      <div class="row two"><div class="field"><label for="b-name">Marca en los informes</label><input id="b-name" value="${esc(v.brandName || '')}" placeholder="Pinto Consultores"></div></div>
       <div class="row two"><div class="field"><span class="lbl">Logo</span><div class="brand-logo">${v.brandLogo ? `<img src="${v.brandLogo}" alt="Logo">` : `<span class="muted" style="font-size:13px">Sin logo</span>`}<span class="btn sm filebtn">${icon('upload')}${v.brandLogo ? 'Cambiar' : 'Subir logo'}<input type="file" id="b-logo" accept="image/*"></span>${v.brandLogo ? '<button class="btn sm ghost danger" id="b-logo-x">Quitar</button>' : ''}</div></div>
       <div class="field"><label for="b-color">Color principal</label><div class="brand-color"><input type="color" id="b-color" value="${esc(v.brandColor || '#FF6A3D')}"><span class="muted" style="font-size:13px">Banda y acentos del informe</span>${v.brandColor ? '<button class="btn sm ghost" id="b-color-x">Usar el de Acta</button>' : ''}</div></div></div>
       <div class="field"><span class="lbl">Tu firma</span><div class="brand-sig">${v.signature ? `<img src="${v.signature}" alt="Tu firma">` : '<span class="muted" style="font-size:13px">Aparece sobre tu nombre en las actas selladas.</span>'}<button class="btn sm" id="b-sig">${icon('edit')}${v.signature ? 'Firmar de nuevo' : 'Dibujar mi firma'}</button></div></div>
@@ -2546,7 +2564,7 @@ function brandSettingsHTML() {
 }
 function bindBrandSettings(app) {
   const re = () => { const p = $('#brand-panel'); if (p) { p.innerHTML = brandSettingsHTML(); bindBrandSettings(app); } };
-  $('#b-me').addEventListener('change', e => { Settings.set({ myName: e.target.value.trim() }); toast('Nombre guardado'); });
+
   $('#b-name').addEventListener('change', e => { Settings.set({ brandName: e.target.value.trim() }); toast('Marca guardada'); });
   $('#b-color').addEventListener('change', e => { Settings.set({ brandColor: e.target.value }); toast('Color guardado'); re(); });
   const cx = $('#b-color-x'); if (cx) cx.onclick = () => { Settings.set({ brandColor: '' }); re(); };
@@ -2611,15 +2629,18 @@ async function renderSettings(app) {
   const bioOK = await Lock.bioAvailable();
   if (S.route.view !== 'settings') return;
   app.innerHTML = `
-  <div class="page-head"><div><div class="eyebrow">Ajustes</div><h1>Configura Acta</h1><p>Todo queda guardado solo en este dispositivo.</p></div></div>
+  <div class="page-head"><div><div class="eyebrow">Ajustes</div><h1>${adminView() ? 'Configura Acta' : 'Tu cuenta'}</h1><p>Tus reuniones y datos quedan guardados en este teléfono.</p></div></div>
   <div class="set-grid">
-    <section class="panel" id="budget">
+    <section class="panel profile" id="profile-panel">${profileHTML()}</section>
+    <section class="panel" id="plan-panel">${planHTML(false)}</section>
+    ${adminView() ? `<section class="panel adm-box" id="admin-panel">${adminPanelHTML()}</section>` : ''}
+    <section class="panel adm-only" id="budget">
       <h2>Saldo estimado</h2>
       <p class="muted" style="font-size:13.5px;margin-top:6px">Acta calcula cuánto gasta cada reunión con los precios oficiales y lo descuenta de lo que cargaste. Puede diferir por centavos; si quieres exactitud, copia el saldo real de la consola y toca <b>Ajustar saldo</b>.</p>
       <div class="wallet">${walletHTML('anthropic')}${walletHTML('openai')}</div>
     </section>
     ${standalone ? '' : `<section class="panel howto"><h2>Instálala en tu celular</h2><ol style="margin-top:10px"><li><b>iPhone (Safari):</b> botón Compartir → <b>Agregar a pantalla de inicio</b>.</li><li><b>Android (Chrome):</b> menú ⋮ → <b>Instalar aplicación</b>.</li></ol><p class="muted" style="font-size:13px;margin-top:10px">Así se abre a pantalla completa, funciona sin conexión para revisar tus actas y aparece junto a tus otras apps.</p></section>`}
-    <section class="panel">
+    <section class="panel adm-only">
       <h2>Claves de servicio</h2>
       <p class="muted" style="font-size:13.5px;margin-top:6px">Acta usa tu propia cuenta: pagas solo lo que usas, directo al proveedor. Las claves no salen de este dispositivo salvo para llamar a cada servicio. Se guardan dos veces en el teléfono por seguridad. Al tocar <b>Probar y guardar</b>, el iPhone puede ofrecer guardarlas en tus Contraseñas para rellenarlas con Face ID si algún día se borran.</p><p class="notice cool" style="margin-top:10px;font-size:13px">Abre Acta siempre desde el <b>ícono de tu pantalla de inicio</b>. Safari y los links que abres desde WhatsApp guardan sus datos aparte, por eso ahí no aparecen tus claves ni tus reuniones.</p>
       <div class="form">
@@ -2632,9 +2653,9 @@ async function renderSettings(app) {
       </div>
     </section>
     <section class="panel">
-      <h2>Inteligencia</h2>
+      <h2>Preferencias</h2>
       <div class="form">
-        <div class="row two">
+        <div class="row two adm-only">
           <div class="field"><label for="s-claude">Modelo de Claude</label><select id="s-claude">${CLAUDE_MODELS.map(([k, l]) => `<option value="${k}" ${v.claudeModel === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
           <div class="field"><label for="s-stt">Transcripción</label><select id="s-stt">${STT_MODELS.map(([k, l]) => `<option value="${k}" ${v.sttModel === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
         </div>
@@ -2642,7 +2663,7 @@ async function renderSettings(app) {
           <div class="field"><label for="s-lang">Idioma de las reuniones</label><select id="s-lang"><option value="es" ${v.language === 'es' ? 'selected' : ''}>Español</option><option value="en" ${v.language === 'en' ? 'selected' : ''}>Inglés</option><option value="pt" ${v.language === 'pt' ? 'selected' : ''}>Portugués</option><option value="auto" ${v.language === 'auto' ? 'selected' : ''}>Detectar automáticamente</option></select></div>
           <div class="field"><label for="s-br">Calidad de grabación</label><select id="s-br"><option value="32000" ${+v.bitrate === 32000 ? 'selected' : ''}>Estándar · voz clara, ~14 MB por hora</option><option value="64000" ${+v.bitrate === 64000 ? 'selected' : ''}>Alta · ~29 MB por hora</option></select></div>
         </div>
-        <div class="field"><label for="s-about">Sobre ti</label><textarea id="s-about" rows="3" placeholder="Ej.: Soy jefe de propuestas en una constructora de obras hidráulicas. Quiero actas breves, con montos en UF y plazos claros.">${esc(v.about || '')}</textarea><span class="hint">Tu rol, tu rubro y cómo quieres las actas. Claude lo tiene en cuenta en cada análisis.</span></div>
+        <div class="field adm-only-x"><label for="s-about">Sobre ti</label><textarea id="s-about" rows="3" placeholder="Ej.: Soy jefe de propuestas en una constructora de obras hidráulicas. Quiero actas breves, con montos en UF y plazos claros.">${esc(v.about || '')}</textarea><span class="hint">Tu rol, tu rubro y cómo quieres las actas. Claude lo tiene en cuenta en cada análisis.</span></div>
         <div class="field"><label for="s-vocab">Vocabulario de tu trabajo</label><textarea id="s-vocab" rows="3" placeholder="Nombres, marcas, clientes y términos que usas. Ej.: Camila Rojas, Peluquería Lumière, Transbank, UF, Bsale">${esc(v.vocab || '')}</textarea><span class="hint">Acta corrige estas palabras en la transcripción y en el acta. Sepáralas con comas.</span></div>
         <label class="switch"><input type="checkbox" id="s-cap" ${v.captions ? 'checked' : ''}><span><b>Subtítulos en vivo</b><small>Muestra el texto mientras grabas, usando el dictado del teléfono. En algunos Android puede interferir con el micrófono.</small></span></label>
       </div>
@@ -2669,7 +2690,7 @@ async function renderSettings(app) {
       <li>Tus reuniones, audios y actas viven en este dispositivo.</li>
       <li>El audio se envía a OpenAI solo para transcribirlo; el texto se envía a Anthropic solo para crear el acta y responder preguntas.</li>
       <li>Avísales a los participantes que estás grabando.</li></ol><a class="btn sm" href="privacidad.html" target="_blank" rel="noopener" style="margin-top:12px">${icon('doc')}Política de privacidad</a></section>
-    <p class="status-line">Acta 3.3.2</p>
+    <p class="status-line" id="ver-line">Acta 3.5${isAdmin() ? (adminView() ? ' · administrador' : ' · vista cliente') : ''}</p>
   </div>`;
   const keyIn = (id, k) => { const el = $(id); el.addEventListener('input', e => Settings.set({ [k]: e.target.value.trim() })); el.addEventListener('change', e => { Settings.set({ [k]: e.target.value.trim() }); keepStorage(); toast('Clave guardada en este teléfono'); }); };
   keyIn('#k-anthropic', 'anthropicKey'); keyIn('#k-openai', 'openaiKey');
@@ -2690,7 +2711,7 @@ async function renderSettings(app) {
   $('#s-cap').onchange = e => Settings.set({ captions: e.target.checked });
   $('#s-about').addEventListener('change', e => { Settings.set({ about: e.target.value.trim() }); toast('Guardado: Claude lo usará en las próximas actas'); });
   $('#s-vocab').addEventListener('change', e => { Settings.set({ vocab: e.target.value }); toast(`Vocabulario guardado · ${vocabList().length} palabras`); });
-  bindLockSettings(app); bindBrandSettings(app);
+  bindLockSettings(app); bindBrandSettings(app); bindProfile(app);
   $$('[data-wset]').forEach(b => b.onclick = () => { const p = b.dataset.wset; const v = parseFloat(($('#w-' + p + '-val').value || '').replace(',', '.')); if (!(v >= 0)) { toast('Escribe el saldo en dólares, por ejemplo 4.85'); return; } Usage.set(p, v); toast('Saldo ajustado'); renderSettings(app); });
   $$('[data-wtop]').forEach(b => b.onclick = () => { const p = b.dataset.wtop; const v = parseFloat(($('#w-' + p + '-top').value || '').replace(',', '.')); if (!(v > 0)) { toast('Escribe el monto que recargaste, por ejemplo 5'); return; } Usage.topup(p, v); toast('Recarga sumada'); renderSettings(app); });
   const sp = $('#s-persist'); if (sp) sp.onclick = async () => { let ok = false; try { ok = await navigator.storage.persist(); } catch {} toast(ok ? 'Tus datos quedaron protegidos' : 'El navegador no lo permitió. Instalar la app suele habilitarlo.'); renderSettings(app); };
@@ -2715,6 +2736,70 @@ function bindLockSettings(app) {
   const t = $('#lk-test'); if (t) t.onclick = () => Lock.show();
   const pc = $('#lk-pin'); if (pc) pc.onclick = () => Lock.show(() => pinSheet(() => toast('PIN cambiado')));
   const off = $('#lk-off'); if (off) off.onclick = () => Lock.show(() => { Settings.set({ lockOn: false, lockCred: '', lockPin: '', lockSalt: '' }); toast('Bloqueo desactivado'); re(); });
+}
+/* ---------- Perfil, plan y modo administrador ---------- */
+function planUsage() {
+  const v = Settings.v; const now = new Date(); const day = Math.min(28, Math.max(1, +v.planRenewDay || 1));
+  let start = new Date(now.getFullYear(), now.getMonth(), day); if (start > now) start = new Date(now.getFullYear(), now.getMonth() - 1, day);
+  const renew = new Date(start.getFullYear(), start.getMonth() + 1, day);
+  const used = S.meetings.filter(m => (m.createdAt || 0) >= start.getTime() && m.source !== 'reuse' && (m.audioParts?.length || m.hasTranscript) && (m.hasTranscript || m.analysis)).reduce((a, m) => a + (m.durationSec || 0), 0) / 60;
+  const total = Math.max(1, +v.planMinutes || 600);
+  return { used, total, left: Math.max(0, total - used), pct: Math.min(1, used / total), renew };
+}
+const hm = min => { min = Math.round(min); const h = Math.floor(min / 60), mm = min % 60; return h ? `${h} h${mm ? ' ' + mm + ' min' : ''}` : `${mm} min`; };
+function planHTML(compact) {
+  const u = planUsage(); const warn = u.pct >= .85; const col = warn ? 'var(--risk)' : 'var(--g-cool)';
+  const renewTxt = u.renew.toLocaleDateString('es-CL', { day: 'numeric', month: 'long' });
+  if (compact) return `<button class="plan-mini" data-nav="settings"><span class="pm-top"><b>${esc(Settings.v.planName || 'Tu plan')}</b><span>${hm(u.left)} disponibles</span></span><span class="bar-meter"><i style="width:${Math.max(2, u.pct * 100)}%;background:${col}"></i></span><small>Usaste ${hm(u.used)} de ${hm(u.total)} · se renueva el ${renewTxt}</small></button>`;
+  return `<h2>Tu plan</h2><div class="plan-card"><div class="pc-top"><span class="pc-name">${esc(Settings.v.planName || 'Tu plan')}</span><span class="pc-left">${hm(u.left)} <small>disponibles</small></span></div>
+    <div class="bar-meter big"><i style="width:${Math.max(2, u.pct * 100)}%;background:${col}"></i></div>
+    <p class="muted" style="font-size:13px;margin-top:8px">Usaste <b>${hm(u.used)}</b> de ${hm(u.total)} de grabación este mes · se renueva el <b>${renewTxt}</b>.</p>
+    ${warn ? '<p class="notice" style="margin-top:10px;font-size:13px">Te queda poco tiempo de grabación este mes.</p>' : ''}</div>`;
+}
+function profileHTML() {
+  const v = Settings.v; const name = v.myName || '';
+  return `<div class="prof-head"><span class="av xl" style="background:${avColor(personKey(name) || 'yo')}">${esc(initials(name || 'Tú'))}</span><div><h2>${esc(name || 'Tu perfil')}</h2><p class="muted" style="font-size:13px">${esc(v.profileOrg || 'Agrega tu nombre para personalizar tus actas')}</p></div></div>
+    <div class="form" style="margin-top:14px">
+      <div class="row two"><div class="field"><label for="pf-name">Nombre</label><input id="pf-name" value="${esc(name)}" placeholder="Tu nombre y apellido" autocomplete="name"><span class="hint">Así Acta sabe qué tareas son tuyas y cuáles te deben.</span></div>
+      <div class="field"><label for="pf-org">Empresa, institución o carrera</label><input id="pf-org" value="${esc(v.profileOrg || '')}" placeholder="Ej.: Constructora, Universidad de Talca" autocomplete="organization"></div></div>
+    </div>`;
+}
+function adminPanelHTML() {
+  const v = Settings.v;
+  return `<h2>${icon('key', 2, 18)} Administrador</h2><p class="muted" style="font-size:13px;margin-top:6px">Solo tú ves esta sección. Tus clientes ven su perfil y su plan, sin claves, modelos ni costos.</p>
+    <div class="form" style="margin-top:12px">
+      <div class="row two"><div class="field"><label for="ad-plan">Nombre del plan</label><input id="ad-plan" value="${esc(v.planName || '')}" placeholder="Plan Pro"></div>
+      <div class="field"><label for="ad-hours">Horas de grabación al mes</label><input id="ad-hours" type="number" min="1" step="1" value="${Math.round((+v.planMinutes || 600) / 60)}"></div></div>
+      <div class="field"><label for="ad-day">Día de renovación</label><input id="ad-day" type="number" min="1" max="28" value="${+v.planRenewDay || 1}" style="max-width:120px"></div>
+    </div>
+    <div class="tools-row" style="margin-top:12px"><button class="btn sm" id="ad-client">${icon('users')}Ver como cliente</button><button class="btn sm ghost danger" id="ad-exit">Salir del modo administrador</button></div>`;
+}
+function bindProfile(app) {
+  const nm = $('#pf-name'); if (nm) nm.addEventListener('change', e => { Settings.set({ myName: e.target.value.trim() }); toast('Perfil guardado'); const p = $('#profile-panel'); if (p) { p.innerHTML = profileHTML(); bindProfile(app); } });
+  const og = $('#pf-org'); if (og) og.addEventListener('change', e => { Settings.set({ profileOrg: e.target.value.trim() }); toast('Perfil guardado'); const p = $('#profile-panel'); if (p) { p.innerHTML = profileHTML(); bindProfile(app); } });
+  const ap = $('#ad-plan'); if (ap) ap.addEventListener('change', e => { Settings.set({ planName: e.target.value.trim() || 'Tu plan' }); renderSettings(app); });
+  const ah = $('#ad-hours'); if (ah) ah.addEventListener('change', e => { Settings.set({ planMinutes: Math.max(1, +e.target.value || 10) * 60 }); renderSettings(app); });
+  const ad = $('#ad-day'); if (ad) ad.addEventListener('change', e => { Settings.set({ planRenewDay: Math.min(28, Math.max(1, +e.target.value || 1)) }); renderSettings(app); });
+  const ac = $('#ad-client'); if (ac) ac.onclick = () => { Settings.set({ viewAsClient: true }); applyMode(); renderSettings(app); toast('Vista cliente. Toca 7 veces la versión, abajo, para volver.', 5000); };
+  const ax = $('#ad-exit'); if (ax) ax.onclick = () => { Settings.set({ admin: false, viewAsClient: false }); applyMode(); renderSettings(app); toast('Modo administrador desactivado'); };
+  let taps = 0, tt = 0; const vl = $('#ver-line');
+  if (vl) vl.onclick = () => { taps++; clearTimeout(tt); tt = setTimeout(() => { taps = 0; }, 2500); if (taps >= 7) { taps = 0; adminGate(app); } };
+}
+function adminGate(app) {
+  if (isAdmin() && Settings.v.viewAsClient) { Settings.set({ viewAsClient: false }); applyMode(); renderSettings(app); toast('Modo administrador'); return; }
+  const has = !!Settings.v.adminPin; let cur = '', first = '';
+  sheet(`<div class="eyebrow">Modo administrador</div><h3 id="ag-t">${has ? 'Escribe el PIN de administrador' : 'Crea un PIN de administrador'}</h3><p class="muted" id="ag-s">${has ? '' : 'Lo pedirá cada vez que entres a la configuración avanzada.'}</p><div class="pin-dots" id="ag-dots">${'<i></i>'.repeat(4)}</div><p class="lk-err" id="ag-err"></p><div class="keypad">${[1, 2, 3, 4, 5, 6, 7, 8, 9, '', 0, '⌫'].map(k => k === '' ? '<span></span>' : `<button data-ak="${k}">${k}</button>`).join('')}</div>`, el => {
+    const dots = () => $$('#ag-dots i', el).forEach((d, i) => d.classList.toggle('on', i < cur.length));
+    const enter = async () => { Settings.set({ admin: true, viewAsClient: false }); applyMode(); closeSheet(); renderSettings(app); toast('Modo administrador activado'); };
+    $$('[data-ak]', el).forEach(b => b.onclick = async () => {
+      const k = b.dataset.ak; if (k === '⌫') cur = cur.slice(0, -1); else if (cur.length < 4) cur += k; dots(); $('#ag-err', el).textContent = '';
+      if (cur.length < 4) return;
+      if (has) { const ok = (await Lock.hash(cur, Settings.v.adminSalt)) === Settings.v.adminPin; if (ok) return enter(); cur = ''; setTimeout(dots, 150); $('#ag-err', el).textContent = 'PIN incorrecto'; return; }
+      if (!first) { first = cur; cur = ''; setTimeout(dots, 150); $('#ag-t', el).textContent = 'Repite el PIN'; return; }
+      if (cur !== first) { first = ''; cur = ''; setTimeout(dots, 150); $('#ag-t', el).textContent = 'Crea un PIN de administrador'; $('#ag-err', el).textContent = 'No coincidían'; return; }
+      const salt = b64u(crypto.getRandomValues(new Uint8Array(12))); Settings.set({ adminSalt: salt, adminPin: await Lock.hash(cur, salt) }); enter();
+    });
+  }, 'pinsheet');
 }
 async function exportBackup() {
   const meetings = await DB.all('meetings'); const transcripts = {};
@@ -2822,10 +2907,112 @@ function reportHTML(m, a, segs) {
 </article>`;
 }
 function renderReport(body, m, a, segs) {
-  body.innerHTML = `<div class="rep-tools"><button class="btn primary sm" id="rp-png">${icon('image', 2)}Guardar como imagen</button><button class="btn sm" id="rp-pdf">${icon('doc')}Descargar PDF</button><span class="hint">Informe listo para enviar por WhatsApp o correo.</span></div><div class="rep-frame rise">${reportHTML(m, a, segs)}</div>`;
-  $('#rp-png').onclick = () => exportReport(m, a, segs, 'png');
-  $('#rp-pdf').onclick = () => exportReport(m, a, segs, 'pdf');
+  const mode = S.repMode || 'normal'; const busy = S.extBusy === m.id;
+  const needGen = mode === 'extendido' && !a.extended;
+  body.innerHTML = `<div class="rep-modes" role="group">${REP_MODES.map(([k, n, d]) => `<button data-rm="${k}" aria-pressed="${mode === k}"><b>${n}</b><small>${d}</small></button>`).join('')}</div>
+  ${needGen ? `<div class="panel ext-gen">${busy ? `<div class="eyebrow">Escribiendo el informe extendido</div><h3>Analizando la transcripción completa…</h3><p class="muted" id="ext-prog">Esto toma 1 a 3 minutos. Puedes seguir usando la app.</p><div class="pbar"><i id="ext-bar" style="width:5%"></i></div>` : `<div class="eyebrow">Informe extendido</div><h3>Todo el detalle de la reunión</h3><p class="muted">Desarrollo tema por tema con quién dijo qué, registro de decisiones con su contexto, plan de acción detallado, riesgos con mitigación, postura de cada participante y minuta cronológica.</p><ul class="ext-list"><li>Se crea una sola vez y queda guardado.</li><li>Toma 1 a 3 minutos.</li>${adminView() ? `<li>Costo estimado: unos US$${(Math.max(.02, (m.words || 3000) * 1.4 / 1e6 * (PRICES[Settings.v.claudeModel]?.in || 2) + 7000 / 1e6 * (PRICES[Settings.v.claudeModel]?.out || 10))).toFixed(2)}.</li>` : ''}</ul><button class="btn primary lg" id="ext-go">${icon('spark', 2)}Crear informe extendido</button>`}</div>` : `<div class="rep-tools"><button class="btn primary sm" id="rp-png">${icon('image', 2)}Guardar como imagen</button><button class="btn sm" id="rp-pdf">${icon('doc')}Descargar PDF</button>${mode === 'extendido' ? `<button class="btn sm ghost" id="ext-redo">${icon('refresh')}Rehacer</button>` : ''}<span class="hint">${mode === 'compacto' ? 'Ideal para WhatsApp.' : mode === 'extendido' ? 'Ideal para archivar o enviar a quien no estuvo.' : 'Informe listo para enviar por WhatsApp o correo.'}</span></div><div class="rep-frame rise">${reportByMode(m, a, segs, mode)}</div>`}`;
+  $$('[data-rm]', body).forEach(b => b.onclick = () => { S.repMode = b.dataset.rm; renderReport(body, m, a, segs); });
+  const pg = $('#rp-png'); if (pg) pg.onclick = () => exportReport(m, a, segs, 'png');
+  const pp = $('#rp-pdf'); if (pp) pp.onclick = () => exportReport(m, a, segs, 'pdf');
+  const run = async () => {
+    S.extBusy = m.id; renderReport(body, m, a, segs); const t0 = Date.now();
+    try { await generateExtended(m, n => { const el = $('#ext-prog'); if (el) el.textContent = `Escribiendo… ${nf(n)} caracteres`; const b = $('#ext-bar'); if (b) b.style.width = Math.min(95, 5 + n / 260) + '%'; }); toast('Informe extendido listo'); try { navigator.vibrate?.([80, 60, 80]); } catch {} }
+    catch (e) { toast(e.message || 'No se pudo crear el informe', 5000); }
+    finally { S.extBusy = null; if ($('.rep-modes') && S.route.id === m.id) renderReport(body, m, a, segs); }
+  };
+  const eg = $('#ext-go'); if (eg) eg.onclick = run;
+  const er = $('#ext-redo'); if (er) er.onclick = () => { a.extended = null; run(); };
 }
+/* =========================================================
+   Tres informes: compacto, normal y extendido
+   ========================================================= */
+const REP_MODES = [['compacto', 'Compacto', 'Una página para enviar rápido'], ['normal', 'Normal', 'El informe visual completo'], ['extendido', 'Extendido', 'Con todo el detalle, tema por tema']];
+function repHead(m, a, label) {
+  const people = (a.participants?.length ? a.participants : m.participants) || []; const dur = m.durationSec;
+  const bc = Settings.v.brandColor;
+  return `<div class="rp-band"${bc ? ` style="background:${esc(bc)}"` : ''}></div>
+  <header class="rp-head"><div style="display:grid;gap:12px;position:relative;z-index:1">
+    ${Settings.v.brandLogo || Settings.v.brandName ? `<div class="rp-brand own">${Settings.v.brandLogo ? `<img src="${Settings.v.brandLogo}" alt="">` : ''}${Settings.v.brandName ? `<span>${esc(Settings.v.brandName)}</span>` : ''}<em>${esc(label)}</em></div>` : `<div class="rp-brand"><i><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2"/></svg></i>${esc(label)}</div>`}
+    <h1 class="rp-title">${esc(a.title)}</h1>
+    <div class="rp-meta"><span>${icon('cal')}${esc(fmtDate(m.date))}</span>${dur ? `<span>${icon('time')}${fmtT(dur)}</span>` : ''}${people.length ? `<span>${icon('users')}${esc(people.join(', '))}</span>` : ''}${m.project ? `<span>${icon('folder')}${esc(m.project)}</span>` : ''}</div>
+  </div>${a.mood ? `<div class="rp-gauge">${gaugeSVG(a.mood.score)}<b>${esc(a.mood.label)}</b><small>Clima de la reunión</small></div>` : ''}</header>`;
+}
+function repFoot(m, a) {
+  return `${m.seal ? `<div class="rp-body rp-sealwrap">${signaturesHTML(m, a)}<div class="rp-seal"><span class="rp-seal-ic">${icon('lock', 2)}</span><div><b>Acta ${folioTxt(m.seal.folio)} · sello de integridad ${sealCode(m.seal.hash)}</b><small>Sellada el ${esc(new Date(m.seal.at).toLocaleString('es-CL', { dateStyle: 'long', timeStyle: 'short' }))} · SHA-256 ${m.seal.hash}</small></div></div></div>` : ''}
+  <footer class="rp-foot"><span>${Settings.v.brandName ? esc(Settings.v.brandName) + ' · ' : ''}${esc(new Date().toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' }))}</span><span>Creado con Acta</span></footer>`;
+}
+function compactReportHTML(m, a, segs) {
+  const acts = a.actions || []; const dur = m.durationSec || segDuration(segs);
+  const sec = (t, inner) => `<section class="rp-sec"><h2>${t}</h2>${inner}</section>`;
+  const li = (items, color) => items.length ? `<div class="rp-list">${items.map(h => `<div class="rp-li"><span class="d" style="background:${color}"></span><div>${h}</div></div>`).join('')}</div>` : '';
+  return `<article class="rep compact"${Settings.v.brandColor ? ` style="--brand:${esc(Settings.v.brandColor)}"` : ''}>${repHead(m, a, m.seal ? 'Acta ' + folioTxt(m.seal.folio) : 'Resumen de reunión')}
+  <div class="rp-body">
+    <div class="rp-kpis k3"><div class="rp-kpi" style="--kc:#FF6A3D">${icon('time', 2)}<b>${dur ? fmtT(dur) : '—'}</b><span>Duración</span></div><div class="rp-kpi" style="--kc:#7C5CFF">${icon('flag', 2)}<b>${(a.decisions || []).length}</b><span>Decisiones</span></div><div class="rp-kpi" style="--kc:#10B48C">${icon('check', 2)}<b>${acts.length}</b><span>Tareas</span></div></div>
+    ${sec('En pocas palabras', `<div class="rp-sum">${esc(a.tldr)}</div>`)}
+    ${(a.decisions || []).length ? sec('Decisiones', li(a.decisions.map(d => esc(d.text)), '#7C5CFF')) : ''}
+    ${acts.length ? sec('Tareas', `<div class="rp-tasks">${acts.map(t => `<div class="rp-task ${t.done ? 'done' : ''}"><span class="cb ${t.done ? 'on' : ''}"></span><div><div class="t">${esc(t.task)}</div><small><b>${esc(t.owner)}</b>${t.due ? ' · ' + esc(t.due) : ''}</small></div></div>`).join('')}</div>`) : ''}
+    ${(a.nextSteps || []).length ? sec('Próximos pasos', li(a.nextSteps.slice(0, 5).map(esc), '#2F80ED')) : ''}
+  </div>${repFoot(m, a)}</article>`;
+}
+function extendedReportHTML(m, a, segs) {
+  const x = a.extended; const dur = m.durationSec || segDuration(segs); const shares = speakerShares(m, segs);
+  const sec = (t, inner, cls = '') => `<section class="rp-sec ${cls}"><h2>${t}</h2>${inner}</section>`;
+  const topics = x.topics || []; const tot = topics.reduce((s, t) => s + Math.max(1, (t.end || 0) - (t.start || 0)), 0) || 1;
+  return `<article class="rep extended"${Settings.v.brandColor ? ` style="--brand:${esc(Settings.v.brandColor)}"` : ''}>${repHead(m, a, (m.seal ? 'Acta ' + folioTxt(m.seal.folio) + ' · ' : '') + 'Informe extendido')}
+  <div class="rp-body">
+    <div class="rp-kpis">
+      <div class="rp-kpi" style="--kc:#FF6A3D">${icon('time', 2)}<b>${dur ? fmtT(dur) : '—'}</b><span>Duración</span></div>
+      <div class="rp-kpi" style="--kc:#2F80ED">${icon('chart', 2)}<b>${topics.length}</b><span>Temas</span></div>
+      <div class="rp-kpi" style="--kc:#7C5CFF">${icon('flag', 2)}<b>${(x.decisions || []).length}</b><span>Decisiones</span></div>
+      <div class="rp-kpi" style="--kc:#10B48C">${icon('check', 2)}<b>${(x.actions || []).length}</b><span>Tareas</span></div>
+      <div class="rp-kpi" style="--kc:#E8467C">${icon('risk', 2)}<b>${(x.risks || []).length}</b><span>Riesgos</span></div>
+    </div>
+    ${sec('Resumen ejecutivo', `<div class="rp-prose lead">${md(x.executive || a.tldr)}</div>`)}
+    ${x.context ? sec('Contexto y objetivo', `<div class="rp-prose">${md(x.context)}</div>`) : ''}
+    <div class="rp-2 w73">
+      ${topics.length ? sec('Distribución del tiempo', `<div class="rp-tl"><div class="rp-tlbar">${topics.map((t, i) => `<i style="flex:${Math.max(1, (t.end || 0) - (t.start || 0)) / tot * 100};background:${rc(i)}"></i>`).join('')}</div><div class="rp-legend" style="margin-top:12px">${topics.map((t, i) => `<div><i style="background:${rc(i)}"></i><span>${esc(t.name)}</span><span>${Math.round(Math.max(1, (t.end || 0) - (t.start || 0)) / tot * 100)}%</span></div>`).join('')}</div></div>`) : ''}
+      ${shares.length >= 2 ? sec('Participación', `<div class="rp-spk">${donutSVG(shares.map((s, i) => ({ pct: s.pct, color: rc(i) })), { size: 120, thick: 16, track: '#EEF0F4', label: String(shares.length), sub: 'VOCES', ink: '#12141B', muted: '#5E6577', cls: '' })}<div class="rp-legend">${shares.map((s, i) => `<div><i style="background:${rc(i)}"></i><span>${esc(s.name)}</span><span>${Math.round(s.pct * 100)}%</span></div>`).join('')}</div></div>`) : ''}
+    </div>
+    ${topics.length ? sec('Desarrollo tema por tema', topics.map((t, i) => `<div class="rp-topicx" style="--kc:${rc(i)}"><div class="tx-h"><span class="n">${i + 1}</span><div><b>${esc(t.name)}</b><em>${fmtT(t.start || 0)}–${fmtT(t.end || 0)}</em></div></div>
+      <div class="rp-prose">${md(t.summary || '')}</div>
+      ${(t.points || []).length ? `<ul class="tx-pts">${t.points.map(p => `<li>${esc(p)}</li>`).join('')}</ul>` : ''}
+      ${(t.voices || []).length ? `<div class="tx-voices">${t.voices.map(v => `<div><span class="rp-av" style="background:${rc(shares.findIndex(s => s.name === v.who) + 2)}">${esc(initials(v.who))}</span><p><b>${esc(v.who)}:</b> ${esc(v.said)}</p></div>`).join('')}</div>` : ''}
+      ${(t.numbers || []).length ? `<div class="tx-nums">${t.numbers.map(n => `<span><b>${esc(n.value)}</b> ${esc(n.label)}</span>`).join('')}</div>` : ''}</div>`).join('')) : ''}
+    ${(x.decisions || []).length ? sec('Registro de decisiones', `<table class="rp-table"><thead><tr><th>#</th><th>Decisión</th><th>Contexto y motivo</th><th>Propuso</th><th>Min.</th></tr></thead><tbody>${x.decisions.map((d, i) => `<tr><td>${i + 1}</td><td><b>${esc(d.text)}</b></td><td>${esc(d.context || '')}</td><td>${esc(d.proposedBy || '')}</td><td>${d.t != null ? fmtT(d.t) : ''}</td></tr>`).join('')}</tbody></table>`) : ''}
+    ${(x.actions || []).length ? sec('Plan de acción detallado', `<table class="rp-table"><thead><tr><th>Tarea</th><th>Responsable</th><th>Plazo</th><th>Detalle y criterio de cumplimiento</th></tr></thead><tbody>${x.actions.map(t => `<tr><td><b>${esc(t.task)}</b></td><td>${esc(t.owner || '')}</td><td>${esc(t.due || '—')}</td><td>${esc(t.detail || '')}</td></tr>`).join('')}</tbody></table>`) : ''}
+    ${(x.risks || []).length ? sec('Riesgos y mitigación', `<table class="rp-table"><thead><tr><th>Riesgo</th><th>Impacto</th><th>Mitigación sugerida</th></tr></thead><tbody>${x.risks.map(r => `<tr><td><b>${esc(r.text)}</b></td><td>${esc(r.impact || '')}</td><td>${esc(r.mitigation || '')}</td></tr>`).join('')}</tbody></table>`) : ''}
+    ${(x.positions || []).length ? sec('Postura de cada participante', `<div class="rp-pos">${x.positions.map(p => `<div><b>${esc(p.person)}</b><p>${esc(p.stance)}</p></div>`).join('')}</div>`) : ''}
+    ${(x.pending || []).length ? sec('Temas pendientes y cómo abordarlos', `<div class="rp-list">${x.pending.map(p => `<div class="rp-li"><span class="d" style="background:#2F80ED"></span><div>${esc(p.text)}${p.suggestion ? `<small>Sugerencia: ${esc(p.suggestion)}</small>` : ''}</div></div>`).join('')}</div>`) : ''}
+    ${(x.chronology || []).length ? sec('Minuta cronológica', `<div class="rp-chrono">${x.chronology.map(c => `<div><span class="mono">${fmtT(c.t || 0)}</span><p>${esc(c.text)}</p></div>`).join('')}</div>`) : ''}
+    ${x.conclusions ? sec('Conclusiones', `<div class="rp-prose">${md(x.conclusions)}</div>`) : ''}
+  </div>${repFoot(m, a)}</article>`;
+}
+function reportByMode(m, a, segs, mode) { if (mode === 'compacto') return compactReportHTML(m, a, segs); if (mode === 'extendido' && a.extended) return extendedReportHTML(m, a, segs); return reportHTML(m, a, segs); }
+const EXT_SCHEMA = { type: 'object', properties: {
+  executive: { type: 'string', description: 'Resumen ejecutivo de 2 a 4 párrafos: qué se buscaba, qué se discutió, qué se resolvió y qué queda abierto. Markdown simple.' },
+  context: { type: 'string', description: 'Contexto y objetivo de la reunión en 1-2 párrafos' },
+  topics: { type: 'array', description: 'Cada tema tratado, en orden, con desarrollo completo', items: { type: 'object', properties: { name: { type: 'string' }, start: { type: 'number' }, end: { type: 'number' }, summary: { type: 'string', description: 'Desarrollo del tema en 1 a 3 párrafos: qué se planteó, argumentos, acuerdos y desacuerdos' }, points: { type: 'array', items: { type: 'string' }, description: '3 a 8 puntos concretos' }, voices: { type: 'array', description: 'Qué aportó cada persona en este tema', items: { type: 'object', properties: { who: { type: 'string' }, said: { type: 'string' } }, required: ['who', 'said'] } }, numbers: { type: 'array', items: { type: 'object', properties: { value: { type: 'string' }, label: { type: 'string' } }, required: ['value', 'label'] } } }, required: ['name', 'start', 'end', 'summary', 'points'] } },
+  decisions: { type: 'array', items: { type: 'object', properties: { text: { type: 'string' }, context: { type: 'string' }, proposedBy: { type: 'string' }, t: { type: 'number' } }, required: ['text', 'context'] } },
+  actions: { type: 'array', items: { type: 'object', properties: { task: { type: 'string' }, owner: { type: 'string' }, due: { type: 'string' }, detail: { type: 'string', description: 'Qué incluye y cómo saber que está cumplida' } }, required: ['task', 'owner', 'detail'] } },
+  risks: { type: 'array', items: { type: 'object', properties: { text: { type: 'string' }, impact: { type: 'string' }, mitigation: { type: 'string' } }, required: ['text', 'impact', 'mitigation'] } },
+  positions: { type: 'array', description: 'Postura, intereses y preocupaciones de cada participante', items: { type: 'object', properties: { person: { type: 'string' }, stance: { type: 'string' } }, required: ['person', 'stance'] } },
+  pending: { type: 'array', items: { type: 'object', properties: { text: { type: 'string' }, suggestion: { type: 'string' } }, required: ['text'] } },
+  chronology: { type: 'array', description: 'Minuta cronológica: 10 a 30 hitos con su segundo', items: { type: 'object', properties: { t: { type: 'number' }, text: { type: 'string' } }, required: ['t', 'text'] } },
+  conclusions: { type: 'string' }
+}, required: ['executive', 'topics', 'decisions', 'actions', 'chronology', 'conclusions'] };
+async function generateExtended(m, onProgress) {
+  const a = m.analysis; const segs = await getSegments(m.id);
+  const system = `Eres un redactor experto de informes de reuniones. Escribes informes extendidos, precisos y muy completos, en español de Chile, para que alguien que no estuvo entienda todo lo que pasó.
+Reglas: no inventes nada; usa solo lo dicho. Los tiempos en segundos. Cita quién dijo qué. Sé concreto: cifras, fechas, nombres, argumentos. Las sugerencias y mitigaciones pueden ser tuyas, pero márcalas como sugerencias.${Settings.v.about ? `\nSobre quien grabó: ${Settings.v.about}` : ''}`;
+  const user = `Acta ya creada (úsala como guía y amplíala):\n${JSON.stringify({ title: a.title, tldr: a.tldr, topics: a.topics, decisions: a.decisions, actions: a.actions, risks: a.risks, questions: a.questions, numbers: a.numbers })}\n\nParticipantes: ${((a.participants?.length ? a.participants : m.participants) || []).join(', ') || '(no indicados)'}\nFecha: ${m.date}\n\nTranscripción completa:\n${transcriptText(m, segs)}\n\nEscribe el informe extendido llamando a la herramienta guardar_informe una vez.`;
+  const r = await claude({ system, messages: [{ role: 'user', content: user }], tools: [{ name: 'guardar_informe', description: 'Guarda el informe extendido', input_schema: EXT_SCHEMA }], tool_choice: { type: 'auto' }, max_tokens: 24000, onProgress, kind: 'informe' });
+  let x = r.toolInput;
+  if (!x && r.text) { try { const t = r.text; x = JSON.parse(t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1)); } catch {} }
+  if (!x || !x.topics) throw { message: 'No se pudo crear el informe extendido. Reintenta.' };
+  a.extended = x; a.extendedAt = Date.now(); await saveMeeting(m);
+  return x;
+}
+
 function loadH2I() {
   if (window.htmlToImage) return Promise.resolve(window.htmlToImage);
   return new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'h2i.js'; s.onload = () => res(window.htmlToImage); s.onerror = () => rej(new Error('No se pudo cargar el generador de imágenes. Revisa tu conexión.')); document.head.appendChild(s); });
@@ -2833,7 +3020,7 @@ function loadH2I() {
 async function exportReport(m, a, segs, kind = 'png') {
   const btn = $(kind === 'pdf' ? '#rp-pdf' : '#rp-png'); const label = btn?.lastChild?.textContent; if (btn) { btn.disabled = true; btn.lastChild.textContent = 'Generando…'; }
   toast(kind === 'pdf' ? 'Armando el PDF…' : 'Armando la imagen…', 2500);
-  const wrap = document.createElement('div'); wrap.className = 'rep-export'; wrap.innerHTML = reportHTML(m, a, segs); document.body.appendChild(wrap);
+  const wrap = document.createElement('div'); wrap.className = 'rep-export'; wrap.innerHTML = reportByMode(m, a, segs, S.repMode || 'normal'); document.body.appendChild(wrap);
   const node = wrap.firstElementChild;
   try {
     const lib = await loadH2I();
@@ -2844,8 +3031,9 @@ async function exportReport(m, a, segs, kind = 'png') {
     try { await go(opts); out = await go(opts); } catch { out = await go({ ...opts, skipFonts: true }); }
     if (!out) throw new Error('El navegador no generó la imagen.');
     let file;
-    if (kind === 'pdf') { const pdf = await jpegToPdf(out); file = new File([pdf], slug(a.title) + '-informe.pdf', { type: 'application/pdf' }); }
-    else file = new File([out], slug(a.title) + '-informe.png', { type: 'image/png' });
+    const suf = (S.repMode || 'normal') === 'normal' ? '' : '-' + S.repMode;
+    if (kind === 'pdf') { const pdf = await jpegToPdf(out); file = new File([pdf], slug(a.title) + '-informe' + suf + '.pdf', { type: 'application/pdf' }); }
+    else file = new File([out], slug(a.title) + '-informe' + suf + '.png', { type: 'image/png' });
     deliverFile(file, kind === 'pdf' ? 'Informe en PDF' : 'Informe en imagen');
   } catch (e) { toast('No se pudo crear el archivo: ' + (e.message || 'error'), 5000); }
   finally { wrap.remove(); if (btn) { btn.disabled = false; btn.lastChild.textContent = label; } }
@@ -3076,6 +3264,8 @@ document.addEventListener('dblclick', e => { if (!e.target.closest('input,textar
 (async () => {
   try { if (await Settings.restore()) setTimeout(() => toast('Tus claves se recuperaron del respaldo del teléfono', 4500), 800); } catch {}
   try { await loadMeetings(); } catch (e) { S.loaded = true; toast('No se pudo abrir el almacenamiento del navegador. Revisa que no estés en modo privado.', 6000); }
+  if (Settings.v.admin == null) Settings.set({ admin: !!(Settings.v.anthropicKey || Settings.v.openaiKey) });
+  applyMode();
   if (Lock.enabled()) Lock.show();
   try { const r = await DB.get('kv', 'activeRec'); if (r && r.recId) { const ch = await DB.chunksFor(r.recId); if (ch.length) S.recovery = r; else await DB.del('kv', 'activeRec'); } } catch {}
   onRoute();
