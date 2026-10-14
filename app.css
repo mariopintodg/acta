@@ -1030,3 +1030,10 @@ body.offline .netpill{transform:translate(-50%,0)}
 .sug-x{border:0;background:none;color:var(--faint);font-size:18px;cursor:pointer;padding:0 6px}
 .m-actions>span{flex-wrap:wrap;max-width:100%}
 .m-actions select{max-width:min(240px,62vw)}
+.mine-list{display:grid;gap:8px;margin-top:6px;max-height:420px;overflow:auto;padding-right:2px}
+.mine-a{display:flex;gap:12px;align-items:center;text-align:left;background:var(--glass);border:1px solid var(--stroke);border-radius:var(--r-sm);padding:11px 13px;cursor:pointer;color:var(--ink)}
+.mine-a[aria-pressed="true"]{border-color:rgba(255,122,80,.6);background:var(--accent-soft)}
+.mi-ic{width:34px;height:34px;border-radius:10px;background:var(--g-brand);color:#fff;display:grid;place-items:center;flex:none}
+.mi-ic svg{width:16px;height:16px}
+.mi-tx b{display:block;font-size:14.5px}
+.mi-tx small{font-size:12.5px;color:var(--muted)}

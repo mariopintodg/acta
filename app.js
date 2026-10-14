@@ -1036,13 +1036,13 @@ const Pocket = {
    ========================================================= */
 let impDraft = null;
 function renderImport(app) {
-  const d = impDraft || (impDraft = { mode: 'audio', title: '', date: today(), participants: '', template: 'general', context: '', notes: '', transcript: '', file: null, duration: '' });
+  const d = impDraft || (impDraft = { mode: S.meetings.some(m => m.audioParts?.length) ? 'mine' : 'audio', title: '', date: today(), participants: '', template: 'general', context: '', notes: '', transcript: '', file: null, duration: '' });
   app.innerHTML = `
-  <div class="page-head"><div><div class="eyebrow">Importar</div><h1>Trae una conversación que ya tienes</h1><p>Un audio grabado con otra app, o la transcripción de Meet, Zoom, Teams o las notas de voz del teléfono.</p></div></div>
+  <div class="page-head"><div><div class="eyebrow">Importar</div><h1>Trae una conversación que ya tienes</h1><p>Una grabación que ya hiciste en Acta, un audio de otra app, o la transcripción de Meet, Zoom, Teams o las notas de voz.</p></div></div>
   <section class="panel" style="max-width:860px">
-    <div class="seg-ctl" role="group" aria-label="Qué vas a importar"><button data-mode="audio" aria-pressed="${d.mode === 'audio'}">Archivo de audio</button><button data-mode="text" aria-pressed="${d.mode === 'text'}">Transcripción en texto</button></div>
+    <div class="seg-ctl" role="group" aria-label="Qué vas a importar"><button data-mode="mine" aria-pressed="${d.mode === 'mine'}">Grabado en Acta</button><button data-mode="audio" aria-pressed="${d.mode === 'audio'}">Archivo de audio</button><button data-mode="text" aria-pressed="${d.mode === 'text'}">Transcripción en texto</button></div>
     <form class="form" id="imp-f" novalidate>
-      ${d.mode === 'audio' ? `
+      ${d.mode === 'mine' ? mineAudiosHTML(d) : d.mode === 'audio' ? `
       <div class="field"><span class="lbl">Audio</span>
         <div class="drop" id="drop"><span class="btn sm filebtn">${icon('upload')}Elegir audio<input id="i-file" type="file" accept="audio/*,video/mp4,.m4a,.mp3,.wav,.webm,.ogg,.mp4"></span><span id="i-fname">${d.file ? `${esc(d.file.name)} · ${fmtBytes(d.file.size)}` : 'M4A, MP3, WAV, WEBM u OGG · hasta 25 MB'}</span></div>
         ${Settings.v.openaiKey ? '' : '<p class="notice" style="margin-top:8px">Para transcribir audio necesitas tu clave de OpenAI en Ajustes.</p>'}
@@ -1077,19 +1077,31 @@ function renderImport(app) {
   $$('input,textarea', $('#imp-f')).forEach(el => el.addEventListener('input', sync)); sync();
   $$('[data-mode]').forEach(b => b.onclick = () => { sync(); d.mode = b.dataset.mode; renderImport(app); });
   $$('[data-tpl]').forEach(b => b.onclick = () => { d.template = b.dataset.tpl; $$('[data-tpl]').forEach(x => x.setAttribute('aria-pressed', x === b)); });
+  $$('[data-src]', app).forEach(b => b.onclick = () => { d.srcId = b.dataset.src; const src = meetingById(d.srcId); $$('[data-src]', app).forEach(x => x.setAttribute('aria-pressed', x === b)); if (!$('#i-title').value && src) { $('#i-title').value = (src.analysis?.title || src.titleHint || '') ; sync(); } });
   const takeAudio = f => { if (!f) return; d.file = f; $('#i-fname').textContent = `${f.name} · ${fmtBytes(f.size)}${f.size > MAX_UPLOAD ? ' · supera 25 MB' : ''}`; if (!$('#i-title').value) { $('#i-title').value = f.name.replace(/\.[^.]+$/, ''); sync(); } };
   const takeText = f => { if (!f) return; const r = new FileReader(); r.onload = () => { $('#i-tx').value = r.result; if (!$('#i-title').value) $('#i-title').value = f.name.replace(/\.[^.]+$/, ''); sync(); }; r.readAsText(f); };
   const fi = $('#i-file'); if (fi) fi.onchange = e => takeAudio(e.target.files[0]);
   const ft = $('#i-txfile'); if (ft) ft.onchange = e => takeText(e.target.files[0]);
   const drop = $('#drop');
-  drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
-  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
-  drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); const f = e.dataTransfer.files[0]; d.mode === 'audio' ? takeAudio(f) : takeText(f); });
+  if (drop) drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+  if (drop) drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+  if (drop) drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); const f = e.dataTransfer.files[0]; d.mode === 'audio' ? takeAudio(f) : takeText(f); });
   const ex = $('#i-example'); if (ex) ex.onclick = () => { $('#i-tx').value = EXAMPLE_TX; if (!$('#i-people').value) $('#i-people').value = 'Camila, Diego, Tú'; if (!$('#i-ctx').value) $('#i-ctx').value = 'Primera reunión para definir la app de reservas de una peluquería.'; sync(); };
   $('#imp-f').onsubmit = async e => {
     e.preventDefault(); sync(); const st = $('#imp-status');
     const base = { id: uid(), createdAt: Date.now(), date: d.date || today(), titleHint: d.title.trim(), participants: d.participants.split(',').map(x => x.trim()).filter(Boolean), template: d.template, context: d.context.trim(), project: (d.project || '').trim(), notes: d.notes.trim(), notesLog: [], marks: [], photos: [], speakers: {}, status: 'queued', source: 'import' };
-    if (d.mode === 'audio') {
+    if (d.mode === 'mine') {
+      const src = meetingById(d.srcId);
+      if (!src?.audioParts?.length) { st.innerHTML = '<p class="err">Elige una de tus grabaciones.</p>'; return; }
+      base.audioParts = [];
+      for (const pt of src.audioParts) { const b = await DB.get('audio', pt.key); if (!b) continue; const key = base.id + ':' + pt.part; await DB.put('audio', b, key); base.audioParts.push({ ...pt, key }); }
+      if (!base.audioParts.length) { st.innerHTML = '<p class="err">No encuentro ese audio en el teléfono.</p>'; return; }
+      base.durationSec = src.durationSec || 0; base.marks = (src.marks || []).slice(); base.notesLog = (src.notesLog || []).slice(); base.photos = []; base.speakers = { ...(src.speakers || {}) }; base.source = 'reuse';
+      if (!base.participants.length) base.participants = src.participants || [];
+      if (!base.project && src.project) base.project = src.project;
+      const tx = await DB.get('transcripts', src.id);
+      if (tx?.segments?.length) { await DB.put('transcripts', { segments: tx.segments }, base.id); base.hasTranscript = true; base.words = wordCount(tx.segments); }
+    } else if (d.mode === 'audio') {
       if (!d.file) { st.innerHTML = '<p class="err">Elige el archivo de audio de la reunión.</p>'; return; }
       if (d.file.size > MAX_UPLOAD) { st.innerHTML = `<p class="err">El archivo pesa ${fmtBytes(d.file.size)}. El límite de transcripción es 25 MB: compártelo como M4A o MP3 desde la app de grabación, o recórtalo en partes.</p>`; return; }
       const dur = await audioDuration(d.file);
@@ -1104,6 +1116,22 @@ function renderImport(app) {
     await saveMeeting(base); impDraft = null;
     go('m/' + base.id); processMeeting(base.id);
   };
+}
+function mineAudiosHTML(d) {
+  const list = S.meetings.filter(m => m.audioParts?.length).slice(0, 30);
+  if (!list.length) return `<div class="empty-li" style="padding:12px 0">Aún no tienes grabaciones hechas con Acta. Graba una reunión y aparecerá aquí.</div>`;
+  return `<div class="field"><span class="lbl">Elige una grabación</span><span class="hint">Crea un acta nueva con otro tipo, título o proyecto. Si ya estaba transcrita, se reusa la transcripción y no se vuelve a cobrar.</span>
+    <div class="mine-list">${list.map(m => { const st = m.status && m.status !== 'ready' ? (STATUS_TXT[m.status] || '') : ''; return `<button type="button" class="mine-a" data-src="${esc(m.id)}" aria-pressed="${d.srcId === m.id}"><span class="mi-ic">${icon('mic', 2)}</span><span class="mi-tx"><b>${esc(m.analysis?.title || m.titleHint || 'Grabación sin título')}</b><small>${esc(fmtDate(m.date))} · ${fmtT(m.durationSec)} · ${fmtBytes(m.audioParts.reduce((a, p) => a + (p.size || 0), 0))}${m.hasTranscript || m.analysis ? ' · ya transcrita' : ''}${st ? ' · ' + esc(st) : ''}</small></span></button>`; }).join('')}</div></div>`;
+}
+async function exportAudio(m) {
+  const parts = m.audioParts || []; if (!parts.length) { toast('Esta reunión no tiene audio guardado'); return; }
+  const files = [];
+  for (const p of parts) { const b = await DB.get('audio', p.key); if (b) files.push(new File([b], `${slug(m.analysis?.title || m.titleHint || 'reunion')}${parts.length > 1 ? '-parte-' + (p.part + 1) : ''}.${extFor(b.type)}`, { type: b.type || 'audio/webm' })); }
+  if (!files.length) { toast('No encuentro el audio en este teléfono'); return; }
+  if (files.length === 1) return deliverFile(files[0], 'Audio de la reunión');
+  sheet(`<div class="eyebrow">Audio de la reunión</div><h3>La grabación tiene ${files.length} partes</h3><p class="muted">El teléfono la dividió al reanudar o por largo. Comparte cada parte por separado.</p><div class="sheet-actions" style="flex-direction:column">${files.map((f, i) => `<button class="btn" data-part="${i}">${icon('download')}Parte ${i + 1} · ${fmtBytes(f.size)}</button>`).join('')}</div>`, el => {
+    $$('[data-part]', el).forEach(b => b.onclick = () => deliverFile(files[+b.dataset.part], 'Audio · parte ' + (+b.dataset.part + 1)));
+  });
 }
 function audioDuration(file) { return new Promise(res => { const a = new Audio(); const u = URL.createObjectURL(file); a.preload = 'metadata'; a.onloadedmetadata = () => { const d = isFinite(a.duration) ? Math.round(a.duration) : 0; URL.revokeObjectURL(u); res(d); }; a.onerror = () => { URL.revokeObjectURL(u); res(0); }; a.src = u; setTimeout(() => res(0), 6000); }); }
 
@@ -1139,6 +1167,7 @@ function renderMeeting(app, m) {
           <button data-exp="docx">${icon('word', 2)}<span><b>Word (.docx)</b><small>Acta completa para editar</small></span></button>
           <button data-exp="pdf">${icon('doc', 2)}<span><b>PDF</b><small>Informe infográfico</small></span></button>
           <button data-exp="ics">${icon('cal', 2)}<span><b>Tareas al calendario</b><small>Archivo .ics con los plazos</small></span></button>
+          ${m.audioParts?.length ? `<button data-exp="audio">${icon('mic', 2)}<span><b>Audio original</b><small>El archivo de la grabación</small></span></button>` : ''}
           <button data-exp="md">${icon('text', 2)}<span><b>Markdown (.md)</b><small>Para Notion, Obsidian o Docs</small></span></button>
           <button data-exp="seal">${icon('lock', 2)}<span><b>${m.seal ? 'Ver sello ' + folioTxt(m.seal.folio) : 'Sellar acta'}</b><small>Folio, huella digital y firmas</small></span></button>
         </span></span>
@@ -1164,6 +1193,7 @@ function renderMeeting(app, m) {
     if (k === 'docx') { toast('Preparando el Word…'); try { deliverFile(await meetingDocx(m), 'Acta en Word'); } catch (e) { toast('No se pudo crear el Word: ' + (e.message || 'error'), 5000); } }
     if (k === 'ics') exportTasksICS([m]);
     if (k === 'seal') sealSheet(m);
+    if (k === 'audio') exportAudio(m);
     if (k === 'pdf') { const t = $('[data-tab="informe"]'); if (t) t.click(); setTimeout(async () => exportReport(m, a, await getSegments(m.id), 'pdf'), 400); }
   });
   $('#m-proj').onclick = () => editProject(m);
@@ -2567,7 +2597,7 @@ async function renderSettings(app) {
       <li>Tus reuniones, audios y actas viven en este dispositivo.</li>
       <li>El audio se envía a OpenAI solo para transcribirlo; el texto se envía a Anthropic solo para crear el acta y responder preguntas.</li>
       <li>Avísales a los participantes que estás grabando.</li></ol><a class="btn sm" href="privacidad.html" target="_blank" rel="noopener" style="margin-top:12px">${icon('doc')}Política de privacidad</a></section>
-    <p class="status-line">Acta 3.2</p>
+    <p class="status-line">Acta 3.2.1</p>
   </div>`;
   const keyIn = (id, k) => { const el = $(id); el.addEventListener('input', e => Settings.set({ [k]: e.target.value.trim() })); el.addEventListener('change', e => { Settings.set({ [k]: e.target.value.trim() }); keepStorage(); toast('Clave guardada en este teléfono'); }); };
   keyIn('#k-anthropic', 'anthropicKey'); keyIn('#k-openai', 'openaiKey');
