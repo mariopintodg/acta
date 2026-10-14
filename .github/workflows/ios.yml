@@ -1,0 +1,95 @@
+name: iOS
+
+# - Cada push a main: compila la app para el simulador (sin firmar) para comprobar que todo funciona.
+# - "Run workflow" manual (pestaña Actions) con subir=true: compila, firma y sube a TestFlight / App Store Connect.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      subir:
+        description: "Firmar y subir a TestFlight"
+        type: boolean
+        default: true
+
+jobs:
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Elegir Xcode más reciente
+        run: |
+          sudo xcode-select -s "$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)"
+          xcodebuild -version
+
+      - name: Preparar la app web dentro del proyecto nativo
+        run: |
+          npm ci
+          npm run build:www
+          npx cap sync ios
+
+      - name: Compilar (prueba, sin firmar)
+        if: github.event_name == 'push' || inputs.subir != true
+        run: |
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build | tail -40
+          test ${PIPESTATUS[0]} -eq 0
+
+      - name: Clave de App Store Connect
+        if: github.event_name == 'workflow_dispatch' && inputs.subir
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+        run: |
+          mkdir -p ~/private_keys
+          printf '%s' "$ASC_KEY_P8" > ~/private_keys/AuthKey_${ASC_KEY_ID}.p8
+
+      - name: Archivar y firmar
+        if: github.event_name == 'workflow_dispatch' && inputs.subir
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -o pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath $RUNNER_TEMP/Acta.xcarchive \
+            DEVELOPMENT_TEAM=$TEAM_ID CODE_SIGN_STYLE=Automatic \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/private_keys/AuthKey_${ASC_KEY_ID}.p8 \
+            -authenticationKeyID $ASC_KEY_ID -authenticationKeyIssuerID $ASC_ISSUER_ID \
+            archive | tail -60
+
+      - name: Subir a App Store Connect (TestFlight)
+        if: github.event_name == 'workflow_dispatch' && inputs.subir
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -o pipefail
+          cat > $RUNNER_TEMP/export.plist <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$TEAM_ID</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict></plist>
+          PLIST
+          xcodebuild -exportArchive -archivePath $RUNNER_TEMP/Acta.xcarchive \
+            -exportOptionsPlist $RUNNER_TEMP/export.plist -exportPath $RUNNER_TEMP/out \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/private_keys/AuthKey_${ASC_KEY_ID}.p8 \
+            -authenticationKeyID $ASC_KEY_ID -authenticationKeyIssuerID $ASC_ISSUER_ID | tail -60
+          echo "Listo: la compilación ${{ github.run_number }} aparecerá en TestFlight en 5–15 minutos."

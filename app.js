@@ -586,13 +586,19 @@ window.addEventListener('offline', () => { document.body.classList.add('offline'
 /* =========================================================
    Recorder
    ========================================================= */
+/* App nativa de iPhone (Capacitor): la grabadora nativa sigue grabando con la pantalla bloqueada o en otra app */
+const NAT = (() => { try { const C = window.Capacitor; return C && C.isNativePlatform && C.isNativePlatform() && C.getPlatform() === 'ios' && C.isPluginAvailable && C.isPluginAvailable('ActaRecorder') ? C : null; } catch { return null; } })();
+if (NAT) document.documentElement.classList.add('native');
+const natCall = (method, opts = {}) => NAT.nativePromise('ActaRecorder', method, opts);
 const Rec = {
+  native: !!NAT, nElapsed: 0, nLevel: 0, nSubs: [],
   state: 'idle', stream: null, mr: null, ctx: null, analyser: null, mime: '', recId: null,
   activeMs: 0, lastStart: 0, part: 0, partStartSec: 0, seq: 0, parts: [], marks: [], notesLog: [], live: [], photos: [], capturing: false, wake: null, raf: 0, tick: 0, sr: null, interim: '',
   isIOS: /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1),
-  elapsed() { return this.activeMs + (this.state === 'recording' ? performance.now() - this.lastStart : 0); },
+  elapsed() { if (this.native) return this.nElapsed * 1000; return this.activeMs + (this.state === 'recording' ? performance.now() - this.lastStart : 0); },
   pickMime() { const c = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4;codecs=mp4a.40.2', 'audio/mp4', 'audio/aac']; for (const t of c) if (window.MediaRecorder && MediaRecorder.isTypeSupported?.(t)) return t; return ''; },
   async start(meta) {
+    if (this.native) return this.startNative(meta);
     if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) throw { message: 'Este navegador no permite grabar audio. Usa Chrome (Android) o Safari (iPhone) actualizados.' };
     try { this.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } }); }
     catch (e) { throw { message: e.name === 'NotAllowedError' ? 'Acta necesita permiso para usar el micrófono. Actívalo en los permisos del sitio y vuelve a intentarlo.' : 'No se pudo acceder al micrófono: ' + e.message }; }
@@ -605,6 +611,29 @@ const Rec = {
     document.removeEventListener('visibilitychange', this.onVis); document.addEventListener('visibilitychange', this.onVis); window.addEventListener('pageshow', this.onVis);
     try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission().catch(() => {}); } catch {}
     this.tick = setInterval(() => { if (this.state === 'recording' && this.elapsed() / 1000 - this.partStartSec >= PART_SEC) this.rotate(); this.saveActive(); }, 5000);
+  },
+  async startNative(meta) {
+    this.mime = 'audio/mp4'; this.recId = uid(); this.startedAt = Date.now(); this.pending = new Set(); this.activeMs = 0; this.nElapsed = 0; this.part = 0; this.seq = 0; this.parts = []; this.marks = []; this.notesLog = []; this.live = []; this.photos = []; this.meta = meta;
+    this.nSubs = [
+      NAT.addListener('ActaRecorder', 'level', d => { this.nLevel = d.level || 0; this.nElapsed = d.elapsed || 0; if (d.state === 'recording' && this.state === 'interrupted') this.nativeResumed(); }),
+      NAT.addListener('ActaRecorder', 'partSaved', d => this.storeNativePart(d)),
+      NAT.addListener('ActaRecorder', 'interrupted', d => { if (this.state !== 'recording') return; this.nElapsed = d.at || this.nElapsed; this.state = 'interrupted'; this.marks.push({ t: Math.round(this.nElapsed), label: 'Pausa automática · ' + (d.reason || 'micrófono ocupado'), auto: true }); this.saveActive(); if (S.route.view === 'record') render(); }),
+      NAT.addListener('ActaRecorder', 'resumed', () => this.nativeResumed())
+    ];
+    try { await natCall('start', { id: this.recId, partSec: PART_SEC, bitrate: +Settings.v.bitrate || 32000 }); }
+    catch (e) { this.nSubs.forEach(x => x.remove()); this.nSubs = []; throw { message: e.message || 'No se pudo iniciar la grabación' }; }
+    this.state = 'recording'; this.lastStart = performance.now();
+    this.analyser = { getByteTimeDomainData: a => { const l = this.nLevel; for (let i = 0; i < a.length; i++) a[i] = 128 + Math.round(Math.sin(i * .35 + performance.now() / 90) * l * 28); }, getByteFrequencyData: a => { const l = this.nLevel; for (let i = 0; i < a.length; i++) a[i] = Math.max(0, Math.min(255, Math.round(l * 255 * (1 - i / a.length) * (.7 + .3 * Math.sin(i * .9 + performance.now() / 120))))); } };
+    this.saveActive();
+    window.addEventListener('beforeunload', this.guard);
+    this.tick = setInterval(() => this.saveActive(), 5000);
+  },
+  nativeResumed() { if (this.state !== 'interrupted') return; this.state = 'recording'; this.marks.push({ t: Math.round(this.nElapsed), label: 'Grabación retomada', auto: true }); this.saveActive(); if (S.route.view === 'record') render(); toast('Grabación retomada'); },
+  storeNativePart(d) {
+    if (!this.recId || d == null) return; const recId = this.recId;
+    if (!this.parts.some(x => x.part === d.part)) this.parts.push({ part: d.part, offset: d.offset || 0 });
+    const pr = fetch(NAT.convertFileSrc(d.path)).then(r => r.blob()).then(b => DB.put('chunks', { recId, part: d.part, seq: this.seq++, blob: new Blob([b], { type: 'audio/mp4' }), type: 'audio/mp4' })).catch(() => {});
+    this.pending.add(pr); pr.finally(() => this.pending.delete(pr)); this.saveActive();
   },
   startPart(p) {
     const opts = { audioBitsPerSecond: +Settings.v.bitrate || 32000 }; if (this.mime) opts.mimeType = this.mime;
@@ -647,6 +676,7 @@ const Rec = {
   },
   async continueAfter() {
     if (this.state !== 'interrupted') return;
+    if (this.native) { try { await natCall('resume'); } catch (e) { throw { message: e.message || 'El micrófono sigue ocupado. Intenta en unos segundos.' }; } this.nativeResumed(); return; }
     let s;
     try { s = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } }); }
     catch (e) { throw { message: e.name === 'NotAllowedError' ? 'Acta necesita permiso para usar el micrófono. Actívalo y toca Continuar otra vez.' : 'No se pudo reactivar el micrófono: ' + e.message }; }
@@ -662,13 +692,24 @@ const Rec = {
     try { this.startPart(next); setTimeout(() => { try { old.requestData(); } catch {} try { old.stop(); } catch {} }, 250); }
     catch { try { old.stop(); } catch {} this.startPart(next); }
     this.partStartSec = off; },
-  pause() { if (this.state !== 'recording') return; this.activeMs = this.elapsed(); this.state = 'paused'; try { this.mr.pause(); } catch {} this.saveActive(); },
-  resume() { if (this.state !== 'paused') return; this.lastStart = performance.now(); this.state = 'recording'; try { this.mr.resume(); } catch {} },
+  pause() { if (this.native) { if (this.state === 'recording') { this.state = 'paused'; natCall('pause').catch(() => {}); this.saveActive(); } return; } if (this.state !== 'recording') return; this.activeMs = this.elapsed(); this.state = 'paused'; try { this.mr.pause(); } catch {} this.saveActive(); },
+  resume() { if (this.native) { if (this.state === 'paused') { this.state = 'recording'; natCall('resume').catch(e => toast(e.message || 'No se pudo retomar')); } return; } if (this.state !== 'paused') return; this.lastStart = performance.now(); this.state = 'recording'; try { this.mr.resume(); } catch {} },
   addMark(label) { const t = Math.round(this.elapsed() / 1000); this.marks.push({ t, label: label || '' }); this.saveActive(); return t; },
   addNote(text) { const t = Math.round(this.elapsed() / 1000); this.notesLog.push({ t, text }); this.saveActive(); return t; },
   saveActive() { if (!this.recId) return; DB.put('kv', { recId: this.recId, mime: this.mime, startedAt: this.startedAt || (this.startedAt = Date.now()), elapsed: Math.round(this.elapsed() / 1000), parts: this.parts, marks: this.marks, notesLog: this.notesLog, live: this.live, photos: this.photos, meta: this.meta }, 'activeRec').catch(() => {}); },
   async stop() {
     if (this.state === 'idle') return null;
+    if (this.native) {
+      this.state = 'stopping'; let r = {};
+      try { r = await natCall('stop'); } catch {}
+      (r.parts || []).forEach(d => { if (!this.parts.some(x => x.part === d.part)) this.storeNativePart(d); });
+      await Promise.all([...this.pending]);
+      const dur = Math.round(r.duration || this.nElapsed);
+      this.cleanup();
+      const info = { recId: this.recId, mime: this.mime, parts: this.parts.sort((a, b) => a.part - b.part), marks: this.marks, notesLog: this.notesLog, live: this.live, photos: this.photos, meta: this.meta, durationSec: dur, nativeId: this.recId };
+      this.state = 'idle'; this.recId = null;
+      return info;
+    }
     const dur = Math.round(this.elapsed() / 1000);
     this.activeMs = this.elapsed(); this.state = 'stopping';
     await new Promise(res => { const mr = this.mr; if (!mr || mr.state === 'inactive') return res(); mr.addEventListener('stop', () => setTimeout(res, 120), { once: true }); try { mr.stop(); } catch { res(); } });
@@ -678,8 +719,9 @@ const Rec = {
     this.state = 'idle'; this.recId = null;
     return info;
   },
-  async discard() { const id = this.recId; if (this.mr && this.mr.state !== 'inactive') try { this.mr.stop(); } catch {} this.cleanup(); this.state = 'idle'; this.recId = null; await sleep(300); if (id) await DB.delChunks(id); await DB.del('kv', 'activeRec'); },
+  async discard() { const id = this.recId; if (this.native) { try { await natCall('stop'); } catch {} if (id) natCall('deleteRecording', { id }).catch(() => {}); } if (this.mr && this.mr.state !== 'inactive') try { this.mr.stop(); } catch {} this.cleanup(); this.state = 'idle'; this.recId = null; await sleep(300); if (id) await DB.delChunks(id); await DB.del('kv', 'activeRec'); },
   cleanup() {
+    this.nSubs.forEach(x => { try { x.remove(); } catch {} }); this.nSubs = []; this.nLevel = 0; if (this.native) this.analyser = null;
     clearInterval(this.tick); cancelAnimationFrame(this.raf);
     this.stream?.getTracks().forEach(t => t.stop()); this.stream = null;
     try { this.ctx?.close(); } catch {} this.ctx = null; this.analyser = null;
@@ -690,6 +732,7 @@ const Rec = {
   async lockScreen() { try { if ('wakeLock' in navigator && (!this.wake || this.wake.released)) { this.wake = await navigator.wakeLock.request('screen'); document.removeEventListener('visibilitychange', this.onVis); document.addEventListener('visibilitychange', this.onVis); } } catch {} },
   onVis: async () => { if (document.visibilityState === 'visible' && Rec.state !== 'idle' && (!Rec.wake || Rec.wake.released)) { try { Rec.wake = await navigator.wakeLock.request('screen'); } catch {} } if (document.visibilityState === 'visible' && Rec.state === 'interrupted') { render(); Rec.autoContinue(); } },
   startCaptions() {
+    if (this.native) return;
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SR) return;
     const sr = new SR(); sr.lang = Settings.v.language && Settings.v.language !== 'auto' ? (Settings.v.language === 'es' ? 'es-CL' : Settings.v.language) : 'es-CL'; sr.continuous = true; sr.interimResults = true;
     sr.onresult = e => { let interim = ''; for (let i = e.resultIndex; i < e.results.length; i++) { const r = e.results[i]; if (r.isFinal) { const text = r[0].transcript.trim(); if (text) this.live.push({ t: Math.max(0, Math.round(this.elapsed() / 1000 - wordsOf(text) / 2.5)), text }); } else interim += r[0].transcript; } this.interim = interim; updateCaption(); };
@@ -721,6 +764,7 @@ async function finishRecording(info, extra = {}) {
   if (!parts.length) m.error = { code: 'no_audio', message: 'No se guardó audio de esta grabación.' };
   await saveMeeting(m);
   await DB.delChunks(info.recId); await DB.del('kv', 'activeRec');
+  if (NAT && (info.nativeId || info.recId)) natCall('deleteRecording', { id: info.nativeId || info.recId }).catch(() => {});
   return m;
 }
 
@@ -918,7 +962,7 @@ function renderRecord(app) {
         <span class="rec-size" id="rec-size">${on ? '' : (Settings.v.openaiKey ? 'Hablantes · alta precisión' : 'Dictado del teléfono')}</span>
       </div>
       <div class="orb-wrap"><canvas id="orb" aria-hidden="true"></canvas><div class="orb-center"><div class="timer" id="timer">${fmtClock(Rec.elapsed())}</div><div class="timer-sub" id="timer-sub">${intr ? 'Toca continuar para seguir' : on ? (st === 'paused' ? 'Pausado' : 'Escuchando') : 'Toca el botón para empezar'}</div></div></div>
-      ${intr ? `<div class="interrupt"><b>${Rec.resuming ? 'Retomando la grabación…' : 'La grabación se pausó'}</b><span>${Rec.isIOS ? 'El iPhone no deja que una app web use el micrófono mientras estás en otra app (WhatsApp, llamadas) o con la pantalla bloqueada.' : 'Otra app (WhatsApp, una llamada) tomó el micrófono.'} Lo grabado está a salvo y al volver a Acta sigue sola en la misma reunión. Si no sigue, toca <b>Continuar</b>.</span></div>` : ''}
+      ${intr ? `<div class="interrupt"><b>${Rec.resuming ? 'Retomando la grabación…' : 'La grabación se pausó'}</b><span>${Rec.native ? 'Una llamada o un audio de WhatsApp ocupó el micrófono; Acta retoma sola apenas se libera.' : Rec.isIOS ? 'El iPhone no deja que una app web use el micrófono mientras estás en otra app (WhatsApp, llamadas) o con la pantalla bloqueada.' : 'Otra app (WhatsApp, una llamada) tomó el micrófono.'} Lo grabado está a salvo y al volver a Acta sigue sola en la misma reunión. Si no sigue, toca <b>Continuar</b>.</span></div>` : ''}
       <div class="controls">
         <div class="cbtn-lbl"><button class="cbtn" id="r-mark" ${st === 'recording' ? '' : 'disabled'} aria-label="Marcar momento importante">${icon('bookmark', 1.9)}</button>Marcar</div>
         <div class="cbtn-lbl"><button class="bigrec ${on && !intr ? 'on' : ''} ${intr ? 'resume' : ''}" id="r-main" aria-label="${intr ? 'Continuar grabando' : on ? 'Terminar y procesar' : 'Empezar a grabar'}"><span></span></button>${intr ? 'Continuar' : on ? 'Terminar' : 'Grabar'}</div>
@@ -3286,7 +3330,13 @@ document.addEventListener('dblclick', e => { if (!e.target.closest('input,textar
   if (Settings.v.admin == null) Settings.set({ admin: !!(Settings.v.anthropicKey || Settings.v.openaiKey) });
   applyMode();
   if (Lock.enabled()) Lock.show();
-  try { const r = await DB.get('kv', 'activeRec'); if (r && r.recId) { const ch = await DB.chunksFor(r.recId); if (ch.length) S.recovery = r; else await DB.del('kv', 'activeRec'); } } catch {}
+  try { const r = await DB.get('kv', 'activeRec'); if (r && r.recId) {
+    if (NAT) { /* la app se cerró grabando: rescatamos del disco las partes que alcanzaron a guardarse */
+      try { const have = new Set((await DB.chunksFor(r.recId)).map(c => c.part)); const lp = await natCall('listParts', { id: r.recId }); r.parts = r.parts || [];
+        for (const d of lp.parts || []) { if (have.has(d.part)) continue; const b = await fetch(NAT.convertFileSrc(d.path)).then(x => x.blob()); await DB.put('chunks', { recId: r.recId, part: d.part, seq: 0, blob: new Blob([b], { type: 'audio/mp4' }), type: 'audio/mp4' }); if (!r.parts.some(x => x.part === d.part)) r.parts.push({ part: d.part, offset: d.offset }); }
+        r.parts.sort((a, b) => a.part - b.part); if (lp.duration) r.elapsed = Math.round(lp.duration); r.nativeId = r.recId; await DB.put('kv', r, 'activeRec'); } catch {}
+    }
+    const ch = await DB.chunksFor(r.recId); if (ch.length) S.recovery = r; else await DB.del('kv', 'activeRec'); } } catch {}
   onRoute();
   if (!navigator.onLine) document.body.classList.add('offline');
   for (const m of S.meetings) if (['queued', 'transcribing', 'analyzing', 'waiting'].includes(m.status)) processMeeting(m.id);

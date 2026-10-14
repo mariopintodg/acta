@@ -1,0 +1,14 @@
+{
+  "appId": "cl.mariopinto.acta",
+  "appName": "Acta",
+  "webDir": "www",
+  "backgroundColor": "#07080D",
+  "ios": {
+    "contentInset": "never",
+    "limitsNavigationsToAppBoundDomains": false,
+    "scheme": "Acta"
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}
