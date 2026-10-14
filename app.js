@@ -103,7 +103,7 @@ const KP_ICONS = ['target', 'money', 'people', 'time', 'tech', 'design', 'legal'
 const CLAUDE_MODELS = [['claude-sonnet-5-5', 'Claude Sonnet 5.5 — recomendado'], ['claude-opus-5-5', 'Claude Opus 5.5 — máximo detalle'], ['claude-haiku-5-5', 'Claude Haiku 5.5 — más rápido y económico']];
 const STT_MODELS = [['gpt-4o-transcribe-diarize', 'Con hablantes (recomendado)'], ['whisper-1', 'Whisper — con marcas de tiempo, sin hablantes'], ['gpt-4o-transcribe', 'Solo texto']];
 const MAX_UPLOAD = 25 * 1024 * 1024;
-const PART_SEC = 55 * 60;
+const PART_SEC = 5 * 60; /* recordings are saved in 5-minute pieces so they can be transcribed in parallel */
 
 /* =========================================================
    Settings (localStorage — only this device)
@@ -483,6 +483,7 @@ function setProgress(id, text, pct) {
 }
 /* Long audio: cut into ~5 min pieces at quiet moments and transcribe them at the same time (same cost, much faster) */
 const CHUNK_SEC = 300, PARALLEL = 4;
+const MAX_SPLIT_SEC = (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) ? 40 * 60 : 150 * 60;
 async function splitAudio(blob) {
   const SR = 16000; const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext; if (!OAC) return null;
   const ctx = new OAC(1, SR, SR); const ab = await blob.arrayBuffer();
@@ -518,7 +519,7 @@ async function processMeeting(id, { template } = {}) {
           if (!blob) throw { code: 'no_audio', message: 'No encuentro el audio de esta reunión en el dispositivo.' };
           const next = m.audioParts[p + 1]; const partDur = (next ? next.offset : (m.durationSec || 0)) - (part.offset || 0);
           let pieces = null;
-          if (partDur > CHUNK_SEC * 1.3 && partDur <= 35 * 60) { setProgress(id, 'Preparando el audio para transcribir más rápido…', 0); try { pieces = await splitAudio(blob); } catch (e) { console.warn('split', e); } }
+          if (partDur > CHUNK_SEC * 1.3 && partDur <= MAX_SPLIT_SEC) { setProgress(id, 'Preparando el audio para transcribir más rápido…', 0); try { pieces = await splitAudio(blob); } catch (e) { console.warn('split', e); } }
           if (pieces) pieces.forEach(pc => jobs.push({ blob: pc.blob, offset: (part.offset || 0) + pc.start, dur: 0 }));
           else jobs.push({ blob, offset: part.offset || 0, dur: partDur });
         }
@@ -634,7 +635,10 @@ const Rec = {
     this.lockScreen(); if (Settings.v.captions || !Settings.v.openaiKey) this.startCaptions();
     this.saveActive();
   },
-  rotate() { const old = this.mr; const next = this.part + 1; const off = this.elapsed() / 1000; this.parts.push({ part: next, offset: off }); try { old.stop(); } catch {} this.startPart(next); this.partStartSec = off; },
+  rotate() { const old = this.mr; const next = this.part + 1; const off = this.elapsed() / 1000; this.parts.push({ part: next, offset: off });
+    try { this.startPart(next); setTimeout(() => { try { old.requestData(); } catch {} try { old.stop(); } catch {} }, 250); }
+    catch { try { old.stop(); } catch {} this.startPart(next); }
+    this.partStartSec = off; },
   pause() { if (this.state !== 'recording') return; this.activeMs = this.elapsed(); this.state = 'paused'; try { this.mr.pause(); } catch {} this.saveActive(); },
   resume() { if (this.state !== 'paused') return; this.lastStart = performance.now(); this.state = 'recording'; try { this.mr.resume(); } catch {} },
   addMark(label) { const t = Math.round(this.elapsed() / 1000); this.marks.push({ t, label: label || '' }); this.saveActive(); return t; },
@@ -1168,8 +1172,8 @@ function renderImport(app) {
       if (tx?.segments?.length) { await DB.put('transcripts', { segments: tx.segments }, base.id); base.hasTranscript = true; base.words = wordCount(tx.segments); }
     } else if (d.mode === 'audio') {
       if (!d.file) { st.innerHTML = '<p class="err">Elige el archivo de audio de la reunión.</p>'; return; }
-      if (d.file.size > MAX_UPLOAD) { st.innerHTML = `<p class="err">El archivo pesa ${fmtBytes(d.file.size)}. El límite de transcripción es 25 MB: compártelo como M4A o MP3 desde la app de grabación, o recórtalo en partes.</p>`; return; }
       const dur = await audioDuration(d.file);
+      if (d.file.size > MAX_UPLOAD && !(dur > CHUNK_SEC && dur <= MAX_SPLIT_SEC)) { st.innerHTML = `<p class="err">El archivo pesa ${fmtBytes(d.file.size)}${dur ? ` y dura ${fmtT(dur)}` : ''}. ${dur > MAX_SPLIT_SEC ? `En este teléfono Acta puede partir audios de hasta ${MAX_SPLIT_SEC / 60} minutos; recórtalo en dos.` : 'El límite es 25 MB: compártelo como M4A o MP3 desde la app de grabación.'}</p>`; return; }
       const key = base.id + ':0'; await DB.put('audio', d.file, key);
       base.audioParts = [{ key, part: 0, offset: 0, size: d.file.size, type: d.file.type }]; base.durationSec = dur;
     } else {
@@ -2665,7 +2669,7 @@ async function renderSettings(app) {
       <li>Tus reuniones, audios y actas viven en este dispositivo.</li>
       <li>El audio se envía a OpenAI solo para transcribirlo; el texto se envía a Anthropic solo para crear el acta y responder preguntas.</li>
       <li>Avísales a los participantes que estás grabando.</li></ol><a class="btn sm" href="privacidad.html" target="_blank" rel="noopener" style="margin-top:12px">${icon('doc')}Política de privacidad</a></section>
-    <p class="status-line">Acta 3.3.1</p>
+    <p class="status-line">Acta 3.3.2</p>
   </div>`;
   const keyIn = (id, k) => { const el = $(id); el.addEventListener('input', e => Settings.set({ [k]: e.target.value.trim() })); el.addEventListener('change', e => { Settings.set({ [k]: e.target.value.trim() }); keepStorage(); toast('Clave guardada en este teléfono'); }); };
   keyIn('#k-anthropic', 'anthropicKey'); keyIn('#k-openai', 'openaiKey');
