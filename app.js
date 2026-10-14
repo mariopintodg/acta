@@ -104,7 +104,7 @@ const PART_SEC = 55 * 60;
 /* =========================================================
    Settings (localStorage — only this device)
    ========================================================= */
-const DEFAULTS = { anthropicKey: '', openaiKey: '', claudeModel: 'claude-sonnet-5-5', sttModel: 'gpt-4o-transcribe-diarize', language: 'es', theme: 'system', captions: false, bitrate: 32000, followAudio: true, vocab: '', lockOn: false, lockCred: '', lockPin: '', lockSalt: '', lockAfter: 60 };
+const DEFAULTS = { anthropicKey: '', openaiKey: '', claudeModel: 'claude-sonnet-5-5', sttModel: 'gpt-4o-transcribe-diarize', language: 'es', theme: 'system', captions: false, bitrate: 32000, followAudio: true, vocab: '', lockOn: false, lockCred: '', lockPin: '', lockSalt: '', lockAfter: 60, myName: '', brandName: '', brandColor: '', brandLogo: '', signature: '', folioNext: 1 };
 const vocabList = () => String(Settings.v.vocab || '').split(/[\n,;]+/).map(x => x.trim()).filter(Boolean).slice(0, 120);
 const Settings = {
   v: { ...DEFAULTS },
@@ -353,7 +353,7 @@ const ANALYSIS_SCHEMA = {
     keyPoints: { type: 'array', items: { type: 'object', properties: { title: { type: 'string' }, detail: { type: 'string' }, icon: { type: 'string', enum: KP_ICONS } }, required: ['title', 'detail', 'icon'] } },
     topics: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, start: { type: 'number' }, end: { type: 'number' }, summary: { type: 'string' } }, required: ['name', 'start', 'end', 'summary'] } },
     decisions: { type: 'array', items: { type: 'object', properties: { text: { type: 'string' }, why: { type: 'string' } }, required: ['text'] } },
-    actions: { type: 'array', items: { type: 'object', properties: { task: { type: 'string' }, owner: { type: 'string' }, due: { type: 'string', description: 'Plazo tal como se dijo' }, dueDate: { type: 'string', description: 'Fecha del plazo en formato AAAA-MM-DD calculada desde la fecha de la reunión; vacío si no se dijo plazo' }, priority: { type: 'string', enum: ['alta', 'media', 'baja'] } }, required: ['task', 'owner', 'priority'] } },
+    actions: { type: 'array', items: { type: 'object', properties: { task: { type: 'string' }, owner: { type: 'string' }, due: { type: 'string', description: 'Plazo tal como se dijo' }, dueDate: { type: 'string', description: 'Fecha del plazo en formato AAAA-MM-DD calculada desde la fecha de la reunión; vacío si no se dijo plazo' }, t: { type: 'number', description: 'Segundo de la grabación en que la persona se comprometió' }, quote: { type: 'string', description: 'Frase textual y breve con la que la persona se comprometió, copiada de la transcripción' }, priority: { type: 'string', enum: ['alta', 'media', 'baja'] } }, required: ['task', 'owner', 'priority'] } },
     ficha: { type: 'array', description: 'Ficha del rubro: un valor por cada campo pedido, solo con lo que se dijo; si un campo no se mencionó, value = "No se mencionó"', items: { type: 'object', properties: { label: { type: 'string' }, value: { type: 'string' } }, required: ['label', 'value'] } },
     followUp: { type: 'object', description: 'Mensaje de seguimiento listo para enviar a los participantes, escrito en primera persona por quien grabó', properties: { whatsapp: { type: 'string', description: 'Versión corta para WhatsApp: saludo, 3 a 6 líneas con acuerdos y tareas con responsable y plazo, cierre cordial. Puede usar *negritas* de WhatsApp. Sin emojis excesivos.' }, emailSubject: { type: 'string' }, emailBody: { type: 'string', description: 'Correo formal y breve: saludo, resumen, acuerdos, tareas con responsable y plazo, próxima reunión si se mencionó, despedida. Texto plano.' } }, required: ['whatsapp', 'emailSubject', 'emailBody'] },
     corrections: { type: 'array', description: 'Palabras que la transcripción escribió mal y que corresponden al vocabulario del usuario o a nombres claros por contexto', items: { type: 'object', properties: { wrong: { type: 'string' }, right: { type: 'string' } }, required: ['wrong', 'right'] } },
@@ -391,6 +391,7 @@ Reglas:
 - quotes: frases textuales cortas y memorables.
 - speakers: ${labels.length ? `etiquetas presentes: ${labels.join(', ')}. Deduce el nombre de cada una solo si es claro (alguien la nombra, se presenta o coincide con un participante); si no, deja name vacío. Las etiquetas con sufijo ·2, ·3… vienen de partes posteriores de la misma reunión (la grabación se reanudó): si por el contexto son la misma persona que otra etiqueta, dales el mismo nombre; si no se puede saber, usa "Persona A", "Persona B" coherentes entre partes.` : 'no hay etiquetas de hablante; devuelve un arreglo vacío.'}
 - Tareas con plazo: además de due (como se dijo), calcula dueDate en AAAA-MM-DD desde la fecha de la reunión (por ejemplo "el viernes" = el próximo viernes).
+- En cada tarea agrega t (segundo en que el responsable se comprometió) y quote (sus palabras textuales y breves al comprometerse), copiadas de la transcripción.
 - followUp: mensaje para enviar después de la reunión, con los acuerdos y tareas reales; no inventes fechas ni nombres.
 - Enfoque de esta reunión: ${tpl.focus}
 - ficha: ${tpl.ficha ? `completa estos campos en este orden: ${tpl.ficha.join(' · ')}.` : 'devuelve un arreglo vacío.'}
@@ -440,7 +441,7 @@ function normalize(a, dur, titleHint) {
     corrections: arr(a.corrections).filter(x => x && x.wrong && x.right && x.wrong !== x.right).slice(0, 40).map(x => ({ wrong: String(x.wrong), right: String(x.right) })),
     previousTasks: arr(a.previousTasks).filter(x => x && x.ref).map(x => ({ ref: String(x.ref), status: ['hecha', 'en curso', 'sin novedad'].includes(x.status) ? x.status : 'sin novedad', note: x.note || '' })),
     continuity: a.continuity || '',
-    actions: arr(a.actions).map(x => ({ id: uid(), task: x.task || String(x), owner: x.owner || 'Sin asignar', due: x.due || '', dueDate: /^\d{4}-\d{2}-\d{2}$/.test(x.dueDate || '') ? x.dueDate : '', priority: ['alta', 'media', 'baja'].includes(x.priority) ? x.priority : 'media', done: false })),
+    actions: arr(a.actions).map(x => ({ id: uid(), task: x.task || String(x), owner: x.owner || 'Sin asignar', due: x.due || '', dueDate: /^\d{4}-\d{2}-\d{2}$/.test(x.dueDate || '') ? x.dueDate : '', t: Number.isFinite(+x.t) && x.t !== '' && x.t != null ? +x.t : null, quote: x.quote ? String(x.quote) : '', priority: ['alta', 'media', 'baja'].includes(x.priority) ? x.priority : 'media', done: false })),
     ideas: arr(a.ideas).map(x => ({ text: x.text || String(x), note: x.note || '' })),
     risks: arr(a.risks).map(x => ({ text: x.text || String(x), severity: ['alta', 'media', 'baja'].includes(x.severity) ? x.severity : 'media' })),
     questions: arr(a.questions).map(x => ({ text: x.text || String(x) })),
@@ -670,14 +671,16 @@ function parseHash() {
   const [a, b, c] = location.hash.slice(1).split('/').map(x => { try { return decodeURIComponent(x); } catch { return x; } });
   if (a === 'm' && b) return { view: 'meeting', id: b, tab: c || 'resumen' };
   if (a === 'p' && b) return { view: 'project', id: b };
-  if (['record', 'import', 'settings', 'tasks', 'week', 'projects'].includes(a)) return { view: a };
+  if (a === 'per' && b) return { view: 'person', id: b };
+  if (a === 'prep' && b && c) return { view: 'prep', kind: b, id: c };
+  if (['record', 'import', 'settings', 'tasks', 'week', 'projects', 'people'].includes(a)) return { view: a };
   return { view: 'library' };
 }
 function go(hash) { if (location.hash.slice(1) === hash) { onRoute(); return; } location.hash = hash; }
 function onRoute() {
   const prev = S.route; S.route = parseHash();
   if (Rec.state !== 'idle' && S.route.view !== 'record') { S.route = { view: 'record' }; history.replaceState(null, '', '#record'); toast('Estás grabando. Detén la grabación para salir.'); }
-  if (prev.view !== S.route.view || prev.id !== S.route.id) { S.trq = ''; window.scrollTo(0, 0); closeSheet(); }
+  if (prev.view !== S.route.view || prev.id !== S.route.id || prev.kind !== S.route.kind) { S.trq = ''; window.scrollTo(0, 0); closeSheet(); }
   if (S.trqNext) { S.trq = S.trqNext; S.trqNext = null; }
   render();
 }
@@ -699,6 +702,9 @@ function render() {
   if (v === 'week') return renderWeek(app);
   if (v === 'projects') return renderProjects(app);
   if (v === 'project') return renderProject(app, S.route.id);
+  if (v === 'people') return renderPeople(app);
+  if (v === 'person') return renderPerson(app, S.route.id);
+  if (v === 'prep') return renderPrep(app, S.route.kind, S.route.id);
   if (v === 'meeting') { const m = meetingById(S.route.id); if (m) return renderMeeting(app, m); if (S.loaded) { app.innerHTML = `<div class="empty"><h3>No encuentro esta reunión</h3><p>Puede que se haya eliminado.</p><button class="btn" data-nav="library">Volver a reuniones</button></div>`; return; } }
   renderLibrary(app);
 }
@@ -762,7 +768,8 @@ function renderLibrary(app) {
     </div>
   </section>
   ${Settings.v.anthropicKey ? budgetHTML() : ''}
-  ${S.meetings.length ? weekCardHTML() : ''}
+  ${S.meetings.length ? owedCardHTML() + weekCardHTML() : ''}
+  ${peopleRowHTML()}
   ${projectsRowHTML()}`}
   ${q ? searchHitsHTML(q) : ''}
   <div class="sec-title"><h2>${q ? 'Reuniones que coinciden' : 'Reuniones recientes'}</h2><span class="muted" style="font-size:12.5px">${list.length} ${list.length === 1 ? 'reunión' : 'reuniones'}</span></div>
@@ -777,6 +784,7 @@ function renderLibrary(app) {
   const ld = $('#load-demo'); if (ld) ld.onclick = loadDemo;
   $$('[data-hit]', app).forEach(b => b.onclick = () => { const [id, tab, t] = b.dataset.hit.split('|'); if (tab === 'transcripcion') { S.jump = +t; S.trqNext = S.q; } go('m/' + id + '/' + tab); });
   $$('[data-proj]', app).forEach(b => b.onclick = () => go('p/' + encodeURIComponent(b.dataset.proj)));
+  $$('[data-per]', app).forEach(b => b.onclick = () => go('per/' + encodeURIComponent(b.dataset.per)));
   if (q && !S.txIndex && !S.txBuilding) buildTxIndex().then(() => { if (S.route.view === 'library' && S.q) render(); });
 }
 function cardHTML(m, i = 0) {
@@ -846,6 +854,7 @@ function renderRecord(app) {
           <div class="field"><label for="r-people">Participantes</label><input id="r-people" value="${esc(recMeta.participants)}" placeholder="Camila, Diego, yo"><span class="hint">Ayuda a ponerle nombre a cada voz.</span></div>
           <div class="field"><label for="r-proj">Proyecto o cliente</label><input id="r-proj" list="proj-list" value="${esc(recMeta.project || '')}" placeholder="Opcional · une esta reunión con las anteriores" autocomplete="off"><datalist id="proj-list">${projectsList().map(p => `<option value="${esc(p)}">`).join('')}</datalist><span class="hint">Acta revisa las tareas pendientes de las reuniones anteriores del mismo proyecto.</span></div>
           <div class="field"><label for="r-tpl">Tipo de reunión</label><select id="r-tpl">${tplOptions(recMeta.template)}</select></div>
+          ${on ? '' : `<button class="btn" id="r-prep" type="button">${icon('spark', 2)}Prepárame: qué quedó pendiente</button>`}
           <div class="field"><label for="r-ctx">Contexto</label><textarea id="r-ctx" rows="2" placeholder="¿De qué proyecto se trata?">${esc(recMeta.context)}</textarea></div>
         </div>
       </section>
@@ -854,6 +863,13 @@ function renderRecord(app) {
   const syncMeta = () => { recMeta = { title: $('#r-title').value, participants: $('#r-people').value, template: $('#r-tpl').value, context: $('#r-ctx').value, project: $('#r-proj').value }; if (Rec.state !== 'idle') { Rec.meta = metaFromForm(); Rec.saveActive(); } };
   $$('#r-title,#r-people,#r-tpl,#r-ctx,#r-proj').forEach(el => el.addEventListener('input', syncMeta));
   $('#r-tpl').addEventListener('change', syncMeta);
+  const rpp = $('#r-prep'); if (rpp) rpp.onclick = () => {
+    const pj = $('#r-proj').value.trim(); const ppl = $('#r-people').value.split(',').map(x => x.trim()).filter(x => x && !isMe(x));
+    if (pj && projectMeetings(pj).some(m => m.analysis)) return go('prep/j/' + encodeURIComponent(pj));
+    const pi = peopleIndex(); const k = ppl.map(personKey).find(k => pi.has(k));
+    if (k) return go('prep/p/' + encodeURIComponent(k));
+    toast('Escribe un proyecto o participantes con reuniones anteriores', 4000);
+  };
   const rph = $('#r-photo'), rpi = $('#r-photo-in');
   if (rph) {
     let guard = 0; const release = () => { clearTimeout(guard); guard = setTimeout(() => { Rec.capturing = false; }, 1500); };
@@ -1089,8 +1105,9 @@ function renderMeeting(app, m) {
     <div class="m-meta">
       <span>${icon('cal')}${esc(fmtDate(m.date))}</span>
       ${m.durationSec ? `<span class="mono">${icon('time')}${esc(fmtT(m.durationSec))}${m.estimatedTimes ? ' aprox.' : ''}</span>` : ''}
-      ${people.length ? `<span>${icon('users')}${esc(people.join(', '))}</span>` : ''}
+      ${people.length ? `<span class="m-people">${icon('users')}${people.map(n => isMe(n) || isNobody(n) ? esc(n) : `<button class="tlink pl" data-per="${esc(personKey(n))}">${esc(n)}</button>`).join(', ')}</span>` : ''}
       <span class="chip">${esc((TEMPLATES[m.template] || TEMPLATES.general).name)}</span>
+      ${m.seal ? `<button class="chip seal" id="m-seal-chip">${icon('lock', 2)}Acta ${folioTxt(m.seal.folio)}</button>` : ''}
       <span id="proj-slot">${m.project ? `<button class="chip proj" id="m-proj-open" data-proj="${esc(m.project)}">${icon('folder', 2)}${esc(m.project)}</button><button class="chip ghosty" id="m-proj" aria-label="Cambiar proyecto">${icon('edit', 2)}</button>` : `<button class="chip ghosty" id="m-proj">${icon('folder', 2)}Asignar proyecto</button>`}</span>
     </div>
     <h1 id="m-title" contenteditable="true" spellcheck="false" title="Toca para cambiar el título">${esc(a.title)}</h1>
@@ -1104,6 +1121,7 @@ function renderMeeting(app, m) {
           <button data-exp="pdf">${icon('doc', 2)}<span><b>PDF</b><small>Informe infográfico</small></span></button>
           <button data-exp="ics">${icon('cal', 2)}<span><b>Tareas al calendario</b><small>Archivo .ics con los plazos</small></span></button>
           <button data-exp="md">${icon('text', 2)}<span><b>Markdown (.md)</b><small>Para Notion, Obsidian o Docs</small></span></button>
+          <button data-exp="seal">${icon('lock', 2)}<span><b>${m.seal ? 'Ver sello ' + folioTxt(m.seal.folio) : 'Sellar acta'}</b><small>Folio, huella digital y firmas</small></span></button>
         </span></span>
       <button class="btn sm" id="m-copy">${icon('copy')}Copiar resumen</button>
       <button class="btn sm" id="m-photo">${icon('camera')}Foto</button><input type="file" id="m-photo-in" accept="image/*" hidden>
@@ -1126,9 +1144,12 @@ function renderMeeting(app, m) {
     if (k === 'md') downloadText(slug(a.title) + '.md', await fullMd(m));
     if (k === 'docx') { toast('Preparando el Word…'); try { deliverFile(await meetingDocx(m), 'Acta en Word'); } catch (e) { toast('No se pudo crear el Word: ' + (e.message || 'error'), 5000); } }
     if (k === 'ics') exportTasksICS([m]);
+    if (k === 'seal') sealSheet(m);
     if (k === 'pdf') { const t = $('[data-tab="informe"]'); if (t) t.click(); setTimeout(async () => exportReport(m, a, await getSegments(m.id), 'pdf'), 400); }
   });
   $('#m-proj').onclick = () => editProject(m);
+  $$('.m-people [data-per]').forEach(b => b.onclick = () => go('per/' + encodeURIComponent(b.dataset.per)));
+  const sc = $('#m-seal-chip'); if (sc) { sc.onclick = () => sealSheet(m); sealStatus(m).then(st => { if (st === 'changed') { sc.classList.add('bad'); sc.lastChild.textContent = 'Modificada tras el sello'; } }); }
   const po = $('#m-proj-open'); if (po) po.onclick = () => go('p/' + encodeURIComponent(m.project));
   $('#m-photo').onclick = () => { S.picking = true; setTimeout(() => { S.picking = false; }, 60000); $('#m-photo-in').value = ''; $('#m-photo-in').click(); };
   $('#m-photo-in').onchange = async e => { const f = e.target.files[0]; if (!f) return; try { const ph = await savePhoto(f, m.id, null); m.photos = [...(m.photos || []), ph]; await saveMeeting(m); toast('Foto agregada a la reunión'); if ((S.route.tab || 'resumen') === 'resumen') renderTab(m); } catch { toast('No se pudo guardar la foto'); } };
@@ -1251,7 +1272,7 @@ function bindTasks(root) {
   $$('.task .tx', root).forEach(el => el.onclick = () => { const cb = el.closest('.task').querySelector('[data-task]'); cb.checked = !cb.checked; cb.dispatchEvent(new Event('change')); });
   $$('[data-task]', root).forEach(cb => cb.onchange = async () => {
     const [id, i] = cb.dataset.task.split('|'); const m = meetingById(id); if (!m?.analysis) return;
-    m.analysis.actions[+i].done = cb.checked; cb.closest('.task').classList.toggle('done', cb.checked);
+    const tk = m.analysis.actions[+i]; tk.done = cb.checked; tk.doneAt = cb.checked ? Date.now() : null; cb.closest('.task,.cm')?.classList.toggle('done', cb.checked);
     await saveMeeting(m);
     const n = cb.closest('.box')?.querySelector('.n'); if (n) { const acts = m.analysis.actions; n.textContent = `${acts.filter(x => x.done).length} de ${acts.length} hechas`; }
   });
@@ -1788,7 +1809,7 @@ function renderProject(app, name) {
   <section class="m-hero rise"><span class="aura a1"></span><span class="aura a2"></span><header class="m-head">
     <div class="m-meta"><span>${icon('folder')}Proyecto</span><span>${icon('cal')}Desde ${esc(fmtDate(st.ms[0].date))}</span></div>
     <h1>${esc(name)}</h1>
-    <div class="m-actions"><button class="btn sm primary" id="pj-rec">${icon('mic', 2)}Grabar reunión de este proyecto</button><button class="btn sm" id="pj-share">${icon('share')}Compartir estado</button>${st.open.length ? `<button class="btn sm" id="pj-ics">${icon('cal')}Tareas al calendario</button>` : ''}<button class="btn sm ghost" id="pj-ren">${icon('edit')}Renombrar</button></div>
+    <div class="m-actions"><button class="btn sm primary" id="pj-rec">${icon('mic', 2)}Grabar reunión de este proyecto</button><button class="btn sm" id="pj-prep">${icon('spark', 2)}Prepárame</button><button class="btn sm" id="pj-share">${icon('share')}Compartir estado</button>${st.open.length ? `<button class="btn sm" id="pj-ics">${icon('cal')}Tareas al calendario</button>` : ''}<button class="btn sm ghost" id="pj-ren">${icon('edit')}Renombrar</button></div>
   </header></section>
   <div class="stats s4">
     <div class="stat"><span class="si" style="background:var(--accent-soft);color:var(--ember)">${icon('mic', 2)}</span><b>${st.ms.length}</b><span>Reuniones</span></div>
@@ -1806,6 +1827,7 @@ function renderProject(app, name) {
   bindTasks(app);
   $('#pj-rec').onclick = () => { recMeta = { title: '', participants: '', template: st.last?.template || 'general', context: '', project: name }; go('record'); };
   $('#pj-share').onclick = () => shareText('Proyecto ' + name, projectText(name, st));
+  $('#pj-prep').onclick = () => go('prep/j/' + encodeURIComponent(name));
   const ic = $('#pj-ics'); if (ic) ic.onclick = () => exportTasksICS(st.ready);
   $('#pj-ren').onclick = () => sheet(`<div class="eyebrow">Renombrar proyecto</div><h3>${esc(name)}</h3><div class="field" style="margin-top:12px"><input id="rn-in" value="${esc(name)}"></div><div class="sheet-actions"><button class="btn primary" id="rn-ok">Guardar</button></div>`, el => {
     $('#rn-ok', el).onclick = async () => { const v = $('#rn-in', el).value.trim(); if (!v) return; for (const m of st.ms) { m.project = v; await saveMeeting(m); } closeSheet(); go('p/' + encodeURIComponent(v)); toast('Proyecto renombrado'); };
@@ -1845,6 +1867,7 @@ async function meetingDocx(m) {
     <w:tr><w:trPr><w:tblHeader/></w:trPr>${head.map((h, i) => cell(h, { b: true, fill: 'F3F4F7', w: widths[i] })).join('')}</w:tr>${rows.map(r => `<w:tr>${r.map((c, i) => cell(c, { w: widths[i] })).join('')}</w:tr>`).join('')}</w:tbl>${P('', '')}`;
   const people = (a.participants?.length ? a.participants : m.participants) || [];
   const B = [];
+  if (Settings.v.brandName || m.seal) B.push(P(run([Settings.v.brandName, m.seal ? 'ACTA ' + folioTxt(m.seal.folio) : ''].filter(Boolean).join('   ·   '), { b: true, c: (Settings.v.brandColor || '#FF6A3D').replace('#', '').toUpperCase(), sz: 18 }), ''));
   B.push(para(a.title || 'Acta de reunión', 'Title'));
   B.push(P(run([fmtDate(m.date), m.durationSec ? 'Duración ' + fmtT(m.durationSec) : '', people.length ? people.join(', ') : '', m.project ? 'Proyecto: ' + m.project : ''].filter(Boolean).join('   ·   '), { c: '6B7280' }), ''));
   B.push(H1('Resumen'), para(a.tldr || ''));
@@ -1863,7 +1886,14 @@ async function meetingDocx(m) {
   const f = a.followUp; if (f?.emailBody) { B.push(H1('Mensaje de seguimiento')); B.push(para('Asunto: ' + f.emailSubject)); f.emailBody.split('\n').forEach(l => B.push(para(l))); }
   if (a.brief) { B.push(P('', '', '<w:pageBreakBefore/>')); a.brief.split('\n').forEach(l => { const h = l.match(/^(#{1,3})\s+(.*)$/); const li = l.match(/^\s*[-*]\s+(.*)$/); if (h) B.push(para(h[2], h[1].length === 1 ? 'Heading1' : 'Heading2')); else if (li) B.push(bullet(li[1])); else if (l.trim()) B.push(para(l)); }); }
   if (segs.length) { B.push(P('', '', '<w:pageBreakBefore/>'), H1('Transcripción')); segs.forEach(sg => B.push(P(run(fmtT(sg.t) + '   ', { c: '9AA0AE', sz: 18 }) + (sg.s ? run(spkName(m, sg.s) + ': ', { b: true }) : '') + run(sg.text), 'Transcripcion'))); }
-  B.push(P(run('Acta creada con Acta · ' + fmtDate(today()), { c: '9AA0AE', sz: 16 }), ''));
+  if (m.seal) {
+    B.push(H1('Firmas'));
+    const sn = [...new Set(people.filter(Boolean))].slice(0, 8);
+    if (sn.length) B.push(table(['Nombre', 'Firma'], sn.map(n => [isMe(n) && Settings.v.myName ? Settings.v.myName : n, '\n\n']), [3600, 5400]));
+    B.push(P(run(`Acta ${folioTxt(m.seal.folio)} · sello de integridad ${sealCode(m.seal.hash)} · sellada el ${new Date(m.seal.at).toLocaleString('es-CL')}`, { b: true, sz: 18 }), ''));
+    B.push(P(run('SHA-256: ' + m.seal.hash, { c: '6B7280', sz: 16 }), ''));
+  }
+  B.push(P(run((Settings.v.brandName ? Settings.v.brandName + ' · ' : '') + 'Acta creada con Acta · ' + fmtDate(today()), { c: '9AA0AE', sz: 16 }), ''));
   const doc = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>${B.join('')}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="567" w:footer="567" w:gutter="0"/></w:sectPr></w:body></w:document>`;
   const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
 <w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:eastAsia="Calibri" w:cs="Calibri"/><w:sz w:val="22"/><w:szCs w:val="22"/><w:lang w:val="es-CL"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="120" w:line="288" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults>
@@ -1947,15 +1977,337 @@ function pinSheet(onDone) {
 }
 
 /* =========================================================
+   Memoria de compromisos: Te deben / Debes, fichas de personas y Prepárame
+   Todo se calcula en el teléfono con las actas existentes (sin IA ni servidor)
+   ========================================================= */
+const ME_WORDS = /^(t[uú]|yo|m[ií]|usuario|el usuario|quien graba|anfitri[oó]n)$/;
+function isMe(n) {
+  const f = fold(n).trim(); if (!f) return false; if (ME_WORDS.test(f)) return true;
+  const me = fold(Settings.v.myName).trim(); if (!me) return false;
+  return f === me || f.split(/\s+/)[0] === me.split(/\s+/)[0];
+}
+const isNobody = n => !String(n || '').trim() || /^sin asignar|^nadie|^todos|^equipo$|^por definir/i.test(String(n).trim());
+const personKey = n => fold(n).trim().split(/\s+/)[0] || '';
+const dayMs = 864e5;
+function dueState(c) {
+  if (c.t.done) return 'done';
+  if (!c.date) return 'nodate';
+  const td = today(); if (c.date < td) return 'late'; if (c.date === td) return 'today';
+  return (new Date(c.date + 'T12:00:00') - new Date(td + 'T12:00:00')) / dayMs <= 7 ? 'soon' : 'later';
+}
+const DUE_TXT = { late: 'Vencida', today: 'Vence hoy', soon: 'Esta semana', later: 'Más adelante', nodate: 'Sin fecha', done: 'Cumplida' };
+function allCommitments() {
+  const out = [];
+  for (const m of S.meetings) {
+    if (!m.analysis) continue;
+    (m.analysis.actions || []).forEach((t, i) => {
+      const c = { m, t, i, ref: m.id + '|' + i, owner: t.owner || 'Sin asignar', date: taskDate(t, m) };
+      c.me = isMe(c.owner); c.nobody = isNobody(c.owner); c.key = c.me || c.nobody ? '' : personKey(c.owner); c.state = dueState(c);
+      out.push(c);
+    });
+  }
+  const rank = { late: 0, today: 1, soon: 2, later: 3, nodate: 4, done: 5 };
+  return out.sort((a, b) => rank[a.state] - rank[b.state] || (a.date || '9999').localeCompare(b.date || '9999') || (b.m.date || '').localeCompare(a.m.date || ''));
+}
+/* The moment someone committed: from the acta (t, quote) or found in the transcript */
+function commitMoment(c) {
+  if (c.t.t != null || c.t.quote) return { t: c.t.t ?? null, text: c.t.quote || '' };
+  const segs = S.txIndex?.[c.m.id]; if (!segs?.length) return null;
+  const stem = w => w.slice(0, 5);
+  const words = new Set(fold(c.t.task).split(/[^a-z0-9ñ]+/).filter(w => w.length > 3).map(stem));
+  const who = personKey(c.owner); let best = null, bs = 0;
+  segs.forEach(x => {
+    const ws = fold(x.text).split(/[^a-z0-9ñ]+/).filter(w => w.length > 3).map(stem); let sc = 0; ws.forEach(w => { if (words.has(w)) sc++; });
+    const sp = personKey(spkName(c.m, x.s)); if (sc && who && sp === who) sc += 1.5; if (sc && c.me && (sp === 'tu' || sp === 'yo')) sc += 1;
+    if (/\b(yo|me encargo|lo mando|lo envio|te mando|te envio|quedo|me comprometo|lo hago|el (lunes|martes|miercoles|jueves|viernes))\b/.test(fold(x.text))) sc += .5;
+    if (sc > bs) { bs = sc; best = x; }
+  });
+  return bs >= 2 ? { t: best.t, text: best.text } : null;
+}
+function remindText(name, items) {
+  const first = String(name || '').split(/\s+/)[0];
+  if (items.length === 1) { const c = items[0]; const mo = commitMoment(c); return `Hola ${first}, ¿cómo vas con esto? En nuestra reunión del ${fmtDate(c.m.date)} quedamos en: *${c.t.task}*${c.t.due ? ` (${c.t.due})` : ''}.${mo?.text ? `\n\nTus palabras: “${mo.text.length > 160 ? mo.text.slice(0, 157) + '…' : mo.text}”` : ''}\n\nQuedo atento. ¡Gracias!`; }
+  return `Hola ${first}, te comparto lo que tenemos pendiente de nuestras reuniones:\n\n${items.map(c => `• ${c.t.task}${c.t.due ? ` (${c.t.due})` : ''} — ${shortDate(c.m.date)}`).join('\n')}\n\n¿Me cuentas cómo vas? ¡Gracias!`;
+}
+const waOpen = text => window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank', 'noopener');
+
+function commitCardHTML(c, opts = {}) {
+  const mo = commitMoment(c); const st = c.state;
+  return `<div class="cm ${st}" data-ref="${esc(c.ref)}">
+    <div class="cm-top"><input type="checkbox" data-task="${esc(c.ref)}" ${c.t.done ? 'checked' : ''} aria-label="Marcar como cumplida"><div class="cm-tx"><b>${esc(c.t.task)}</b>
+      <div class="cm-meta"><span class="due ${st}">${DUE_TXT[st]}${c.date ? ' · ' + esc(shortDate(c.date)) : ''}</span>${opts.showOwner ? `<span>${icon('users')} ${esc(c.owner)}</span>` : ''}<button class="tlink" data-open="${esc(c.m.id)}">${esc(c.m.analysis.title)} · ${esc(shortDate(c.m.date))}</button></div></div></div>
+    ${mo ? `<button class="cm-quote" data-listen="${esc(c.ref)}" ${mo.t == null ? 'disabled' : ''}><span class="cm-play">${icon('play', 2)}</span><span>“${esc(mo.text.length > 220 ? mo.text.slice(0, 217) + '…' : mo.text)}”</span>${mo.t != null ? `<em class="mono">${fmtT(mo.t)}</em>` : ''}</button>` : ''}
+    ${c.t.done ? '' : `<div class="cm-actions">${opts.remind !== false && !c.me ? `<button class="btn sm" data-remind="${esc(c.ref)}">${icon('chat', 2)}Recordar</button>` : ''}${mo?.t != null && c.m.audioParts?.length ? `<button class="btn sm" data-cclip="${esc(c.ref)}">${icon('scissors', 2)}Con su voz</button>` : ''}<button class="btn sm ghost" data-cal="${esc(c.ref)}">${icon('cal', 2)}Calendario</button></div>`}
+  </div>`;
+}
+function bindCommitments(root, list) {
+  const byRef = Object.fromEntries(list.map(c => [c.ref, c]));
+  bindTasks(root);
+  $$('.cm [data-task]', root).forEach(cb => cb.addEventListener('change', () => { if (cb.checked) toast('Compromiso cumplido ✓'); setTimeout(render, 450); }));
+  $$('[data-open]', root).forEach(b => b.onclick = () => go('m/' + b.dataset.open));
+  $$('[data-remind]', root).forEach(b => b.onclick = () => { const c = byRef[b.dataset.remind]; waOpen(remindText(c.owner, [c])); });
+  $$('[data-remind-all]', root).forEach(b => b.onclick = () => { const items = list.filter(c => c.key === b.dataset.remindAll && !c.t.done && !c.me); waOpen(remindText(items[0]?.owner, items)); });
+  $$('[data-cclip]', root).forEach(b => b.onclick = () => { const c = byRef[b.dataset.cclip]; const mo = commitMoment(c); const seg = S.txIndex?.[c.m.id]?.find(x => x.t >= mo.t - .5); clipSheet(c.m, Math.max(0, mo.t - 1), Math.max(mo.t + 6, Math.min(mo.t + 40, (seg?.end || mo.t + 12) + .5))); });
+  $$('[data-listen]', root).forEach(b => b.onclick = async () => {
+    const c = byRef[b.dataset.listen]; const mo = commitMoment(c); if (mo?.t == null) return;
+    if (!c.m.audioParts?.length) { S.jump = mo.t; go('m/' + c.m.id + '/transcripcion'); return; }
+    if (S.listenEl && !S.listenEl.paused) { S.listenEl.pause(); $$('.cm-quote.playing').forEach(x => x.classList.remove('playing')); if (S.listenRef === c.ref) return; }
+    const parts = c.m.audioParts; let k = 0; parts.forEach((p, j) => { if (p.offset <= mo.t + .01) k = j; });
+    const u = await Player.url(parts[k].key); const el = new Audio(u); S.listenEl = el; S.listenRef = c.ref; const off = Math.max(0, mo.t - 1 - parts[k].offset);
+    b.classList.add('playing');
+    el.addEventListener('loadedmetadata', () => { el.currentTime = off; el.play().catch(() => {}); }, { once: true });
+    el.addEventListener('timeupdate', () => { if (el.currentTime > off + 20) el.pause(); });
+    el.addEventListener('pause', () => b.classList.remove('playing'));
+  });
+  $$('[data-cal]', root).forEach(b => b.onclick = e => { e.preventDefault(); const c = byRef[b.dataset.cal]; if (c) calendarSheet(c.m, c.t); });
+}
+function myNameAsk() {
+  return Settings.v.myName ? '' : `<div class="notice info me-ask"><span><b>¿Cómo te llamas en tus reuniones?</b> Así Acta separa lo que te deben de lo que tú debes.</span><form id="me-f" class="me-f"><input id="me-in" placeholder="Tu nombre, ej.: Mario" autocomplete="given-name"><button class="btn sm primary">Guardar</button></form></div>`;
+}
+function bindMyName(app) { const f = $('#me-f', app); if (f) f.onsubmit = e => { e.preventDefault(); const v = $('#me-in').value.trim(); if (!v) return; Settings.set({ myName: v }); toast('Listo, ' + v.split(' ')[0]); render(); }; }
+
+/* ---------- Compromisos (replaces the plain tasks list) ---------- */
+function renderTasks(app) {
+  const tab = S.cmTab || 'owed';
+  if (tab === 'all') return renderAllTasks(app);
+  if (!S.txIndex && !S.txBuilding) buildTxIndex().then(() => { if (S.route.view === 'tasks') render(); });
+  const all = allCommitments();
+  const owed = all.filter(c => c.key && !c.t.done), mine = all.filter(c => c.me && !c.t.done), loose = all.filter(c => c.nobody && !c.t.done);
+  const lateOwed = owed.filter(c => c.state === 'late').length, lateMine = mine.filter(c => c.state === 'late').length;
+  const groups = new Map(); owed.forEach(c => { if (!groups.has(c.key)) groups.set(c.key, []); groups.get(c.key).push(c); });
+  const pidx = peopleIndex();
+  app.innerHTML = `
+  <div class="page-head"><div><div class="eyebrow">Memoria de compromisos</div><h1>${tab === 'owed' ? 'Te deben' : 'Debes'}</h1><p>${tab === 'owed' ? 'Todo lo que otras personas prometieron en tus reuniones, con la frase exacta en que lo dijeron.' : 'Lo que tú prometiste. Que no se te pase nada.'}</p></div></div>
+  ${myNameAsk()}
+  <div class="cm-tabs">
+    <button data-cmt="owed" aria-pressed="${tab === 'owed'}"><b>${owed.length}</b><span>Te deben</span>${lateOwed ? `<em>${lateOwed} vencidas</em>` : ''}</button>
+    <button data-cmt="mine" aria-pressed="${tab === 'mine'}"><b>${mine.length}</b><span>Debes</span>${lateMine ? `<em>${lateMine} vencidas</em>` : ''}</button>
+    <button data-cmt="all" aria-pressed="false"><b>${all.length}</b><span>Todas</span></button>
+  </div>
+  ${tab === 'owed' ? (groups.size ? [...groups.entries()].map(([k, items]) => { const p = pidx.get(k); const name = p?.name || items[0].owner; const late = items.filter(c => c.state === 'late').length; return `<section class="cm-group">
+      <div class="cm-gh"><button class="cm-person" data-per="${esc(k)}"><span class="av lg" style="background:${avColor(k)}">${esc(initials(name))}</span><span><b>${esc(name)}</b><small>${items.length} ${items.length === 1 ? 'pendiente' : 'pendientes'}${late ? ` · <em>${late} vencida${late === 1 ? '' : 's'}</em>` : ''}${p ? ` · cumple ${p.rateTxt}` : ''}</small></span></button>${items.length > 1 ? `<button class="btn sm" data-remind-all="${esc(k)}">${icon('chat', 2)}Recordar todo</button>` : ''}</div>
+      ${items.map(c => commitCardHTML(c)).join('')}</section>`; }).join('') : `<div class="empty">${icon('check', 1.6, 34)}<h3>Nadie te debe nada</h3><p>Cuando alguien se comprometa a algo en una reunión, aparecerá aquí con sus palabras exactas.</p></div>`)
+    : (mine.length ? `<section class="cm-group">${mine.map(c => commitCardHTML(c, { remind: false })).join('')}</section>` : `<div class="empty">${icon('check', 1.6, 34)}<h3>Estás al día</h3><p>No tienes compromisos pendientes${Settings.v.myName ? '' : '. Si ves tareas tuyas en “Te deben”, escribe tu nombre arriba'}.</p></div>`)
+      + (loose.length ? `<section class="cm-group"><div class="cm-gh"><span class="cm-person"><span class="av lg" style="background:#2A2F3E">?</span><span><b>Sin responsable</b><small>Nadie quedó a cargo. Asígnalas o recuérdalas en la próxima reunión.</small></span></span></div>${loose.map(c => commitCardHTML(c, { remind: false })).join('')}</section>` : '')}`;
+  $$('[data-cmt]', app).forEach(b => b.onclick = () => { S.cmTab = b.dataset.cmt; render(); });
+  $$('[data-per]', app).forEach(b => b.onclick = () => go('per/' + encodeURIComponent(b.dataset.per)));
+  bindMyName(app); bindCommitments(app, all);
+}
+
+/* ---------- Personas ---------- */
+function avColor(k) { let h = 0; for (const ch of String(k)) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return AV_COLORS[h % AV_COLORS.length]; }
+function peopleIndex() {
+  const idx = new Map(); const td = today();
+  const get = (raw) => { const k = personKey(raw); if (!k || isMe(raw) || isNobody(raw)) return null; if (!idx.has(k)) idx.set(k, { key: k, names: new Map(), meetings: new Map(), owned: [], quotes: [], topics: new Map(), secs: 0 }); const p = idx.get(k); p.names.set(raw.trim(), (p.names.get(raw.trim()) || 0) + 1); return p; };
+  for (const m of S.meetings) {
+    const a = m.analysis; if (!a) continue;
+    const names = new Set([...(a.participants || []), ...(m.participants || []), ...Object.values(m.speakers || {})].map(x => String(x || '').trim()).filter(Boolean));
+    const here = new Set();
+    names.forEach(n => { const p = get(n); if (p) here.add(p); });
+    (a.actions || []).forEach((t, i) => { const p = get(t.owner || ''); if (p) { here.add(p); p.owned.push({ m, t, i, ref: m.id + '|' + i, owner: t.owner, date: taskDate(t, m), me: false, nobody: false, key: p.key }); } });
+    (a.quotes || []).forEach(q => { const p = get(q.who || ''); if (p) { here.add(p); p.quotes.push({ m, q }); } });
+    here.forEach(p => { p.meetings.set(m.id, m); p.secs += m.durationSec || 0; [...(a.topics || []).map(t => t.name), ...(a.tags || []).filter(t => t !== 'ejemplo')].forEach(t => p.topics.set(t, (p.topics.get(t) || 0) + 1)); });
+  }
+  idx.forEach(p => {
+    p.name = [...p.names.entries()].sort((a, b) => b[0].split(' ').length - a[0].split(' ').length || b[1] - a[1])[0][0];
+    p.owned.forEach(c => { c.state = dueState(c); });
+    const due = p.owned.filter(c => c.t.done || (c.date && c.date < td));
+    const done = due.filter(c => c.t.done); const onTime = done.filter(c => !c.date || !c.t.doneAt || isoD(new Date(c.t.doneAt)) <= c.date);
+    p.rate = due.length ? done.length / due.length : null; p.onTime = done.length ? onTime.length / done.length : null;
+    p.rateTxt = p.rate == null ? 'sin historial' : `${Math.round(p.rate * 100)}%`;
+    p.open = p.owned.filter(c => !c.t.done); p.late = p.open.filter(c => c.state === 'late');
+    p.list = [...p.meetings.values()].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    p.last = p.list[0];
+  });
+  return idx;
+}
+function peopleRowHTML() {
+  const ps = [...peopleIndex().values()].filter(p => p.meetings.size).sort((a, b) => (b.last?.date || '').localeCompare(a.last?.date || '') || b.meetings.size - a.meetings.size);
+  if (!ps.length) return '';
+  return `<div class="sec-title" style="margin-top:22px"><h2>Personas</h2><button class="btn sm ghost" data-nav="people">Ver todas</button></div><div class="pp-row">${ps.slice(0, 14).map(p => `<button class="pp" data-per="${esc(p.key)}"><span class="av lg" style="background:${avColor(p.key)}">${esc(initials(p.name))}</span><b>${esc(p.name.split(' ')[0])}</b><small>${p.open.length ? `${p.open.length} te debe${p.late.length ? ' · <em>' + p.late.length + ' venc.</em>' : ''}` : `${p.meetings.size} reun.`}</small></button>`).join('')}</div>`;
+}
+function owedCardHTML() {
+  const all = allCommitments(); const owed = all.filter(c => c.key && !c.t.done); const mine = all.filter(c => c.me && !c.t.done);
+  if (!owed.length && !mine.length) return '';
+  const late = owed.filter(c => c.state === 'late').length;
+  return `<button class="owedcard rise" data-nav="tasks"><span class="oc-n"><b>${owed.length}</b><small>te deben</small></span><span class="oc-tx"><b>${late ? `${late} ${late === 1 ? 'compromiso vencido' : 'compromisos vencidos'} con otras personas` : 'Compromisos que te deben'}</b><span>${mine.length} tuyos pendientes · con la frase exacta de quién lo prometió</span></span><span class="wk-go">Ver ${icon('back', 2)}</span></button>`;
+}
+function renderPeople(app) {
+  const ps = [...peopleIndex().values()].sort((a, b) => b.open.length - a.open.length || (b.last?.date || '').localeCompare(a.last?.date || ''));
+  app.innerHTML = `<button class="btn ghost sm back" data-nav="library">${icon('back')}Inicio</button>
+  <div class="page-head"><div><div class="eyebrow">Tu red</div><h1>Personas</h1><p>Cada persona con la que te reúnes: qué ha prometido, cuánto cumple y de qué hablan siempre.</p></div></div>
+  ${myNameAsk()}
+  ${ps.length ? `<div class="pp-grid">${ps.map(p => `<button class="pcard" data-per="${esc(p.key)}"><span class="av xl" style="background:${avColor(p.key)}">${esc(initials(p.name))}</span><div><b>${esc(p.name)}</b><small>${p.meetings.size} ${p.meetings.size === 1 ? 'reunión' : 'reuniones'} · última ${esc(shortDate(p.last.date))}</small><div class="pc-k"><span>${ringSVG(p.rate ?? 0, p.rate == null ? '#3A4052' : p.rate >= .8 ? '#33E3B4' : p.rate >= .5 ? '#FFC24A' : '#FF6B6B', 30, 4)}<em>Cumple ${p.rateTxt}</em></span>${p.open.length ? `<span class="pc-owe">${p.open.length} te debe</span>` : ''}</div></div></button>`).join('')}</div>`
+    : `<div class="empty">${icon('users', 1.6, 34)}<h3>Aún no hay personas</h3><p>Aparecen solas cuando Acta identifica participantes y responsables en tus reuniones.</p></div>`}`;
+  $$('[data-per]', app).forEach(b => b.onclick = () => go('per/' + encodeURIComponent(b.dataset.per)));
+  bindMyName(app);
+}
+function renderPerson(app, key) {
+  if (!S.txIndex && !S.txBuilding) buildTxIndex().then(() => { if (S.route.view === 'person') render(); });
+  const p = peopleIndex().get(key);
+  if (!p) { app.innerHTML = `<div class="empty"><h3>No encuentro a esta persona</h3><button class="btn" data-nav="people">Ver personas</button></div>`; return; }
+  const mine = allCommitments().filter(c => c.me && !c.t.done && p.meetings.has(c.m.id));
+  const topics = [...p.topics.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
+  const days = p.last ? Math.round((new Date(today() + 'T12:00:00') - new Date(p.last.date + 'T12:00:00')) / dayMs) : 0;
+  const rc2 = p.rate == null ? '#5E6577' : p.rate >= .8 ? '#33E3B4' : p.rate >= .5 ? '#FFC24A' : '#FF6B6B';
+  app.innerHTML = `<button class="btn ghost sm back" data-nav="people">${icon('back')}Personas</button>
+  <section class="m-hero rise per-hero"><span class="aura a1"></span><span class="aura a2"></span><header class="m-head">
+    <div class="per-id"><span class="av xxl" style="background:${avColor(p.key)}">${esc(initials(p.name))}</span><div><div class="eyebrow">Ficha de persona</div><h1>${esc(p.name)}</h1><p class="muted">${p.meetings.size} ${p.meetings.size === 1 ? 'reunión' : 'reuniones'} · ${(p.secs / 3600).toFixed(1).replace('.', ',')} h juntos · última ${days === 0 ? 'hoy' : days === 1 ? 'ayer' : `hace ${days} días`}</p></div></div>
+    <div class="m-actions"><button class="btn sm primary" id="per-prep">${icon('spark', 2)}Prepárame para reunirme con ${esc(p.name.split(' ')[0])}</button>${p.open.length ? `<button class="btn sm" id="per-remind">${icon('chat', 2)}Recordarle sus pendientes</button>` : ''}<button class="btn sm" id="per-rec">${icon('mic', 2)}Grabar reunión con ${esc(p.name.split(' ')[0])}</button></div>
+  </header></section>
+  <div class="per-kpis">
+    <div class="pk big"><div class="pk-ring">${ringSVG(p.rate ?? 0, rc2, 88, 9)}<b>${p.rate == null ? '—' : Math.round(p.rate * 100) + '%'}</b></div><div><span class="eyebrow">Cumplimiento</span><p>${p.rate == null ? 'Todavía no hay plazos vencidos para medir.' : `Cumplió ${p.owned.filter(c => c.t.done).length} de ${p.owned.filter(c => c.t.done || (c.date && c.date < today())).length} compromisos con plazo cumplido${p.onTime != null ? ` · ${Math.round(p.onTime * 100)}% a tiempo` : ''}.`}</p></div></div>
+    <div class="pk"><b>${p.open.length}</b><span>Te debe</span></div>
+    <div class="pk ${p.late.length ? 'warn' : ''}"><b>${p.late.length}</b><span>Vencidos</span></div>
+    <div class="pk"><b>${mine.length}</b><span>Le debes</span></div>
+  </div>
+  ${topics.length ? `<div class="sec"><div class="sec-h"><h2>De qué hablan siempre</h2></div><div class="topic-cloud">${topics.map(([t, n], i) => `<span style="--tc:${tc(i)};font-size:${Math.min(18, 12.5 + n * 1.4)}px">${esc(t)}${n > 1 ? ` <em>×${n}</em>` : ''}</span>`).join('')}</div></div>` : ''}
+  <div class="sec"><div class="sec-h"><h2>Lo que ${esc(p.name.split(' ')[0])} te debe</h2><span class="count">${p.open.length}</span></div>${p.open.length ? p.open.map(c => commitCardHTML(c)).join('') : '<div class="empty-li">Nada pendiente.</div>'}</div>
+  ${mine.length ? `<div class="sec"><div class="sec-h"><h2>Lo que tú le debes</h2><span class="count">${mine.length}</span></div>${mine.map(c => commitCardHTML(c, { remind: false })).join('')}</div>` : ''}
+  ${p.quotes.length ? `<div class="sec"><div class="sec-h"><h2>Frases de ${esc(p.name.split(' ')[0])}</h2></div><div class="quotes">${p.quotes.slice(0, 6).map(({ m, q }) => `<figure class="quote"><p>“${esc(q.text)}”</p><small>${esc(shortDate(m.date))} · <button class="tlink" data-open="${esc(m.id)}">${esc(m.analysis.title)}</button></small></figure>`).join('')}</div></div>` : ''}
+  <div class="sec"><div class="sec-h"><h2>Reuniones juntos</h2></div><div class="wb-meets">${p.list.map(m => `<button class="wb-m" data-open="${esc(m.id)}"><span class="mono">${esc(shortDate(m.date))}</span><b>${esc(m.analysis.title)}</b><span>${esc(m.analysis.tldr)}</span></button>`).join('')}</div></div>
+  ${p.owned.filter(c => c.t.done).length ? `<div class="sec"><div class="sec-h"><h2>Cumplidos</h2><span class="count">${p.owned.filter(c => c.t.done).length}</span></div>${p.owned.filter(c => c.t.done).map(c => commitCardHTML(c)).join('')}</div>` : ''}`;
+  bindCommitments(app, [...p.owned, ...mine]);
+  $('#per-prep').onclick = () => go('prep/p/' + encodeURIComponent(p.key));
+  const pr = $('#per-remind'); if (pr) pr.onclick = () => waOpen(remindText(p.name, p.open));
+  $('#per-rec').onclick = () => { recMeta = { title: '', participants: p.name + (Settings.v.myName ? ', ' + Settings.v.myName : ', yo'), template: p.last?.template || 'general', context: '', project: p.last?.project || '' }; go('record'); };
+}
+
+/* ---------- Prepárame ---------- */
+function prepData(kind, id) {
+  let ms = [], title = '', who = null;
+  if (kind === 'p') { const p = peopleIndex().get(id); if (!p) return null; who = p; ms = p.list; title = 'tu reunión con ' + p.name; }
+  else { ms = projectMeetings(id).filter(m => m.analysis).reverse(); title = 'la próxima reunión de ' + id; }
+  if (!ms.length) return null;
+  const ids = new Set(ms.map(m => m.id)); const all = allCommitments().filter(c => ids.has(c.m.id) && !c.t.done);
+  const owed = kind === 'p' ? who.open : all.filter(c => c.key); const mine = all.filter(c => c.me); const loose = all.filter(c => c.nobody);
+  const recent = ms.slice(0, 3);
+  return { kind, id, title, who, ms, last: ms[0], owed, mine, loose, questions: recent.flatMap(m => (m.analysis.questions || []).map(q => ({ m, text: q.text }))), decisions: ms.slice(0, 4).flatMap(m => (m.analysis.decisions || []).map(d => ({ m, text: d.text }))).slice(0, 8), risks: recent.flatMap(m => (m.analysis.risks || []).filter(r => r.severity !== 'baja').map(r => ({ m, text: r.text }))).slice(0, 5), next: ms[0].analysis.nextSteps || [] };
+}
+function prepText(d) {
+  const L = [`Preparación para ${d.title} — ${fmtDate(today())}`, '', `Última vez (${fmtDate(d.last.date)}): ${d.last.analysis.tldr}`, ''];
+  const sec = (t, arr, f) => { if (arr.length) { L.push(t); arr.forEach(x => L.push('- ' + f(x))); L.push(''); } };
+  sec('Te deben:', d.owed, c => `${c.t.task} — ${c.owner}${c.date ? ' · ' + shortDate(c.date) : ''}${c.state === 'late' ? ' (VENCIDA)' : ''}`);
+  sec('Debes:', d.mine, c => `${c.t.task}${c.date ? ' · ' + shortDate(c.date) : ''}`);
+  sec('Preguntas sin responder:', d.questions, x => x.text);
+  sec('Decisiones vigentes:', d.decisions, x => x.text);
+  sec('Riesgos a revisar:', d.risks, x => x.text);
+  return L.join('\n').trim();
+}
+function renderPrep(app, kind, id) {
+  if (!S.txIndex && !S.txBuilding) buildTxIndex().then(() => { if (S.route.view === 'prep') render(); });
+  const d = prepData(kind, id);
+  if (!d) { app.innerHTML = `<div class="empty"><h3>Todavía no hay reuniones anteriores</h3><p>Prepárame se arma con lo que ya conversaron.</p><button class="btn" data-nav="library">Volver</button></div>`; return; }
+  const lateN = d.owed.filter(c => c.state === 'late').length;
+  const li = (arr, f, color) => arr.length ? `<div class="box">${arr.map(x => `<div class="li"><span class="mk" style="background:${color}"></span><div>${f(x)}</div></div>`).join('')}</div>` : '<div class="empty-li">Nada.</div>';
+  app.innerHTML = `<button class="btn ghost sm back" id="prep-back">${icon('back')}Volver</button>
+  <section class="prep rise">
+    <div class="prep-head"><div class="eyebrow">Prepárame · ${esc(fmtDate(today()))}</div><h1>Para ${esc(d.title)}</h1>
+      <div class="prep-pills">${d.owed.length ? `<span class="pp-pill hot">${d.owed.length} te deben${lateN ? ` · ${lateN} vencidas` : ''}</span>` : ''}${d.mine.length ? `<span class="pp-pill">${d.mine.length} debes tú</span>` : ''}${d.questions.length ? `<span class="pp-pill">${d.questions.length} preguntas abiertas</span>` : ''}<span class="pp-pill">${d.ms.length} ${d.ms.length === 1 ? 'reunión previa' : 'reuniones previas'}</span></div></div>
+    <div class="prep-last"><span class="eyebrow">La última vez · ${esc(shortDate(d.last.date))}</span><p>${esc(d.last.analysis.tldr)}</p><button class="tlink" data-open="${esc(d.last.id)}">Abrir el acta</button></div>
+    <div class="sec"><div class="sec-h"><h2>${icon('flag', 2, 18)} Pide cuentas de esto</h2><span class="count">${d.owed.length}</span></div>${d.owed.length ? d.owed.map(c => commitCardHTML(c, { showOwner: kind !== 'p' })).join('') : '<div class="empty-li">Nadie te debe nada aquí.</div>'}</div>
+    ${d.mine.length ? `<div class="sec"><div class="sec-h"><h2>Llega con esto listo</h2><span class="count">${d.mine.length}</span></div>${d.mine.map(c => commitCardHTML(c, { remind: false })).join('')}</div>` : ''}
+    <div class="sec g2">
+      <div><div class="sec-h"><h2>Preguntas sin responder</h2></div>${li(d.questions, x => esc(x.text) + `<small>${esc(shortDate(x.m.date))}</small>`, 'var(--q)')}</div>
+      <div><div class="sec-h"><h2>Decisiones vigentes</h2></div>${li(d.decisions, x => esc(x.text) + `<small>${esc(shortDate(x.m.date))}</small>`, 'var(--dec)')}</div>
+    </div>
+    ${d.risks.length ? `<div class="sec"><div class="sec-h"><h2>Riesgos a mencionar</h2></div>${li(d.risks, x => esc(x.text), 'var(--risk)')}</div>` : ''}
+    ${d.next.length ? `<div class="sec"><div class="sec-h"><h2>Lo que se dijo que venía</h2></div><div class="steps">${d.next.map(s => `<div class="step"><span>${esc(s)}</span></div>`).join('')}</div></div>` : ''}
+  </section>
+  <div class="tools-row prep-tools"><button class="btn primary" id="prep-rec">${icon('mic', 2)}Grabar la reunión ahora</button><button class="btn" id="prep-copy">${icon('copy')}Copiar como nota</button><button class="btn" id="prep-share">${icon('share')}Compartir</button></div>`;
+  bindCommitments(app, [...d.owed, ...d.mine]);
+  $('#prep-back').onclick = () => history.length > 1 ? history.back() : go('');
+  $('#prep-copy').onclick = () => copyText(prepText(d), 'Preparación copiada');
+  $('#prep-share').onclick = () => shareText('Preparación', prepText(d));
+  $('#prep-rec').onclick = () => { const lm = d.last; recMeta = { title: '', participants: kind === 'p' ? d.who.name + (Settings.v.myName ? ', ' + Settings.v.myName : ', yo') : ((lm.analysis.participants || lm.participants || []).join(', ')), template: lm.template || 'general', context: '', project: kind === 'j' ? id : (lm.project || '') }; go('record'); };
+}
+
+/* =========================================================
+   Marca propia, firma y Acta verificada (sello de integridad)
+   ========================================================= */
+async function sealHash(m) {
+  const a = m.analysis || {}; const segs = await getSegments(m.id);
+  const canon = JSON.stringify({ t: a.title, d: m.date, dur: m.durationSec || 0, p: a.participants || m.participants || [], s: a.tldr, dec: (a.decisions || []).map(x => x.text), act: (a.actions || []).map(x => [x.task, x.owner, x.due || '']), tx: segs.map(x => [Math.round(x.t), x.s || '', x.text]) });
+  const h = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canon));
+  return [...new Uint8Array(h)].map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+}
+const sealCode = h => h.slice(0, 16).match(/.{4}/g).join('-');
+const folioTxt = n => 'N° ' + String(n).padStart(4, '0');
+async function sealMeeting(m) {
+  const hash = await sealHash(m); const n = +Settings.v.folioNext || 1;
+  m.seal = { folio: n, hash, at: Date.now() }; Settings.set({ folioNext: n + 1 }); await saveMeeting(m);
+  return m.seal;
+}
+async function sealStatus(m) { if (!m.seal) return null; return (await sealHash(m)) === m.seal.hash ? 'ok' : 'changed'; }
+function sealSheet(m) {
+  const s = m.seal;
+  sheet(`<div class="eyebrow">Acta verificada</div><h3>${s ? 'Acta ' + folioTxt(s.folio) : 'Sellar esta acta'}</h3>
+    <p class="muted">${s ? 'Esta acta tiene un sello de integridad: una huella digital única calculada con su contenido y la transcripción. Si alguien cambia una coma, la huella deja de coincidir.' : 'Le asigna un número de folio y una huella digital única (SHA-256) calculada con el contenido y la transcripción. Queda impresa en el informe, el PDF y el Word, junto a las líneas de firma. Si después alguien cambia el acta, Acta lo detecta.'}</p>
+    ${s ? `<div class="seal-box" id="seal-box"><span class="seal-ic">${icon('lock', 2)}</span><div><b class="mono">${sealCode(s.hash)}</b><small>Sellada el ${esc(new Date(s.at).toLocaleString('es-CL', { dateStyle: 'medium', timeStyle: 'short' }))}</small><small class="mono seal-full">${s.hash}</small></div></div><p class="hint" id="seal-st">Verificando…</p>` : ''}
+    <div class="sheet-actions">${s ? `<button class="btn" id="seal-re">${icon('refresh')}Volver a sellar con los cambios</button>` : `<button class="btn primary lg" id="seal-go">${icon('lock', 2)}Sellar acta</button>`}</div>`, async el => {
+    const go2 = $('#seal-go', el); if (go2) go2.onclick = async () => { await sealMeeting(m); toast('Acta sellada ' + folioTxt(m.seal.folio)); sealSheet(m); render(); };
+    const re = $('#seal-re', el); if (re) re.onclick = async () => { const f = m.seal.folio; m.seal.hash = await sealHash(m); m.seal.at = Date.now(); m.seal.folio = f; await saveMeeting(m); toast('Sello actualizado'); sealSheet(m); render(); };
+    if (s) { const st = await sealStatus(m); const p = $('#seal-st', el); if (p) { p.innerHTML = st === 'ok' ? `<span class="ok-badge">${icon('check', 2.4, 14)}Íntegra: el contenido coincide con el sello</span>` : `<span class="ok-badge bad">El acta cambió después de sellarla</span>`; } }
+  });
+}
+function signaturesHTML(m, a) {
+  const people = (a.participants?.length ? a.participants : m.participants) || [];
+  const names = [...new Set(people.filter(Boolean))].slice(0, 8); if (!names.length) return '';
+  const sig = Settings.v.signature;
+  return `<section class="rp-sec rp-sign"><h2>Firmas</h2><div class="rp-signs">${names.map(n => `<div class="rp-sg">${isMe(n) && sig ? `<img src="${sig}" alt="Firma">` : '<span class="blank"></span>'}<i></i><b>${esc(isMe(n) && Settings.v.myName ? Settings.v.myName : n)}</b></div>`).join('')}</div></section>`;
+}
+function brandSettingsHTML() {
+  const v = Settings.v;
+  return `<h2>Tu marca y tu firma</h2><p class="muted" style="font-size:13.5px;margin-top:6px">Tus informes, PDF y Word salen con tu logo, tu color y tu firma. Se ve como un documento de tu empresa, no de una app.</p>
+    <div class="form">
+      <div class="row two"><div class="field"><label for="b-me">Tu nombre</label><input id="b-me" value="${esc(v.myName || '')}" placeholder="Mario Pinto"><span class="hint">Separa lo que te deben de lo que tú debes.</span></div>
+      <div class="field"><label for="b-name">Empresa o marca</label><input id="b-name" value="${esc(v.brandName || '')}" placeholder="Pinto Consultores"></div></div>
+      <div class="row two"><div class="field"><span class="lbl">Logo</span><div class="brand-logo">${v.brandLogo ? `<img src="${v.brandLogo}" alt="Logo">` : `<span class="muted" style="font-size:13px">Sin logo</span>`}<span class="btn sm filebtn">${icon('upload')}${v.brandLogo ? 'Cambiar' : 'Subir logo'}<input type="file" id="b-logo" accept="image/*"></span>${v.brandLogo ? '<button class="btn sm ghost danger" id="b-logo-x">Quitar</button>' : ''}</div></div>
+      <div class="field"><label for="b-color">Color principal</label><div class="brand-color"><input type="color" id="b-color" value="${esc(v.brandColor || '#FF6A3D')}"><span class="muted" style="font-size:13px">Banda y acentos del informe</span>${v.brandColor ? '<button class="btn sm ghost" id="b-color-x">Usar el de Acta</button>' : ''}</div></div></div>
+      <div class="field"><span class="lbl">Tu firma</span><div class="brand-sig">${v.signature ? `<img src="${v.signature}" alt="Tu firma">` : '<span class="muted" style="font-size:13px">Aparece sobre tu nombre en las actas selladas.</span>'}<button class="btn sm" id="b-sig">${icon('edit')}${v.signature ? 'Firmar de nuevo' : 'Dibujar mi firma'}</button></div></div>
+      <div class="field"><label for="b-folio">Próximo número de folio</label><input id="b-folio" type="number" min="1" value="${+v.folioNext || 1}" style="max-width:160px"><span class="hint">Las actas selladas se numeran en orden: N° 0001, 0002…</span></div>
+    </div>`;
+}
+function bindBrandSettings(app) {
+  const re = () => { const p = $('#brand-panel'); if (p) { p.innerHTML = brandSettingsHTML(); bindBrandSettings(app); } };
+  $('#b-me').addEventListener('change', e => { Settings.set({ myName: e.target.value.trim() }); toast('Nombre guardado'); });
+  $('#b-name').addEventListener('change', e => { Settings.set({ brandName: e.target.value.trim() }); toast('Marca guardada'); });
+  $('#b-color').addEventListener('change', e => { Settings.set({ brandColor: e.target.value }); toast('Color guardado'); re(); });
+  const cx = $('#b-color-x'); if (cx) cx.onclick = () => { Settings.set({ brandColor: '' }); re(); };
+  $('#b-folio').addEventListener('change', e => Settings.set({ folioNext: Math.max(1, +e.target.value || 1) }));
+  $('#b-logo').onchange = async e => { const f = e.target.files[0]; if (!f) return; try { Settings.set({ brandLogo: await shrinkImage(f, 360) }); toast('Logo guardado'); re(); } catch { toast('No se pudo leer la imagen'); } };
+  const lx = $('#b-logo-x'); if (lx) lx.onclick = () => { Settings.set({ brandLogo: '' }); re(); };
+  $('#b-sig').onclick = () => signaturePad(re);
+}
+async function shrinkImage(file, max) {
+  const bmp = await createImageBitmap(file); const k = Math.min(1, max / Math.max(bmp.width, bmp.height));
+  const c = document.createElement('canvas'); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k); c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+  return c.toDataURL('image/png');
+}
+function signaturePad(done) {
+  sheet(`<div class="eyebrow">Tu firma</div><h3>Firma con el dedo</h3><p class="muted">Queda guardada solo en este teléfono.</p><canvas id="sig-c" class="sig-c"></canvas><div class="sheet-actions"><button class="btn primary" id="sig-ok">Guardar firma</button><button class="btn ghost" id="sig-clear">Borrar</button></div>`, el => {
+    const c = $('#sig-c', el); const r = c.getBoundingClientRect(); const dpr = 2; c.width = r.width * dpr; c.height = r.height * dpr; const g = c.getContext('2d'); g.scale(dpr, dpr); g.lineWidth = 2.4; g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = '#12141B';
+    let drawing = false, any = false, last = null;
+    const pt = e => { const b = c.getBoundingClientRect(); return [e.clientX - b.left, e.clientY - b.top]; };
+    c.addEventListener('pointerdown', e => { drawing = true; last = pt(e); c.setPointerCapture(e.pointerId); e.preventDefault(); });
+    c.addEventListener('pointermove', e => { if (!drawing) return; const p = pt(e); g.beginPath(); g.moveTo(...last); g.lineTo(...p); g.stroke(); last = p; any = true; e.preventDefault(); });
+    ['pointerup', 'pointercancel'].forEach(ev => c.addEventListener(ev, () => { drawing = false; }));
+    c.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+    $('#sig-clear', el).onclick = () => { g.clearRect(0, 0, c.width, c.height); any = false; };
+    $('#sig-ok', el).onclick = () => { if (!any) { toast('Dibuja tu firma primero'); return; } Settings.set({ signature: c.toDataURL('image/png') }); closeSheet(); toast('Firma guardada'); done && done(); };
+  });
+}
+
+/* =========================================================
    Tasks view (all meetings)
    ========================================================= */
-function renderTasks(app) {
+function renderAllTasks(app) {
   const ready = S.meetings.filter(m => m.analysis?.actions?.length);
   const owners = [...new Set(ready.flatMap(m => m.analysis.actions.map(t => t.owner)))].sort();
   const pend = ready.reduce((a, m) => a + m.analysis.actions.filter(t => !t.done).length, 0);
   const groups = ready.map(m => ({ m, items: m.analysis.actions.map((t, i) => ({ t, i })).filter(({ t }) => (S.taskFilter === 'all' || !t.done) && (!S.ownerFilter || t.owner === S.ownerFilter)) })).filter(g => g.items.length);
   app.innerHTML = `
-  <div class="page-head"><div><div class="eyebrow">Todas tus reuniones</div><h1>Tareas</h1><p>${pend} ${pend === 1 ? 'pendiente' : 'pendientes'} en ${ready.length} ${ready.length === 1 ? 'reunión' : 'reuniones'}.</p></div></div>
+  <div class="page-head"><div><div class="eyebrow">Memoria de compromisos</div><h1>Todas las tareas</h1><p>${pend} ${pend === 1 ? 'pendiente' : 'pendientes'} en ${ready.length} ${ready.length === 1 ? 'reunión' : 'reuniones'}.</p></div></div>
   <div class="tools-row">
     <div class="seg-ctl" role="group" aria-label="Filtro"><button data-tf="pending" aria-pressed="${S.taskFilter === 'pending'}">Pendientes</button><button data-tf="all" aria-pressed="${S.taskFilter === 'all'}">Todas</button></div>
     ${owners.length ? `<select id="t-owner" class="btn sm" aria-label="Responsable"><option value="">Todos los responsables</option>${owners.map(o => `<option ${S.ownerFilter === o ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>` : ''}
@@ -1963,6 +2315,8 @@ function renderTasks(app) {
   </div>
   ${groups.length ? groups.map(({ m, items }) => `<section class="tgroup"><h3><button data-open="${esc(m.id)}">${esc(m.analysis.title)}</button><small>${esc(fmtDate(m.date))}</small></h3><div class="box">${items.map(({ t, i }) => taskHTML(t, `${m.id}|${i}`)).join('')}</div></section>`).join('')
     : `<div class="empty">${icon('check', 1.6, 34)}<h3>${ready.length ? 'Todo al día' : 'Sin tareas todavía'}</h3><p>${ready.length ? 'No hay tareas pendientes con este filtro.' : 'Las tareas aparecen aquí cuando Acta procesa tus reuniones.'}</p></div>`}`;
+  app.querySelector('.page-head').insertAdjacentHTML('afterend', `<div class="cm-tabs"><button data-cmt="owed" aria-pressed="false"><b>${allCommitments().filter(c => c.key && !c.t.done).length}</b><span>Te deben</span></button><button data-cmt="mine" aria-pressed="false"><b>${allCommitments().filter(c => c.me && !c.t.done).length}</b><span>Debes</span></button><button data-cmt="all" aria-pressed="true"><b>${ready.reduce((a, m) => a + m.analysis.actions.length, 0)}</b><span>Todas</span></button></div>`);
+  $$('[data-cmt]', app).forEach(b => b.onclick = () => { S.cmTab = b.dataset.cmt; render(); });
   $$('[data-tf]').forEach(b => b.onclick = () => { S.taskFilter = b.dataset.tf; render(); });
   const so = $('#t-owner'); if (so) so.onchange = e => { S.ownerFilter = e.target.value; render(); };
   const ti = $('#t-ics'); if (ti) ti.onclick = () => exportTasksICS(ready);
@@ -2021,6 +2375,7 @@ async function renderSettings(app) {
       <li>Si igual se bloquea, Acta guarda todo lo grabado y te ofrece <b>Continuar</b> en la misma reunión.</li>
       <li>Para que no se apague sola: Ajustes del iPhone → Pantalla y brillo → <b>Bloqueo automático</b> → un tiempo largo durante tus reuniones.</li>
       <li><b>Android:</b> la grabación sigue con la pantalla apagada.</li></ol></section>
+    <section class="panel" id="brand-panel">${brandSettingsHTML()}</section>
     <section class="panel" id="lock-panel">${lockPanelHTML(bioOK)}</section>
     <section class="panel">
       <h2>Almacenamiento y respaldo</h2>
@@ -2037,7 +2392,7 @@ async function renderSettings(app) {
       <li>Tus reuniones, audios y actas viven en este dispositivo.</li>
       <li>El audio se envía a OpenAI solo para transcribirlo; el texto se envía a Anthropic solo para crear el acta y responder preguntas.</li>
       <li>Avísales a los participantes que estás grabando.</li></ol></section>
-    <p class="status-line">Acta 3.0</p>
+    <p class="status-line">Acta 3.1</p>
   </div>`;
   const keyIn = (id, k) => { const el = $(id); el.addEventListener('input', e => Settings.set({ [k]: e.target.value.trim() })); el.addEventListener('change', e => { Settings.set({ [k]: e.target.value.trim() }); keepStorage(); toast('Clave guardada en este teléfono'); }); };
   keyIn('#k-anthropic', 'anthropicKey'); keyIn('#k-openai', 'openaiKey');
@@ -2057,7 +2412,7 @@ async function renderSettings(app) {
   $('#s-br').onchange = e => Settings.set({ bitrate: +e.target.value });
   $('#s-cap').onchange = e => Settings.set({ captions: e.target.checked });
   $('#s-vocab').addEventListener('change', e => { Settings.set({ vocab: e.target.value }); toast(`Vocabulario guardado · ${vocabList().length} palabras`); });
-  bindLockSettings(app);
+  bindLockSettings(app); bindBrandSettings(app);
   $$('[data-wset]').forEach(b => b.onclick = () => { const p = b.dataset.wset; const v = parseFloat(($('#w-' + p + '-val').value || '').replace(',', '.')); if (!(v >= 0)) { toast('Escribe el saldo en dólares, por ejemplo 4.85'); return; } Usage.set(p, v); toast('Saldo ajustado'); renderSettings(app); });
   $$('[data-wtop]').forEach(b => b.onclick = () => { const p = b.dataset.wtop; const v = parseFloat(($('#w-' + p + '-top').value || '').replace(',', '.')); if (!(v > 0)) { toast('Escribe el monto que recargaste, por ejemplo 5'); return; } Usage.topup(p, v); toast('Recarga sumada'); renderSettings(app); });
   const sp = $('#s-persist'); if (sp) sp.onclick = async () => { let ok = false; try { ok = await navigator.storage.persist(); } catch {} toast(ok ? 'Tus datos quedaron protegidos' : 'El navegador no lo permitió. Instalar la app suele habilitarlo.'); renderSettings(app); };
@@ -2141,11 +2496,12 @@ function reportHTML(m, a, segs) {
   const sec = (title, inner) => `<section class="rp-sec"><h2>${title}</h2>${inner}</section>`;
   const listBox = (items, color) => items.length ? `<div class="rp-list">${items.map(x => `<div class="rp-li"><span class="d" style="background:${x.color || color}"></span><div>${x.html}</div></div>`).join('')}</div>` : `<div class="rp-list"><div class="rp-li"><span></span><div style="color:#9198A8">Nada registrado.</div></div></div>`;
   const ownerColor = {}; let oc = 0; acts.forEach(t => { if (!(t.owner in ownerColor)) ownerColor[t.owner] = rc(oc++); });
-  return `<article class="rep">
-  <div class="rp-band"></div>
+  const bc = Settings.v.brandColor;
+  return `<article class="rep"${bc ? ` style="--brand:${esc(bc)}"` : ''}>
+  <div class="rp-band"${bc ? ` style="background:${esc(bc)}"` : ''}></div>
   <header class="rp-head">
     <div style="display:grid;gap:12px;position:relative;z-index:1">
-      <div class="rp-brand"><i><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2"/></svg></i>Acta · Informe de reunión</div>
+      ${Settings.v.brandLogo || Settings.v.brandName ? `<div class="rp-brand own">${Settings.v.brandLogo ? `<img src="${Settings.v.brandLogo}" alt="">` : ''}${Settings.v.brandName ? `<span>${esc(Settings.v.brandName)}</span>` : ''}<em>${m.seal ? 'Acta ' + folioTxt(m.seal.folio) : 'Informe de reunión'}</em></div>` : `<div class="rp-brand"><i><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2"/></svg></i>${m.seal ? 'Acta ' + folioTxt(m.seal.folio) : 'Acta · Informe de reunión'}</div>`}
       <h1 class="rp-title">${esc(a.title)}</h1>
       <div class="rp-meta"><span>${icon('cal')}${esc(fmtDate(m.date))}</span>${dur ? `<span>${icon('time')}${fmtT(dur)}${m.estimatedTimes ? ' aprox.' : ''}</span>` : ''}${people.length ? `<span>${icon('users')}${esc(people.join(', '))}</span>` : ''}<span>${icon('doc')}${esc((TEMPLATES[m.template] || TEMPLATES.general).name)}</span></div>
       ${(a.tags || []).filter(t => t !== 'ejemplo').length ? `<div class="rp-tags">${a.tags.filter(t => t !== 'ejemplo').map(t => `<span>#${esc(t)}</span>`).join('')}</div>` : ''}
@@ -2183,7 +2539,8 @@ function reportHTML(m, a, segs) {
       ${(a.nextSteps || []).length ? sec('Próximos pasos', `<div class="rp-flow" style="grid-template-columns:1fr">${a.nextSteps.map((s, i) => `<div class="rp-step"><b>${i + 1}</b><span>${esc(s)}</span></div>`).join('')}</div>`) : ''}
     </div>
   </div>
-  <footer class="rp-foot"><span>Generado con Acta · ${esc(new Date().toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' }))}</span><span>Transcripción con hablantes · Análisis con Claude</span></footer>
+  ${m.seal ? `<div class="rp-body rp-sealwrap">${signaturesHTML(m, a)}<div class="rp-seal"><span class="rp-seal-ic">${icon('lock', 2)}</span><div><b>Acta ${folioTxt(m.seal.folio)} · sello de integridad ${sealCode(m.seal.hash)}</b><small>Sellada el ${esc(new Date(m.seal.at).toLocaleString('es-CL', { dateStyle: 'long', timeStyle: 'short' }))} · SHA-256 ${m.seal.hash}</small></div></div></div>` : ''}
+  <footer class="rp-foot"><span>${Settings.v.brandName ? esc(Settings.v.brandName) + ' · ' : ''}${esc(new Date().toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' }))}</span><span>${Settings.v.brandName ? 'Creado con Acta' : 'Generado con Acta · Transcripción con hablantes · Análisis con Claude'}</span></footer>
 </article>`;
 }
 function renderReport(body, m, a, segs) {
@@ -2387,7 +2744,7 @@ async function loadDemo() {
   };
   const ago = n => { const d = new Date(); d.setDate(d.getDate() - n); return isoD(d); };
   const d1 = ago(7), d2 = today();
-  analysis.actions[0].dueDate = parseDue('viernes', d1); analysis.actions[1].dueDate = parseDue('miércoles', d1); analysis.actions[1].done = true;
+  analysis.actions[0].dueDate = parseDue('viernes', d1); Object.assign(analysis.actions[0], { t: 204, quote: 'Sí, el viernes lo envío con el detalle por etapa.' }); Object.assign(analysis.actions[1], { t: 250, quote: 'Sí, el miércoles te los mando.' }); Object.assign(analysis.actions[2], { t: 238, quote: 'Yo me encargo del diseño.' }); analysis.actions[1].dueDate = parseDue('miércoles', d1); analysis.actions[1].done = true;
   analysis.followUp = { whatsapp: `Hola Camila y Diego, les dejo lo que acordamos hoy para la *app de reservas*:\n\n*Acuerdos*\n• Versión 1 como web app instalable, con agenda por profesional\n• Recordatorios por WhatsApp desde la v1\n• El abono queda para la v2\n• Lanzamiento meta: 15 de noviembre\n\n*Tareas*\n• Diego: presupuesto por etapa (viernes)\n• Camila: fotos y logo (miércoles)\n• Yo: diseño con la identidad del local\n\nSi algo no quedó bien, me avisan. ¡Gracias!`, emailSubject: 'Acuerdos: app de reservas para la peluquería', emailBody: `Hola Camila y Diego:\n\nLes envío el resumen de nuestra reunión sobre la app de reservas.\n\nAcuerdos:\n- La versión 1 será una web app instalable, con agenda por profesional.\n- Los recordatorios por WhatsApp entran en la v1 (aprox. $30.000 al mes).\n- El cobro de abono queda para la v2.\n- Lanzamiento meta: 15 de noviembre.\n\nTareas:\n- Diego: presupuesto final con detalle por etapa, el viernes.\n- Camila: fotos de cortes y logo, el miércoles.\n- Yo: diseño de la interfaz con la identidad del local.\n\nQuedo atento a cualquier comentario.\n\nSaludos.` };
   analysis.ficha = [];
   await DB.put('transcripts', { segments: segs }, id);
@@ -2399,7 +2756,7 @@ async function loadDemo() {
     keyPoints: [{ title: 'Diseño con marca', detail: 'Fotos y logo ya integrados.', icon: 'design' }, { title: 'Presupuesto atrasado', detail: 'Falta cotizar WhatsApp con un proveedor nuevo.', icon: 'money' }, { title: 'Equipo de sábado', detail: 'Ahora son cinco con la nueva colorista.', icon: 'people' }],
     topics: [{ name: 'Avance', start: 0, end: 35, summary: 'Diseño y presupuesto.' }, { name: 'Equipo', start: 35, end: 70, summary: 'Cinco profesionales los sábados.' }, { name: 'Piloto', start: 70, end: 110, summary: 'Prueba con clientas reales.' }],
     decisions: [{ text: 'Piloto con diez clientas reales la primera semana de noviembre', why: 'Probar antes del lanzamiento' }],
-    actions: [{ id: uid(), task: 'Enviar presupuesto con la cotización de WhatsApp', owner: 'Diego', due: 'mañana', dueDate: parseDue('mañana', d2), priority: 'alta', done: false }, { id: uid(), task: 'Elegir las diez clientas del piloto', owner: 'Camila', due: 'lunes', dueDate: parseDue('lunes', d2), priority: 'media', done: false }, { id: uid(), task: 'Configurar la agenda con cinco profesionales los sábados', owner: 'Tú', due: '', dueDate: '', priority: 'media', done: false }],
+    actions: [{ id: uid(), task: 'Enviar presupuesto con la cotización de WhatsApp', owner: 'Diego', due: 'mañana', dueDate: parseDue('mañana', d2), t: 14, quote: 'El presupuesto lo mando mañana.', priority: 'alta', done: false }, { id: uid(), task: 'Elegir las diez clientas del piloto', owner: 'Camila', due: 'lunes', dueDate: parseDue('lunes', d2), t: 85, quote: 'Yo elijo a las clientas. Les aviso el lunes.', priority: 'media', done: false }, { id: uid(), task: 'Configurar la agenda con cinco profesionales los sábados', owner: 'Tú', due: '', dueDate: '', priority: 'media', done: false }],
     ideas: [], risks: [{ text: 'El atraso del presupuesto puede mover el inicio del desarrollo', severity: 'baja' }], questions: [], numbers: [{ value: '10', label: 'clientas en el piloto' }, { value: '5', label: 'profesionales los sábados' }], quotes: [{ text: 'Yo elijo a las clientas. Les aviso el lunes.', who: 'Camila', t: 85 }],
     mindmap: { center: 'Avance', branches: [{ label: 'Hecho', children: ['Fotos y logo'] }, { label: 'Atrasado', children: ['Presupuesto'] }, { label: 'Nuevo', children: ['Piloto 10 clientas', 'Colorista sábados'] }] },
     nextSteps: ['Recibir presupuesto', 'Elegir clientas', 'Lanzar piloto'], brief: '', ficha: [], corrections: [],
