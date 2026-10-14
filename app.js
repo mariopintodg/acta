@@ -92,9 +92,11 @@ const TEMPLATES = {
   legal: { group: 'rubro', name: 'Abogado / asesoría', desc: 'Hechos, plazos y documentos', focus: 'Es una asesoría legal, contable o tributaria en Chile. Enfócate en los hechos relatados, la estrategia propuesta, plazos legales o del SII, documentos requeridos, honorarios y próximos trámites. No inventes normas.', ficha: ['Materia', 'Hechos principales', 'Estrategia', 'Plazos clave', 'Documentos requeridos', 'Honorarios'] },
   apoderados: { group: 'rubro', name: 'Reunión de apoderados', desc: 'Acuerdos de curso, cuotas y fechas', focus: 'Es una reunión de apoderados de un colegio en Chile. Enfócate en acuerdos del curso, cuotas y montos, actividades y fechas, información del colegio o profesor jefe y quién se encarga de qué.', ficha: ['Curso', 'Acuerdos', 'Cuotas y montos', 'Fechas importantes', 'Encargados'] },
   comunidad: { group: 'rubro', name: 'Condominio / junta de vecinos', desc: 'Votaciones, gastos comunes y acuerdos', focus: 'Es una asamblea de condominio, comité o junta de vecinos en Chile. Enfócate en los acuerdos y votaciones (a favor, en contra), quórum si se mencionó, gastos comunes, mantenciones, cotizaciones y reclamos.', ficha: ['Comunidad', 'Asistentes o quórum', 'Acuerdos votados', 'Gastos comunes', 'Cotizaciones', 'Próxima asamblea'] },
+  clase: { group: 'estudio', name: 'Clase / apuntes', desc: 'Apuntes, tarjetas y prueba de práctica', focus: 'Es una clase, charla o capacitación. Escribe el acta como un alumno destacado: enfócate en los conceptos enseñados, definiciones, fórmulas, ejemplos, lo que el profesor recalcó y lo que dijo que entra en la prueba. Las tareas son lecturas, trabajos y fechas de evaluaciones.', ficha: ['Asignatura', 'Unidad o tema', 'Evaluaciones y fechas', 'Lecturas o trabajos pedidos'] },
   equipo: { group: 'rubro', name: 'Equipo semanal', desc: 'Estado por persona y bloqueos', focus: 'Es la reunión semanal de un equipo de trabajo. Enfócate en el estado de cada persona o área, metas de la semana, bloqueos, ayudas pedidas y compromisos con fecha.', ficha: ['Metas de la semana', 'Bloqueos', 'Ayuda pedida', 'Indicadores mencionados'] }
 };
-const tplOptions = sel => `<optgroup label="General">${Object.entries(TEMPLATES).filter(([, t]) => !t.group).map(([k, t]) => `<option value="${k}" ${sel === k ? 'selected' : ''}>${t.name}</option>`).join('')}</optgroup><optgroup label="Por rubro">${Object.entries(TEMPLATES).filter(([, t]) => t.group).map(([k, t]) => `<option value="${k}" ${sel === k ? 'selected' : ''}>${t.name}</option>`).join('')}</optgroup>`;
+const TPL_GROUPS = [['', 'General'], ['estudio', 'Estudio'], ['rubro', 'Por rubro']];
+const tplOptions = sel => TPL_GROUPS.map(([g, l]) => `<optgroup label="${l}">${Object.entries(TEMPLATES).filter(([, t]) => (t.group || '') === g).map(([k, t]) => `<option value="${k}" ${sel === k ? 'selected' : ''}>${t.name}</option>`).join('')}</optgroup>`).join('');
 const KP_ICONS = ['target', 'money', 'people', 'time', 'tech', 'design', 'legal', 'growth', 'idea', 'risk'];
 const CLAUDE_MODELS = [['claude-sonnet-5-5', 'Claude Sonnet 5.5 — recomendado'], ['claude-opus-5-5', 'Claude Opus 5.5 — máximo detalle'], ['claude-haiku-5-5', 'Claude Haiku 5.5 — más rápido y económico']];
 const STT_MODELS = [['gpt-4o-transcribe-diarize', 'Con hablantes (recomendado)'], ['whisper-1', 'Whisper — con marcas de tiempo, sin hablantes'], ['gpt-4o-transcribe', 'Solo texto']];
@@ -358,6 +360,13 @@ const ANALYSIS_SCHEMA = {
     followUp: { type: 'object', description: 'Mensaje de seguimiento listo para enviar a los participantes, escrito en primera persona por quien grabó', properties: { whatsapp: { type: 'string', description: 'Versión corta para WhatsApp: saludo, 3 a 6 líneas con acuerdos y tareas con responsable y plazo, cierre cordial. Puede usar *negritas* de WhatsApp. Sin emojis excesivos.' }, emailSubject: { type: 'string' }, emailBody: { type: 'string', description: 'Correo formal y breve: saludo, resumen, acuerdos, tareas con responsable y plazo, próxima reunión si se mencionó, despedida. Texto plano.' } }, required: ['whatsapp', 'emailSubject', 'emailBody'] },
     corrections: { type: 'array', description: 'Palabras que la transcripción escribió mal y que corresponden al vocabulario del usuario o a nombres claros por contexto', items: { type: 'object', properties: { wrong: { type: 'string' }, right: { type: 'string' } }, required: ['wrong', 'right'] } },
     previousTasks: { type: 'array', description: 'Solo si se entregaron tareas pendientes de reuniones anteriores del proyecto: el estado de cada una según lo conversado hoy', items: { type: 'object', properties: { ref: { type: 'string' }, status: { type: 'string', enum: ['hecha', 'en curso', 'sin novedad'] }, note: { type: 'string' } }, required: ['ref', 'status'] } },
+    study: { type: 'object', description: 'SOLO para clases (tipo Clase); en otras reuniones omítelo', properties: {
+      notes: { type: 'string', description: 'Apuntes completos en Markdown, como los de un alumno destacado: ## por tema en orden, definiciones en **negrita**, fórmulas, ejemplos y explicaciones claras' },
+      exam: { type: 'array', description: 'Lo que el profesor dijo que entra en la prueba o recalcó como importante, más los momentos marcados "Entra en la prueba"', items: { type: 'object', properties: { text: { type: 'string' }, t: { type: 'number' } }, required: ['text'] } },
+      glossary: { type: 'array', description: '8 a 20 conceptos con definición breve', items: { type: 'object', properties: { term: { type: 'string' }, def: { type: 'string' } }, required: ['term', 'def'] } },
+      flashcards: { type: 'array', description: '15 a 25 tarjetas de memoria: pregunta breve y respuesta corta', items: { type: 'object', properties: { q: { type: 'string' }, a: { type: 'string' } }, required: ['q', 'a'] } },
+      quiz: { type: 'array', description: '8 a 10 preguntas de alternativas tipo prueba', items: { type: 'object', properties: { q: { type: 'string' }, options: { type: 'array', items: { type: 'string' } }, answer: { type: 'integer', description: 'Índice 0-3 de la correcta' }, why: { type: 'string' } }, required: ['q', 'options', 'answer'] } }
+    } },
     continuity: { type: 'string', description: 'Solo si hay reuniones anteriores del proyecto: 1-3 frases sobre qué avanzó, qué cambió y qué sigue trabado respecto a la vez anterior' },
     ideas: { type: 'array', items: { type: 'object', properties: { text: { type: 'string' }, note: { type: 'string' } }, required: ['text'] } },
     risks: { type: 'array', items: { type: 'object', properties: { text: { type: 'string' }, severity: { type: 'string', enum: ['alta', 'media', 'baja'] } }, required: ['text', 'severity'] } },
@@ -375,7 +384,7 @@ async function analyze(m, segs, template, onProgress) {
   const tpl = TEMPLATES[template] || TEMPLATES.general;
   const labels = speakerLabels(segs);
   const notes = [m.notes, ...(m.notesLog || []).map(n => `[${fmtT(n.t)}] ${n.text}`)].filter(Boolean).join('\n');
-  const marks = [...(m.marks || []).map(k => `[${fmtT(k.t)}] ${k.label || 'Momento marcado'}`), ...(m.photos || []).filter(p => p.t != null).map(p => `[${fmtT(p.t)}] El usuario tomó una foto (pizarra, documento o lámina)`)].join('\n');
+  const marks = [...(m.marks || []).map(k => `[${fmtT(k.t)}] ${k.label || 'Momento marcado'}${k.text ? ': ' + k.text : ''}`), ...(m.photos || []).filter(p => p.t != null).map(p => `[${fmtT(p.t)}] El usuario tomó una foto (pizarra, documento o lámina)`)].join('\n');
   const vocab = vocabList();
   const prevCtx = projectContext(m);
   const wd = (() => { try { return new Date(m.date + 'T12:00:00').toLocaleDateString('es-CL', { weekday: 'long' }); } catch { return ''; } })();
@@ -394,6 +403,8 @@ Reglas:
 - En cada tarea agrega t (segundo en que el responsable se comprometió) y quote (sus palabras textuales y breves al comprometerse), copiadas de la transcripción.
 - followUp: mensaje para enviar después de la reunión, con los acuerdos y tareas reales; no inventes fechas ni nombres.
 - Enfoque de esta reunión: ${tpl.focus}
+- study: ${template === 'clase' ? 'OBLIGATORIO: completa apuntes, entra en la prueba, glosario, tarjetas y prueba de práctica, todo basado en lo que se enseñó.' : 'omítelo.'}
+${Settings.v.about ? `- Sobre quien graba (úsalo para el tono, el enfoque y los nombres): ${Settings.v.about}` : ''}
 - ficha: ${tpl.ficha ? `completa estos campos en este orden: ${tpl.ficha.join(' · ')}.` : 'devuelve un arreglo vacío.'}
 ${vocab.length ? `- Vocabulario del usuario (así se escriben estos nombres, marcas y términos): ${vocab.join(', ')}. Escríbelos así en el acta y agrega a corrections cada palabra que la transcripción escribió mal (solo si estás seguro).` : '- corrections: solo nombres propios claramente mal escritos; si no hay, arreglo vacío.'}
 ${prevCtx ? '- Esta reunión continúa un proyecto con reuniones anteriores (ver abajo). Llena continuity y, para cada tarea pendiente entregada, previousTasks con su ref y su estado según lo conversado hoy. No repitas en actions una tarea anterior salvo que se haya reasignado o cambiado.' : '- previousTasks: arreglo vacío. continuity: vacío.'}`;
@@ -441,6 +452,7 @@ function normalize(a, dur, titleHint) {
     corrections: arr(a.corrections).filter(x => x && x.wrong && x.right && x.wrong !== x.right).slice(0, 40).map(x => ({ wrong: String(x.wrong), right: String(x.right) })),
     previousTasks: arr(a.previousTasks).filter(x => x && x.ref).map(x => ({ ref: String(x.ref), status: ['hecha', 'en curso', 'sin novedad'].includes(x.status) ? x.status : 'sin novedad', note: x.note || '' })),
     continuity: a.continuity || '',
+    study: a.study && typeof a.study === 'object' && (a.study.notes || a.study.flashcards?.length) ? { notes: a.study.notes || '', exam: arr(a.study.exam).filter(x => x && x.text).map(x => ({ text: String(x.text), t: Number.isFinite(+x.t) && x.t != null ? +x.t : null })), glossary: arr(a.study.glossary).filter(g => g && g.term).map(g => ({ term: String(g.term), def: String(g.def || '') })), flashcards: arr(a.study.flashcards).filter(c => c && c.q && c.a).map(c => ({ q: String(c.q), a: String(c.a) })), quiz: arr(a.study.quiz).filter(q => q && q.q && Array.isArray(q.options) && q.options.length >= 2).map(q => ({ q: String(q.q), options: q.options.slice(0, 4).map(String), answer: Math.max(0, Math.min(q.options.length - 1, +q.answer || 0)), why: q.why || '' })) } : null,
     actions: arr(a.actions).map(x => ({ id: uid(), task: x.task || String(x), owner: x.owner || 'Sin asignar', due: x.due || '', dueDate: /^\d{4}-\d{2}-\d{2}$/.test(x.dueDate || '') ? x.dueDate : '', t: Number.isFinite(+x.t) && x.t !== '' && x.t != null ? +x.t : null, quote: x.quote ? String(x.quote) : '', priority: ['alta', 'media', 'baja'].includes(x.priority) ? x.priority : 'media', done: false })),
     ideas: arr(a.ideas).map(x => ({ text: x.text || String(x), note: x.note || '' })),
     risks: arr(a.risks).map(x => ({ text: x.text || String(x), severity: ['alta', 'media', 'baja'].includes(x.severity) ? x.severity : 'media' })),
@@ -672,6 +684,7 @@ function parseHash() {
   if (a === 'm' && b) return { view: 'meeting', id: b, tab: c || 'resumen' };
   if (a === 'p' && b) return { view: 'project', id: b };
   if (a === 'per' && b) return { view: 'person', id: b };
+  if (a === 'rep' && b && c) return { view: 'review', kind: b, id: c };
   if (a === 'prep' && b && c) return { view: 'prep', kind: b, id: c };
   if (['record', 'import', 'settings', 'tasks', 'week', 'projects', 'people'].includes(a)) return { view: a };
   return { view: 'library' };
@@ -703,6 +716,7 @@ function render() {
   if (v === 'projects') return renderProjects(app);
   if (v === 'project') return renderProject(app, S.route.id);
   if (v === 'people') return renderPeople(app);
+  if (v === 'review') return renderReview(app, S.route.kind, S.route.id);
   if (v === 'person') return renderPerson(app, S.route.id);
   if (v === 'prep') return renderPrep(app, S.route.kind, S.route.id);
   if (v === 'meeting') { const m = meetingById(S.route.id); if (m) return renderMeeting(app, m); if (S.loaded) { app.innerHTML = `<div class="empty"><h3>No encuentro esta reunión</h3><p>Puede que se haya eliminado.</p><button class="btn" data-nav="library">Volver a reuniones</button></div>`; return; } }
@@ -768,7 +782,7 @@ function renderLibrary(app) {
     </div>
   </section>
   ${Settings.v.anthropicKey ? budgetHTML() : ''}
-  ${S.meetings.length ? owedCardHTML() + weekCardHTML() : ''}
+  ${S.meetings.length ? reviewCardHTML() + owedCardHTML() + weekCardHTML() : ''}
   ${peopleRowHTML()}
   ${projectsRowHTML()}`}
   ${q ? searchHitsHTML(q) : ''}
@@ -785,6 +799,7 @@ function renderLibrary(app) {
   $$('[data-hit]', app).forEach(b => b.onclick = () => { const [id, tab, t] = b.dataset.hit.split('|'); if (tab === 'transcripcion') { S.jump = +t; S.trqNext = S.q; } go('m/' + id + '/' + tab); });
   $$('[data-proj]', app).forEach(b => b.onclick = () => go('p/' + encodeURIComponent(b.dataset.proj)));
   $$('[data-per]', app).forEach(b => b.onclick = () => go('per/' + encodeURIComponent(b.dataset.per)));
+  const hr = $('#home-rep'); if (hr) hr.onclick = () => { const ms = S.meetings.filter(m => m.analysis?.study && cardsOf(m).some(cardDue)); const pj = [...new Set(ms.map(m => m.project).filter(Boolean))]; go(ms.length === 1 ? 'rep/m/' + ms[0].id : pj.length === 1 && ms.every(m => m.project === pj[0]) ? 'rep/j/' + encodeURIComponent(pj[0]) : 'rep/m/' + ms[0].id); };
   if (q && !S.txIndex && !S.txBuilding) buildTxIndex().then(() => { if (S.route.view === 'library' && S.q) render(); });
 }
 function cardHTML(m, i = 0) {
@@ -833,9 +848,10 @@ function renderRecord(app) {
         <div class="cbtn-lbl"><button class="bigrec ${on && !intr ? 'on' : ''} ${intr ? 'resume' : ''}" id="r-main" aria-label="${intr ? 'Continuar grabando' : on ? 'Terminar y procesar' : 'Empezar a grabar'}"><span></span></button>${intr ? 'Continuar' : on ? 'Terminar' : 'Grabar'}</div>
         <div class="cbtn-lbl"><button class="cbtn" id="r-pause" ${st === 'recording' || st === 'paused' ? '' : 'disabled'} aria-label="${st === 'paused' ? 'Reanudar' : 'Pausar'}">${icon(st === 'paused' ? 'play' : 'pause', 2)}</button><span id="pause-lbl">${st === 'paused' ? 'Seguir' : 'Pausa'}</span></div>
       </div>
-      ${on && !intr ? `<div class="pill-row"><button class="pill cool" id="r-pocket">${icon('lock', 2)}Modo bolsillo</button><button class="pill" id="r-photo">${icon('camera', 2)}Foto</button><input type="file" id="r-photo-in" accept="image/*" capture="environment" hidden></div>` : ''}
+      ${on && !intr ? `<div class="pill-row"><button class="pill cool" id="r-pocket">${icon('lock', 2)}Modo bolsillo</button><button class="pill" id="r-photo">${icon('camera', 2)}Foto</button>${recMeta.template === 'clase' ? `<button class="pill hot" id="r-exam">${icon('flag', 2)}Entra en la prueba</button>` : ''}<input type="file" id="r-photo-in" accept="image/*" capture="environment" hidden></div>` : ''}
+      ${on ? '' : `<div class="pill-row"><button class="pill" id="r-consent">${icon('users', 2)}Aviso de grabación</button></div><p class="rec-room" id="rec-room"></p>`}
       ${intr ? `<div class="pill-row"><button class="pill" id="r-end-now">${icon('stop', 2)}Terminar aquí y crear el acta</button></div>` : ''}
-      <div class="marks" id="marks">${Rec.marks.map(k => `<span class="mark ${k.auto ? 'auto' : ''}"><b>${fmtT(k.t)}</b>${esc(k.label || 'Momento importante')}</span>`).join('')}${Rec.photos.map(p => `<span class="mark photo"><b>${fmtT(p.t)}</b>${icon('camera', 2, 13)}Foto</span>`).join('')}</div>
+      <div class="marks" id="marks">${Rec.marks.map(k => `<span class="mark ${k.auto ? 'auto' : ''} ${k.label === 'Entra en la prueba' ? 'exam' : ''}"><b>${fmtT(k.t)}</b>${esc(k.label || 'Momento importante')}</span>`).join('')}${Rec.photos.map(p => `<span class="mark photo"><b>${fmtT(p.t)}</b>${icon('camera', 2, 13)}Foto</span>`).join('')}</div>
       <div class="caption" id="caption" ${on && Rec.sr ? '' : 'hidden'}></div>
       ${on ? `<div style="display:flex;justify-content:center"><button class="btn sm ghost" id="r-discard">Descartar grabación</button></div><div id="discard-confirm"></div>` : ''}
     </section>
@@ -852,7 +868,7 @@ function renderRecord(app) {
         <div class="form" style="margin-top:12px;gap:14px">
           <div class="field"><label for="r-title">Título</label><input id="r-title" value="${esc(recMeta.title)}" placeholder="Claude propone uno"></div>
           <div class="field"><label for="r-people">Participantes</label><input id="r-people" value="${esc(recMeta.participants)}" placeholder="Camila, Diego, yo"><span class="hint">Ayuda a ponerle nombre a cada voz.</span></div>
-          <div class="field"><label for="r-proj">Proyecto o cliente</label><input id="r-proj" list="proj-list" value="${esc(recMeta.project || '')}" placeholder="Opcional · une esta reunión con las anteriores" autocomplete="off"><datalist id="proj-list">${projectsList().map(p => `<option value="${esc(p)}">`).join('')}</datalist><span class="hint">Acta revisa las tareas pendientes de las reuniones anteriores del mismo proyecto.</span></div>
+          <div class="field"><label for="r-proj">${recMeta.template === 'clase' ? 'Ramo o asignatura' : 'Proyecto o cliente'}</label><input id="r-proj" list="proj-list" value="${esc(recMeta.project || '')}" placeholder="Opcional · une esta reunión con las anteriores" autocomplete="off"><datalist id="proj-list">${projectsList().map(p => `<option value="${esc(p)}">`).join('')}</datalist><span class="hint">Acta revisa las tareas pendientes de las reuniones anteriores del mismo proyecto.</span></div>
           <div class="field"><label for="r-tpl">Tipo de reunión</label><select id="r-tpl">${tplOptions(recMeta.template)}</select></div>
           ${on ? '' : `<button class="btn" id="r-prep" type="button">${icon('spark', 2)}Prepárame: qué quedó pendiente</button>`}
           <div class="field"><label for="r-ctx">Contexto</label><textarea id="r-ctx" rows="2" placeholder="¿De qué proyecto se trata?">${esc(recMeta.context)}</textarea></div>
@@ -862,7 +878,10 @@ function renderRecord(app) {
   </div>`;
   const syncMeta = () => { recMeta = { title: $('#r-title').value, participants: $('#r-people').value, template: $('#r-tpl').value, context: $('#r-ctx').value, project: $('#r-proj').value }; if (Rec.state !== 'idle') { Rec.meta = metaFromForm(); Rec.saveActive(); } };
   $$('#r-title,#r-people,#r-tpl,#r-ctx,#r-proj').forEach(el => el.addEventListener('input', syncMeta));
-  $('#r-tpl').addEventListener('change', syncMeta);
+  $('#r-tpl').addEventListener('change', () => { syncMeta(); render(); });
+  const rcs = $('#r-consent'); if (rcs) rcs.onclick = consentSheet;
+  const rr = $('#rec-room'); if (rr) hoursLeft().then(h => { if (h != null && $('#rec-room')) rr.textContent = h > 999 ? 'Espacio para cientos de horas de grabación' : `Espacio para unas ${Math.floor(h)} horas de grabación en este teléfono`; });
+  const rex = $('#r-exam'); if (rex) rex.onclick = () => { const t = Rec.addMark('Entra en la prueba'); $('#marks').insertAdjacentHTML('beforeend', `<span class="mark exam"><b>${fmtT(t)}</b>Entra en la prueba</span>`); if (navigator.vibrate) navigator.vibrate(30); toast('Marcado: entra en la prueba'); };
   const rpp = $('#r-prep'); if (rpp) rpp.onclick = () => {
     const pj = $('#r-proj').value.trim(); const ppl = $('#r-people').value.split(',').map(x => x.trim()).filter(x => x && !isMe(x));
     if (pj && projectMeetings(pj).some(m => m.analysis)) return go('prep/j/' + encodeURIComponent(pj));
@@ -1032,8 +1051,8 @@ function renderImport(app) {
         <div class="drop" id="drop"><span class="btn sm filebtn">${icon('upload')}Subir archivo<input id="i-txfile" type="file" accept=".txt,.md,.srt,.vtt,text/plain"></span><span>o pega el texto · .txt, .srt, .vtt</span></div>
         <textarea id="i-tx" class="mono-area" rows="12" placeholder="[0:00] Ana: Partamos por el alcance…&#10;[0:15] Diego: Yo propongo…">${esc(d.transcript)}</textarea><span class="hint" id="tx-info"></span>
       </div>`}
-      <div class="field"><span class="lbl">Tipo de reunión</span><div class="tpls" role="group">${Object.entries(TEMPLATES).filter(([, t]) => !t.group).map(([k, t]) => `<button type="button" class="tpl" data-tpl="${k}" aria-pressed="${d.template === k}"><b>${t.name}</b><span>${t.desc}</span></button>`).join('')}</div>
-        <span class="lbl" style="margin-top:6px">Por rubro <span class="muted" style="font-weight:400">· con ficha de datos del rubro</span></span><div class="tpls" role="group">${Object.entries(TEMPLATES).filter(([, t]) => t.group).map(([k, t]) => `<button type="button" class="tpl" data-tpl="${k}" aria-pressed="${d.template === k}"><b>${t.name}</b><span>${t.desc}</span></button>`).join('')}</div></div>
+      <div class="field"><span class="lbl">Tipo de reunión</span><div class="tpls" role="group">${Object.entries(TEMPLATES).filter(([, t]) => !t.group || t.group === 'estudio').map(([k, t]) => `<button type="button" class="tpl" data-tpl="${k}" aria-pressed="${d.template === k}"><b>${t.name}</b><span>${t.desc}</span></button>`).join('')}</div>
+        <span class="lbl" style="margin-top:6px">Por rubro <span class="muted" style="font-weight:400">· con ficha de datos del rubro</span></span><div class="tpls" role="group">${Object.entries(TEMPLATES).filter(([, t]) => t.group === 'rubro').map(([k, t]) => `<button type="button" class="tpl" data-tpl="${k}" aria-pressed="${d.template === k}"><b>${t.name}</b><span>${t.desc}</span></button>`).join('')}</div></div>
       <div class="row">
         <div class="field"><label for="i-title">Título</label><input id="i-title" value="${esc(d.title)}" placeholder="Claude propone uno"></div>
         <div class="field"><label for="i-date">Fecha</label><input id="i-date" type="date" value="${esc(d.date)}"></div>
@@ -1096,7 +1115,7 @@ function renderMeeting(app, m) {
   m._labels = speakerLabels(S._segCache?.[m.id] || []);
   if (!a || (m.status && m.status !== 'ready')) return renderProcessing(app, m);
   const tab = S.route.tab || 'resumen';
-  const tabs = [['resumen', 'Resumen', 'spark'], ['informe', 'Informe', 'report'], ['mapa', 'Mapa mental', 'mind'], ['brief', 'Brief', 'doc'], ['transcripcion', 'Transcripción', 'text'], ['preguntar', 'Preguntar', 'chat']];
+  const tabs = [['resumen', 'Resumen', 'spark'], ...(a.study ? [['estudiar', 'Estudiar', 'idea']] : []), ['informe', 'Informe', 'report'], ['mapa', 'Mapa mental', 'mind'], ['brief', 'Brief', 'doc'], ['transcripcion', 'Transcripción', 'text'], ['preguntar', 'Preguntar', 'chat']];
   const people = (a.participants?.length ? a.participants : m.participants) || [];
   app.innerHTML = `
   <button class="btn ghost sm back" data-nav="library">${icon('back')}Reuniones</button>
@@ -1208,6 +1227,7 @@ async function renderTab(m) {
     return;
   }
   if (tab === 'transcripcion') return renderTranscript(body, m, a, segs);
+  if (tab === 'estudiar' && a.study) { body.innerHTML = studyTabHTML(m, a); return bindStudy(body, m, a, segs); }
   if (tab === 'preguntar') return renderAsk(body, m, a, segs);
 }
 
@@ -1224,7 +1244,7 @@ function renderSummary(body, m, a, segs) {
   const sevS = s => s === 'alta' ? 'var(--risk-soft)' : s === 'media' ? 'var(--idea-soft)' : 'var(--glass-2)';
   const marks = m.marks || [];
   body.innerHTML = `
-  <div class="tldr"><div class="eyebrow">En pocas palabras</div><p>${esc(a.tldr)}</p>
+  <div class="tldr"><div class="eyebrow tl-row">En pocas palabras<button class="btn sm ghost say" id="s-say">${icon('play', 2)}Escuchar</button></div><p>${esc(a.tldr)}</p>
     ${a.mood ? `<div class="mood"><b>${esc(a.mood.label)}</b><span class="track"><i style="width:${a.mood.score}%"></i></span><span>${esc(a.mood.note)}</span></div>` : ''}</div>
   ${continuityHTML(m, a)}
   <div class="stats">
@@ -1247,6 +1267,7 @@ function renderSummary(body, m, a, segs) {
       ${acts.length ? acts.map((t, i) => taskHTML(t, `${m.id}|${i}`)).join('') : '<div class="empty-li">Nada registrado.</div>'}
       ${acts.some(t => !t.done) ? `<div class="box-foot"><button class="btn sm" id="s-ics">${icon('cal')}Pasar tareas al calendario</button></div>` : ''}</div>
   </div>
+  ${(m.marks || []).some(k => k.hl) ? `<div class="sec"><div class="sec-h"><h2>Tus destacados</h2><span class="count">Marcados en la transcripción</span></div><div class="box">${m.marks.filter(k => k.hl).map(k => `<div class="li"><span class="mk" style="background:var(--idea)"></span><div>${esc(k.text || k.label)} <button class="tlink" data-jump="${k.t}">${fmtT(k.t)}</button></div></div>`).join('')}</div></div>` : ''}
   ${followHTML(m, a)}
   <div class="sec g3">
     ${box('Ideas', 'var(--idea)', 'var(--idea-soft)', 'idea', (a.ideas || []).map(d => `<div class="li"><span class="mk" style="background:var(--idea)"></span><div>${esc(d.text)}${d.note ? `<small>${esc(d.note)}</small>` : ''}</div></div>`).join(''), (a.ideas || []).length)}
@@ -1261,6 +1282,7 @@ function renderSummary(body, m, a, segs) {
   drawDensity(m, segs, dur);
   bindTasks(body);
   bindSummaryExtras(body, m, a, segs);
+  $('#s-say').onclick = () => Speak.toggle(summarySpeech(m), $('#s-say'));
   $$('[data-topic],[data-jump]', body).forEach(b => b.onclick = () => { S.jump = +(b.dataset.topic ?? b.dataset.jump); S.route.tab = 'transcripcion'; history.replaceState(null, '', '#m/' + m.id + '/transcripcion'); $$('[data-tab]').forEach(x => x.setAttribute('aria-selected', x.dataset.tab === 'transcripcion')); renderTab(m); });
 }
 function taskHTML(t, ref, extra = '') {
@@ -1325,11 +1347,12 @@ function renderTranscript(body, m, a, segs) {
   ${labels.length ? `<div class="speakers"><span class="muted" style="font-size:12.5px">Hablantes:</span>${labels.map(l => `<label class="spk"><i style="background:${tc(spkIndex(m, l))}"></i><input data-spk="${esc(l)}" value="${esc(spkName(m, l))}" aria-label="Nombre de ${esc(l)}"></label>`).join('')}<span class="muted" style="font-size:12px">Toca un nombre para corregirlo.</span></div>` : ''}
   <div class="tr-tools"><div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="trq" type="search" placeholder="Buscar en la transcripción" value="${esc(S.trq)}" aria-label="Buscar en la transcripción"></div><span id="tr-count" class="muted" style="font-size:13px"></span>
   ${hasAudio ? `<label class="switch" style="align-items:center"><input type="checkbox" id="follow" ${Settings.v.followAudio ? 'checked' : ''}><span style="font-size:13px">Seguir el audio</span></label>` : ''}
+  <label class="switch" style="align-items:center"><input type="checkbox" id="tr-clean" ${S.cleanTx ? 'checked' : ''}><span style="font-size:13px">Texto limpio</span></label>
   <button class="btn sm" id="tr-copy" style="margin-left:auto">${icon('copy')}Copiar texto</button></div>
   <div class="tr" id="tr"></div>`;
   const marks = [...(m.marks || []).map(k => ({ t: k.t, text: k.label || 'Momento marcado', kind: 'mark' })), ...(m.notesLog || []).map(n => ({ t: n.t, text: n.text, kind: 'note' })), ...(m.photos || []).filter(p => p.t != null).map(p => ({ t: p.t, key: p.key, kind: 'photo' }))].sort((x, y) => x.t - y.t);
   const draw = () => {
-    const q = S.trq.trim().toLowerCase(); let html = '', ti = -1, hits = 0, mi = 0;
+    const q = S.trq.trim().toLowerCase(); let html = '', ti = -1, hits = 0, mi = 0; const hlSet = new Set((m.marks || []).filter(k => k.hl).map(k => Math.round(k.t)));
     const rx = q ? new RegExp(esc(S.trq.trim()).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi') : null;
     segs.forEach((x, k) => {
       if (!q) {
@@ -1338,19 +1361,21 @@ function renderTranscript(body, m, a, segs) {
         while (mi < marks.length && marks[mi].t <= x.t) { const mk = marks[mi++]; if (mk.kind === 'photo') { html += `<button class="seg-photo" data-ph="${esc(mk.key)}"><img data-photo="${esc(mk.key)}" alt="Foto del minuto ${fmtT(mk.t)}"><span class="mono">${icon('camera', 2, 12)} ${fmtT(mk.t)}</span></button>`; continue; } html += `<div class="seg-mark">${icon(mk.kind === 'mark' ? 'bookmark' : 'edit', 2)}<span class="mono" style="font-size:12px">${fmtT(mk.t)}</span><span>${esc(mk.text)}</span></div>`; }
       } else if (!x.text.toLowerCase().includes(q) && !spkName(m, x.s).toLowerCase().includes(q)) return;
       hits++;
-      let t = esc(x.text); if (rx) t = t.replace(rx, s => `<mark>${s}</mark>`);
-      html += `<div class="seg" id="seg-${k}" data-t="${x.t}"><div class="seg-t"><button class="tlink" data-play="${x.t}">${fmtT(x.t)}</button>${hasAudio ? `<button class="clipbtn" data-clip="${k}" aria-label="Crear clip de audio desde ${fmtT(x.t)}" title="Clip de audio">${icon('scissors', 2)}</button>` : ''}</div><div>${x.s ? `<span class="who" style="color:${tc(spkIndex(m, x.s))}">${esc(spkName(m, x.s))}</span>` : ''}${t}</div></div>`;
+      let t = esc(S.cleanTx ? cleanText(x.text) : x.text); if (rx) t = t.replace(rx, s => `<mark>${s}</mark>`);
+      html += `<div class="seg ${hlSet.has(Math.round(x.t)) ? 'hl' : ''}" id="seg-${k}" data-t="${x.t}"><div class="seg-t"><button class="tlink" data-play="${x.t}">${fmtT(x.t)}</button>${hasAudio ? `<button class="clipbtn" data-clip="${k}" aria-label="Crear clip de audio desde ${fmtT(x.t)}" title="Clip de audio">${icon('scissors', 2)}</button>` : ''}<button class="clipbtn hlbtn ${hlSet.has(Math.round(x.t)) ? 'on' : ''}" data-hl="${k}" aria-label="Destacar frase" title="Destacar">${icon('bookmark', 2)}</button></div><div>${x.s ? `<span class="who" style="color:${tc(spkIndex(m, x.s))}">${esc(spkName(m, x.s))}</span>` : ''}${t}</div></div>`;
     });
     $('#tr').innerHTML = html || '<div class="empty-li">Sin coincidencias.</div>';
     $('#tr-count').textContent = q ? `${hits} ${hits === 1 ? 'coincidencia' : 'coincidencias'}` : `${segs.length} intervenciones`;
     $$('[data-play]').forEach(b => b.onclick = () => { if (hasAudio) Player.seek(+b.dataset.play); else toast('Esta reunión no tiene audio guardado.'); });
     $$('[data-clip]').forEach(b => b.onclick = () => { const k = +b.dataset.clip; const x = segs[k]; let end = x.end || (segs[k + 1]?.t ?? x.t + 15); end = Math.max(x.t + 6, Math.min(x.t + 90, end + .5)); Player.el?.pause(); clipSheet(m, Math.max(0, x.t - .5), end); });
     $$('[data-ph]', $('#tr')).forEach(b => b.onclick = () => photoSheet(m, b.dataset.ph));
+    $$('[data-hl]', $('#tr')).forEach(b => b.onclick = async () => { const x = segs[+b.dataset.hl]; const tt = Math.round(x.t); m.marks = m.marks || []; const ex = m.marks.findIndex(k => k.hl && Math.round(k.t) === tt); if (ex >= 0) { m.marks.splice(ex, 1); toast('Destacado quitado'); } else { m.marks.push({ t: tt, label: 'Destacado', text: (x.s ? spkName(m, x.s) + ': ' : '') + x.text, hl: true }); toast('Frase destacada · aparece en el resumen'); } await saveMeeting(m); draw(); });
     hydratePhotos($('#tr'));
   };
   draw();
   $('#trq').addEventListener('input', e => { S.trq = e.target.value; draw(); });
-  $('#tr-copy').onclick = () => copyText(segs.map(x => `[${fmtT(x.t)}] ${x.s ? spkName(m, x.s) + ': ' : ''}${x.text}`).join('\n'), 'Transcripción copiada');
+  $('#tr-copy').onclick = () => copyText(segs.map(x => `[${fmtT(x.t)}] ${x.s ? spkName(m, x.s) + ': ' : ''}${S.cleanTx ? cleanText(x.text) : x.text}`).join('\n'), 'Transcripción copiada');
+  $('#tr-clean').onchange = e => { S.cleanTx = e.target.checked; draw(); toast(S.cleanTx ? 'Sin muletillas · el original no se modifica' : 'Texto original'); };
   $$('[data-spk]').forEach(inp => inp.addEventListener('change', async () => { const l = inp.dataset.spk; const v = inp.value.trim(); m.speakers = m.speakers || {}; m.speakersEdited = m.speakersEdited || {}; if (v) m.speakers[l] = v; else delete m.speakers[l]; m.speakersEdited[l] = true; await saveMeeting(m); draw(); toast('Nombre actualizado'); }));
   if (hasAudio) {
     const el = $('#p-el'); const seek = $('#p-seek'); let lastIdx = -1; let dragging = false;
@@ -1379,12 +1404,15 @@ function renderAsk(body, m, a, segs) {
   const chat = S.chats[m.id] || (S.chats[m.id] = []);
   const sugs = ['¿Qué quedó pendiente y quién lo tiene?', 'Redacta un correo de seguimiento para los participantes', '¿Qué riesgos no se conversaron y deberían revisarse?', 'Arma un plan de trabajo de 4 semanas', '¿Qué preguntas llevo a la próxima reunión?'];
   body.innerHTML = `<div class="ask">
+    ${savedAsks().length ? `<div class="sugs saved"><span class="eyebrow" style="width:100%">Mis preguntas guardadas</span>${savedAsks().map((s, i) => `<span class="sug-wrap"><button class="sug mine" data-sug="${esc(s)}">${icon('bookmark', 2, 12)} ${esc(s)}</button><button class="sug-x" data-unsave="${i}" aria-label="Quitar">×</button></span>`).join('')}</div>` : ''}
     ${chat.length ? '' : `<p class="muted">Pregúntale a esta reunión lo que necesites. Claude responde con la transcripción completa y el acta.</p><div class="sugs">${sugs.map(s => `<button class="sug" data-sug="${esc(s)}">${esc(s)}</button>`).join('')}</div>`}
-    <div class="msgs" id="msgs">${chat.map((c, i) => `<div class="msg ${c.role === 'user' ? 'u' : 'a'}">${esc(c.content)}</div>${c.role === 'assistant' ? `<div class="msg-tools"><button class="btn sm ghost" data-cp="${i}">${icon('copy')}Copiar</button></div>` : ''}`).join('')}</div>
+    <div class="msgs" id="msgs">${chat.map((c, i) => `<div class="msg ${c.role === 'user' ? 'u' : 'a'}">${esc(c.content)}</div>${c.role === 'assistant' ? `<div class="msg-tools"><button class="btn sm ghost" data-cp="${i}">${icon('copy')}Copiar</button>${i > 0 && !savedAsks().includes(chat[i - 1].content) ? `<button class="btn sm ghost" data-save="${i - 1}">${icon('bookmark', 2)}Guardar pregunta</button>` : ''}</div>` : ''}`).join('')}</div>
     <form class="ask-in" id="ask-f"><textarea id="ask-q" rows="1" placeholder="Escribe tu pregunta…" aria-label="Tu pregunta"></textarea><button class="btn primary" ${Settings.v.anthropicKey ? '' : 'disabled'}>Preguntar</button></form>
     ${Settings.v.anthropicKey ? '' : `<p class="notice">Agrega tu clave de Claude en <button class="btn sm" data-nav="settings">Ajustes</button> para preguntar.</p>`}
   </div>`;
   $$('[data-cp]', body).forEach(b => b.onclick = () => copyText(chat[+b.dataset.cp].content, 'Respuesta copiada'));
+  $$('[data-save]', body).forEach(b => b.onclick = () => { Settings.set({ savedAsks: [...savedAsks(), chat[+b.dataset.save].content].slice(-12) }); toast('Pregunta guardada para todas tus reuniones'); renderAsk(body, m, a, segs); });
+  $$('[data-unsave]', body).forEach(b => b.onclick = () => { const l = savedAsks().slice(); l.splice(+b.dataset.unsave, 1); Settings.set({ savedAsks: l }); renderAsk(body, m, a, segs); });
   let busy = false;
   const ask = async q => {
     if (!q.trim() || busy || !Settings.v.anthropicKey) return; busy = true;
@@ -1401,6 +1429,142 @@ function renderAsk(body, m, a, segs) {
   $('#ask-f').onsubmit = e => { e.preventDefault(); ask($('#ask-q').value); };
   $('#ask-q').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(e.target.value); } });
 }
+
+/* =========================================================
+   Modo Clase: apuntes, tarjetas con repaso espaciado y prueba de práctica
+   ========================================================= */
+const BOX_DAYS = [0, 1, 2, 4, 7, 15];
+function cardsOf(m) { return (m.analysis?.study?.flashcards || []).map((c, i) => ({ m, c, i, key: m.id + '|' + i })); }
+function cardDue(c) { const s = c.c; return !s.due || s.due <= today(); }
+function dueCards(ms) { return ms.flatMap(cardsOf).filter(cardDue); }
+function studyTabHTML(m, a) {
+  const st = a.study; const cards = st.flashcards || []; const due = cards.filter(c => !c.due || c.due <= today()).length; const best = st.bestScore;
+  return `<div class="study">
+    <div class="study-hero"><div><div class="eyebrow">Modo clase</div><h2>${esc(a.title)}</h2><p class="muted">${cards.length} tarjetas · ${(st.quiz || []).length} preguntas de práctica${best != null ? ` · tu mejor puntaje ${best}%` : ''}</p></div>
+      <div class="study-cta"><button class="btn primary" id="st-rep" ${cards.length ? '' : 'disabled'}>${icon('refresh', 2)}Repasar tarjetas${due ? ` · ${due}` : ''}</button><button class="btn" id="st-quiz" ${(st.quiz || []).length ? '' : 'disabled'}>${icon('check', 2.2)}Prueba de práctica</button><button class="btn" id="st-say">${icon('play', 2)}Escuchar apuntes</button></div></div>
+    ${(st.exam || []).length ? `<div class="sec"><div class="sec-h"><h2>${icon('flag', 2, 18)} Entra en la prueba</h2><span class="count">Lo que el profesor recalcó</span></div><div class="box exam">${st.exam.map(x => `<div class="li"><span class="mk" style="background:var(--risk)"></span><div>${esc(x.text)}${x.t != null ? ` <button class="tlink" data-jump="${x.t}">${fmtT(x.t)}</button>` : ''}</div></div>`).join('')}</div></div>` : ''}
+    ${st.notes ? `<div class="sec"><div class="sec-h"><h2>Apuntes</h2><span class="count"><button class="btn sm ghost" id="st-copy">${icon('copy')}Copiar</button></span></div><article class="brief notes">${md(st.notes)}</article></div>` : ''}
+    ${(st.glossary || []).length ? `<div class="sec"><div class="sec-h"><h2>Glosario</h2><span class="count">${st.glossary.length} conceptos</span></div><div class="gloss">${st.glossary.map(g => `<div class="gl"><b>${esc(g.term)}</b><span>${esc(g.def)}</span></div>`).join('')}</div></div>` : ''}
+  </div>`;
+}
+function bindStudy(body, m, a, segs) {
+  const st = a.study;
+  $('#st-rep').onclick = () => go('rep/m/' + m.id);
+  $('#st-quiz').onclick = () => quizSheet(m);
+  $('#st-say').onclick = () => Speak.toggle(studySpeech(m), $('#st-say'));
+  const cp = $('#st-copy'); if (cp) cp.onclick = () => copyText(st.notes, 'Apuntes copiados');
+  $$('[data-jump]', body).forEach(b => b.onclick = () => { S.jump = +b.dataset.jump; S.route.tab = 'transcripcion'; history.replaceState(null, '', '#m/' + m.id + '/transcripcion'); $$('[data-tab]').forEach(x => x.setAttribute('aria-selected', x.dataset.tab === 'transcripcion')); renderTab(m); });
+}
+function studySpeech(m) {
+  const a = m.analysis; const st = a.study || {};
+  const plain = s => String(s || '').replace(/[#*_`>|-]+/g, ' ').replace(/\s+/g, ' ').trim();
+  return [a.title + '.', (st.exam || []).length ? 'Lo que entra en la prueba: ' + st.exam.map(x => x.text).join('. ') + '.' : '', plain(st.notes) || a.tldr].filter(Boolean).join(' ');
+}
+function summarySpeech(m) {
+  const a = m.analysis;
+  return [a.title + '.', a.tldr, (a.decisions || []).length ? 'Decisiones: ' + a.decisions.map(d => d.text).join('. ') + '.' : '', (a.actions || []).filter(t => !t.done).length ? 'Tareas: ' + a.actions.filter(t => !t.done).map(t => `${t.task}, a cargo de ${t.owner}${t.due ? ', ' + t.due : ''}`).join('. ') + '.' : ''].filter(Boolean).join(' ');
+}
+/* Read aloud with the phone's own voice (free, on device) */
+const Speak = {
+  btn: null, on: false,
+  voice() { const vs = speechSynthesis.getVoices(); return vs.find(v => /es[-_]CL/i.test(v.lang)) || vs.find(v => /es[-_](419|MX|US|AR|CO)/i.test(v.lang)) || vs.find(v => /^es/i.test(v.lang)); },
+  toggle(text, btn) {
+    if (!('speechSynthesis' in window)) { toast('Este teléfono no permite leer en voz alta'); return; }
+    if (this.on) { this.stop(); return; }
+    this.btn = btn; this.on = true; if (btn) { btn.dataset.lbl = btn.lastChild.textContent; btn.lastChild.textContent = 'Detener'; btn.classList.add('speaking'); }
+    const parts = String(text).match(/[^.!?]+[.!?]*/g) || [text]; const v = this.voice();
+    parts.forEach((p, i) => { const u = new SpeechSynthesisUtterance(p.trim()); u.lang = v?.lang || 'es-CL'; if (v) u.voice = v; u.rate = 1.02; if (i === parts.length - 1) u.onend = () => this.stop(); speechSynthesis.speak(u); });
+  },
+  stop() { try { speechSynthesis.cancel(); } catch {} this.on = false; const b = this.btn; if (b && b.dataset.lbl) { b.lastChild.textContent = b.dataset.lbl; b.classList.remove('speaking'); } this.btn = null; }
+};
+window.addEventListener('hashchange', () => Speak.on && Speak.stop());
+
+/* Review session (Leitner boxes) for one class or a whole subject */
+function renderReview(app, kind, id) {
+  const ms = kind === 'm' ? [meetingById(id)].filter(Boolean) : projectMeetings(id).filter(m => m.analysis?.study);
+  const all = ms.flatMap(cardsOf); let queue = all.filter(cardDue); if (!queue.length) queue = all.slice();
+  queue.sort(() => Math.random() - .5);
+  const title = kind === 'm' ? ms[0]?.analysis?.title : id;
+  let i = 0, flipped = false, ok = 0, bad = 0;
+  const draw = () => {
+    if (!all.length) { app.innerHTML = `<div class="empty"><h3>No hay tarjetas</h3><p>Graba una clase con el tipo “Clase” para que Acta las cree.</p><button class="btn" data-nav="library">Volver</button></div>`; return; }
+    if (i >= queue.length) {
+      app.innerHTML = `<button class="btn ghost sm back" id="rv-back">${icon('back')}Volver</button><section class="review done-rv"><div class="eyebrow">Repaso terminado</div><h1>${ok} de ${queue.length} las sabías</h1><p class="muted">${bad ? `Las ${bad} que fallaste vuelven mañana. Las que sabías vuelven en unos días.` : '¡Perfecto! Vuelven en unos días para que no se olviden.'}</p><div class="tools-row" style="justify-content:center;margin-top:18px"><button class="btn primary" id="rv-again">${icon('refresh', 2)}Repasar otra vez</button><button class="btn" id="rv-back2">Listo</button></div></section>`;
+      $('#rv-again').onclick = () => { i = 0; ok = 0; bad = 0; flipped = false; queue = all.slice().sort(() => Math.random() - .5); draw(); };
+      $('#rv-back').onclick = $('#rv-back2').onclick = () => history.length > 1 ? history.back() : go('');
+      return;
+    }
+    const c = queue[i];
+    app.innerHTML = `<button class="btn ghost sm back" id="rv-back">${icon('back')}Volver</button>
+    <section class="review"><div class="rv-top"><span class="eyebrow">${esc(title || 'Repaso')}</span><span class="mono">${i + 1} / ${queue.length}</span></div><div class="rv-bar"><i style="width:${i / queue.length * 100}%"></i></div>
+      <button class="flash ${flipped ? 'flipped' : ''}" id="rv-card"><span class="fq">${esc(c.c.q)}</span>${flipped ? `<span class="fa">${esc(c.c.a)}</span>` : '<span class="fhint">Toca para ver la respuesta</span>'}</button>
+      ${flipped ? `<div class="rv-grade"><button class="btn" data-g="0">No la sabía</button><button class="btn" data-g="1">Más o menos</button><button class="btn cool" data-g="2">La sabía</button></div>` : `<div class="rv-grade"><button class="btn sm ghost" id="rv-say">${icon('play', 2)}Escuchar</button></div>`}
+    </section>`;
+    $('#rv-back').onclick = () => history.length > 1 ? history.back() : go('');
+    $('#rv-card').onclick = () => { flipped = !flipped; draw(); };
+    const sy = $('#rv-say'); if (sy) sy.onclick = () => Speak.toggle(c.c.q, sy);
+    $$('[data-g]', app).forEach(b => b.onclick = async () => {
+      const g = +b.dataset.g; const s = c.c; let box = s.box || 1;
+      if (g === 0) { box = 1; bad++; } else if (g === 2) { box = Math.min(5, box + 1); ok++; } else ok += 0;
+      const d = new Date(); d.setDate(d.getDate() + (g === 0 ? 1 : g === 1 ? 1 : BOX_DAYS[box])); s.box = box; s.due = isoD(d);
+      await saveMeeting(c.m); i++; flipped = false; draw();
+    });
+  };
+  draw();
+}
+function quizSheet(m) {
+  const qs = (m.analysis.study.quiz || []).slice(); let i = 0, score = 0, picked = null;
+  sheet(`<div id="qz"></div>`, el => {
+    const box = $('#qz', el);
+    const draw = () => {
+      if (i >= qs.length) {
+        const pct = Math.round(score / qs.length * 100); const st = m.analysis.study; if (st.bestScore == null || pct > st.bestScore) { st.bestScore = pct; saveMeeting(m); }
+        box.innerHTML = `<div class="eyebrow">Prueba de práctica</div><h3>${score} de ${qs.length} correctas · ${pct}%</h3><p class="muted">${pct >= 80 ? 'Vas muy bien preparado.' : pct >= 50 ? 'Repasa las tarjetas y vuelve a intentarlo.' : 'Conviene repasar los apuntes y las tarjetas.'}</p><div class="sheet-actions"><button class="btn primary" id="qz-again">Hacerla de nuevo</button><button class="btn" id="qz-rep">Repasar tarjetas</button></div>`;
+        $('#qz-again', el).onclick = () => { i = 0; score = 0; picked = null; qs.sort(() => Math.random() - .5); draw(); };
+        $('#qz-rep', el).onclick = () => { closeSheet(); go('rep/m/' + m.id); };
+        return;
+      }
+      const q = qs[i];
+      box.innerHTML = `<div class="eyebrow">Pregunta ${i + 1} de ${qs.length}</div><h3>${esc(q.q)}</h3><div class="qz-opts">${q.options.map((o, k) => `<button class="qz-o ${picked == null ? '' : k === q.answer ? 'right' : k === picked ? 'wrong' : ''}" data-o="${k}" ${picked != null ? 'disabled' : ''}><b>${'ABCD'[k]}</b>${esc(o)}</button>`).join('')}</div>${picked != null ? `<p class="qz-why">${picked === q.answer ? '✓ Correcto. ' : '✗ La respuesta es ' + 'ABCD'[q.answer] + '. '}${esc(q.why || '')}</p><div class="sheet-actions"><button class="btn primary" id="qz-next">${i + 1 < qs.length ? 'Siguiente' : 'Ver resultado'}</button></div>` : ''}`;
+      $$('[data-o]', el).forEach(b => b.onclick = () => { picked = +b.dataset.o; if (picked === q.answer) score++; draw(); });
+      const nx = $('#qz-next', el); if (nx) nx.onclick = () => { i++; picked = null; draw(); };
+    };
+    draw();
+  }, 'quiz');
+}
+function reviewCardHTML() {
+  const ms = S.meetings.filter(m => m.analysis?.study); if (!ms.length) return '';
+  const due = dueCards(ms).length; if (!due) return '';
+  const subj = [...new Set(ms.filter(m => cardsOf(m).some(cardDue)).map(m => m.project || m.analysis.title))];
+  return `<button class="studycard rise" id="home-rep"><span class="oc-n"><b>${due}</b><small>tarjetas</small></span><span class="oc-tx"><b>Repaso de hoy</b><span>${esc(subj.slice(0, 3).join(' · '))}${subj.length > 3 ? '…' : ''}</span></span><span class="wk-go">Repasar ${icon('back', 2)}</span></button>`;
+}
+function subjectStudyHTML(name) {
+  const ms = projectMeetings(name).filter(m => m.analysis?.study); if (!ms.length) return '';
+  const gl = new Map(); ms.forEach(m => (m.analysis.study.glossary || []).forEach(g => { const k = fold(g.term); if (!gl.has(k)) gl.set(k, { ...g, m }); }));
+  const cards = ms.flatMap(cardsOf); const due = cards.filter(cardDue).length;
+  const exam = ms.flatMap(m => (m.analysis.study.exam || []).map(x => ({ m, x })));
+  return `<div class="sec study-subj"><div class="sec-h"><h2>${icon('idea', 2, 18)} Ramo: material de estudio</h2><span class="count">${ms.length} ${ms.length === 1 ? 'clase' : 'clases'}</span></div>
+    <div class="tools-row"><button class="btn primary sm" id="subj-rep">${icon('refresh', 2)}Repasar todo el ramo · ${due || cards.length} tarjetas</button></div>
+    ${exam.length ? `<div class="box exam" style="margin-bottom:12px"><div class="box-h"><span class="ic" style="background:var(--risk-soft);color:var(--risk)">${icon('flag', 2)}</span><h3>Entra en la prueba</h3><span class="n">${exam.length}</span></div>${exam.map(({ m, x }) => `<div class="li"><span class="mk" style="background:var(--risk)"></span><div>${esc(x.text)}<small>${esc(shortDate(m.date))} · ${esc(m.analysis.title)}</small></div></div>`).join('')}</div>` : ''}
+    ${gl.size ? `<div class="gloss">${[...gl.values()].sort((a, b) => a.term.localeCompare(b.term, 'es')).map(g => `<div class="gl"><b>${esc(g.term)}</b><span>${esc(g.def)}</span></div>`).join('')}</div>` : ''}</div>`;
+}
+
+/* =========================================================
+   Pequeños detalles: texto limpio, aviso de grabación, preguntas guardadas, horas disponibles
+   ========================================================= */
+const FILLERS = /(^|[\s,¿¡(])(e+h+|e+m+|m{2,}|ehm+|a+h+|cachai|¿cachai\?)(?=[\s,.!?;:)]|$)[,]?/gi;
+function cleanText(t) {
+  return String(t).replace(FILLERS, '$1').replace(/\b(\p{L}+)(\s+\1\b)+/giu, '$1').replace(/\bo sea,\s*/gi, '').replace(/\s{2,}/g, ' ').replace(/\s+([,.!?;:])/g, '$1').replace(/^[,\s]+/, '').replace(/^\p{Ll}/u, c => c.toUpperCase()).trim();
+}
+function consentSheet() {
+  const isClass = (recMeta?.template || '') === 'clase';
+  const txt = isClass ? 'Profe, ¿le molesta si grabo la clase? Es solo para estudiar: el audio queda en mi teléfono y no lo comparto.' : 'Antes de empezar: voy a grabar esta reunión para tomar el acta y no perder ningún acuerdo. El audio queda guardado solo en mi teléfono y les comparto el resumen después. ¿Les parece bien?';
+  sheet(`<div class="eyebrow">Aviso de grabación</div><h3>Pide permiso en 10 segundos</h3><p class="muted">Es lo correcto y en Chile la ley de datos personales lo exige para datos de terceros. Léelo en voz alta o envíalo antes de empezar.</p><div class="consent-txt" id="cs-txt">${esc(txt)}</div><div class="sheet-actions"><button class="btn primary" id="cs-wa">${icon('chat', 2)}Enviar por WhatsApp</button><button class="btn" id="cs-copy">${icon('copy')}Copiar</button><button class="btn" id="cs-say">${icon('play', 2)}Leer en voz alta</button></div>`, el => {
+    $('#cs-wa', el).onclick = () => waOpen(txt); $('#cs-copy', el).onclick = () => copyText(txt, 'Aviso copiado'); $('#cs-say', el).onclick = () => Speak.toggle(txt, $('#cs-say', el));
+  });
+}
+function savedAsks() { return Array.isArray(Settings.v.savedAsks) ? Settings.v.savedAsks : []; }
+async function hoursLeft() { try { const e = await navigator.storage.estimate(); const free = Math.max(0, (e.quota || 0) - (e.usage || 0)); return free * 8 / (+Settings.v.bitrate || 32000) / 3600; } catch { return null; } }
 
 /* =========================================================
    Summary extras: continuity, sector card, follow-up message, photos
@@ -1817,6 +1981,7 @@ function renderProject(app, name) {
     <div class="stat"><span class="si" style="background:var(--dec-soft);color:var(--dec)">${icon('flag', 2)}</span><b>${st.decisions.length}</b><span>Decisiones</span></div>
     <div class="stat"><span class="si" style="background:var(--act-soft);color:var(--act)">${icon('check', 2.4)}</span><b>${doneN}<span style="font-size:17px;color:var(--muted)">/${st.acts.length}</span></b><span>Tareas hechas</span></div>
   </div>
+  ${subjectStudyHTML(name)}
   <div class="sec"><div class="sec-h"><h2>Línea de tiempo</h2><span class="count">De la primera a la última reunión</span></div>
     <div class="pj-tl">${st.ms.map((m, k) => `<button class="pj-step" data-open="${esc(m.id)}"><span class="dot">${k + 1}</span><span class="mono">${esc(fmtDate(m.date))}</span><b>${esc(m.analysis?.title || m.titleHint || 'Reunión')}</b>${m.analysis?.continuity ? `<em>${esc(m.analysis.continuity)}</em>` : ''}<span class="muted">${m.analysis ? esc(m.analysis.tldr) : esc(STATUS_TXT[m.status] || '')}</span></button>`).join('')}</div></div>
   <div class="sec g2">
@@ -1828,6 +1993,7 @@ function renderProject(app, name) {
   $('#pj-rec').onclick = () => { recMeta = { title: '', participants: '', template: st.last?.template || 'general', context: '', project: name }; go('record'); };
   $('#pj-share').onclick = () => shareText('Proyecto ' + name, projectText(name, st));
   $('#pj-prep').onclick = () => go('prep/j/' + encodeURIComponent(name));
+  const sr = $('#subj-rep'); if (sr) sr.onclick = () => go('rep/j/' + encodeURIComponent(name));
   const ic = $('#pj-ics'); if (ic) ic.onclick = () => exportTasksICS(st.ready);
   $('#pj-ren').onclick = () => sheet(`<div class="eyebrow">Renombrar proyecto</div><h3>${esc(name)}</h3><div class="field" style="margin-top:12px"><input id="rn-in" value="${esc(name)}"></div><div class="sheet-actions"><button class="btn primary" id="rn-ok">Guardar</button></div>`, el => {
     $('#rn-ok', el).onclick = async () => { const v = $('#rn-in', el).value.trim(); if (!v) return; for (const m of st.ms) { m.project = v; await saveMeeting(m); } closeSheet(); go('p/' + encodeURIComponent(v)); toast('Proyecto renombrado'); };
@@ -1883,6 +2049,14 @@ async function meetingDocx(m) {
   if (a.numbers?.length) { B.push(H2('Cifras mencionadas')); a.numbers.forEach(n => B.push(bullet(`**${n.value}** ${n.label}`))); }
   if (a.quotes?.length) { B.push(H2('Frases para recordar')); a.quotes.forEach(q => B.push(P(run('“' + q.text + '”', { i: true }) + run('  — ' + q.who, { c: '6B7280' }), 'Lista'))); }
   if (a.nextSteps?.length) { B.push(H1('Próximos pasos')); a.nextSteps.forEach((s2, i) => B.push(P(run(`${i + 1}.  `, { b: true, c: 'E2553A' }) + rich(s2), 'Lista'))); }
+  if (a.study) {
+    const st = a.study;
+    if (st.exam?.length) { B.push(H1('Entra en la prueba')); st.exam.forEach(x => B.push(bullet(x.text))); }
+    if (st.notes) { B.push(H1('Apuntes')); st.notes.split('\n').forEach(l => { const h = l.match(/^(#{1,3})\s+(.*)$/); const li = l.match(/^\s*[-*]\s+(.*)$/); if (h) B.push(para(h[2], 'Heading2')); else if (li) B.push(bullet(li[1])); else if (l.trim()) B.push(para(l)); }); }
+    if (st.glossary?.length) { B.push(H1('Glosario')); B.push(table(['Concepto', 'Definición'], st.glossary.map(g => [g.term, g.def]), [2800, 6200])); }
+    if (st.flashcards?.length) { B.push(H1('Tarjetas de repaso')); B.push(table(['Pregunta', 'Respuesta'], st.flashcards.map(c => [c.q, c.a]), [4500, 4500])); }
+    if (st.quiz?.length) { B.push(H1('Prueba de práctica')); st.quiz.forEach((q, i) => { B.push(para(`**${i + 1}. ${q.q}**`)); q.options.forEach((o, k) => B.push(P(run(`${'ABCD'[k]})  ${o}`), 'Lista'))); }); B.push(H2('Respuestas')); st.quiz.forEach((q, i) => B.push(bullet(`${i + 1}: ${'ABCD'[q.answer]}${q.why ? ' — ' + q.why : ''}`))); }
+  }
   const f = a.followUp; if (f?.emailBody) { B.push(H1('Mensaje de seguimiento')); B.push(para('Asunto: ' + f.emailSubject)); f.emailBody.split('\n').forEach(l => B.push(para(l))); }
   if (a.brief) { B.push(P('', '', '<w:pageBreakBefore/>')); a.brief.split('\n').forEach(l => { const h = l.match(/^(#{1,3})\s+(.*)$/); const li = l.match(/^\s*[-*]\s+(.*)$/); if (h) B.push(para(h[2], h[1].length === 1 ? 'Heading1' : 'Heading2')); else if (li) B.push(bullet(li[1])); else if (l.trim()) B.push(para(l)); }); }
   if (segs.length) { B.push(P('', '', '<w:pageBreakBefore/>'), H1('Transcripción')); segs.forEach(sg => B.push(P(run(fmtT(sg.t) + '   ', { c: '9AA0AE', sz: 18 }) + (sg.s ? run(spkName(m, sg.s) + ': ', { b: true }) : '') + run(sg.text), 'Transcripcion'))); }
@@ -2366,6 +2540,7 @@ async function renderSettings(app) {
           <div class="field"><label for="s-lang">Idioma de las reuniones</label><select id="s-lang"><option value="es" ${v.language === 'es' ? 'selected' : ''}>Español</option><option value="en" ${v.language === 'en' ? 'selected' : ''}>Inglés</option><option value="pt" ${v.language === 'pt' ? 'selected' : ''}>Portugués</option><option value="auto" ${v.language === 'auto' ? 'selected' : ''}>Detectar automáticamente</option></select></div>
           <div class="field"><label for="s-br">Calidad de grabación</label><select id="s-br"><option value="32000" ${+v.bitrate === 32000 ? 'selected' : ''}>Estándar · voz clara, ~14 MB por hora</option><option value="64000" ${+v.bitrate === 64000 ? 'selected' : ''}>Alta · ~29 MB por hora</option></select></div>
         </div>
+        <div class="field"><label for="s-about">Sobre ti</label><textarea id="s-about" rows="3" placeholder="Ej.: Soy jefe de propuestas en una constructora de obras hidráulicas. Quiero actas breves, con montos en UF y plazos claros.">${esc(v.about || '')}</textarea><span class="hint">Tu rol, tu rubro y cómo quieres las actas. Claude lo tiene en cuenta en cada análisis.</span></div>
         <div class="field"><label for="s-vocab">Vocabulario de tu trabajo</label><textarea id="s-vocab" rows="3" placeholder="Nombres, marcas, clientes y términos que usas. Ej.: Camila Rojas, Peluquería Lumière, Transbank, UF, Bsale">${esc(v.vocab || '')}</textarea><span class="hint">Acta corrige estas palabras en la transcripción y en el acta. Sepáralas con comas.</span></div>
         <label class="switch"><input type="checkbox" id="s-cap" ${v.captions ? 'checked' : ''}><span><b>Subtítulos en vivo</b><small>Muestra el texto mientras grabas, usando el dictado del teléfono. En algunos Android puede interferir con el micrófono.</small></span></label>
       </div>
@@ -2379,7 +2554,7 @@ async function renderSettings(app) {
     <section class="panel" id="lock-panel">${lockPanelHTML(bioOK)}</section>
     <section class="panel">
       <h2>Almacenamiento y respaldo</h2>
-      ${est ? `<div style="margin-top:12px;display:grid;gap:8px"><div class="store-bar"><i style="width:${Math.min(100, est.usage / est.quota * 100).toFixed(1)}%"></i></div><span class="muted" style="font-size:13px">${fmtBytes(est.usage)} usados de ${fmtBytes(est.quota)} disponibles${persisted ? ' · protegido contra borrado automático' : ''}</span></div>` : ''}
+      ${est ? `<div style="margin-top:12px;display:grid;gap:8px"><div class="store-bar"><i style="width:${Math.min(100, est.usage / est.quota * 100).toFixed(1)}%"></i></div><span class="muted" style="font-size:13px">${fmtBytes(est.usage)} usados de ${fmtBytes(est.quota)} disponibles · caben unas <b>${Math.floor(Math.max(0, est.quota - est.usage) * 8 / (+v.bitrate || 32000) / 3600).toLocaleString('es-CL')} horas</b> más de grabación${persisted ? ' · protegido contra borrado automático' : ''}</span></div>` : ''}
       <div class="tools-row" style="margin-top:14px">
         ${persisted ? '' : `<button class="btn sm" id="s-persist">${icon('pin')}Proteger mis datos</button>`}
         <button class="btn sm" id="s-export">${icon('download')}Exportar respaldo</button>
@@ -2392,7 +2567,7 @@ async function renderSettings(app) {
       <li>Tus reuniones, audios y actas viven en este dispositivo.</li>
       <li>El audio se envía a OpenAI solo para transcribirlo; el texto se envía a Anthropic solo para crear el acta y responder preguntas.</li>
       <li>Avísales a los participantes que estás grabando.</li></ol></section>
-    <p class="status-line">Acta 3.1</p>
+    <p class="status-line">Acta 3.2</p>
   </div>`;
   const keyIn = (id, k) => { const el = $(id); el.addEventListener('input', e => Settings.set({ [k]: e.target.value.trim() })); el.addEventListener('change', e => { Settings.set({ [k]: e.target.value.trim() }); keepStorage(); toast('Clave guardada en este teléfono'); }); };
   keyIn('#k-anthropic', 'anthropicKey'); keyIn('#k-openai', 'openaiKey');
@@ -2411,6 +2586,7 @@ async function renderSettings(app) {
   $('#s-lang').onchange = e => Settings.set({ language: e.target.value });
   $('#s-br').onchange = e => Settings.set({ bitrate: +e.target.value });
   $('#s-cap').onchange = e => Settings.set({ captions: e.target.checked });
+  $('#s-about').addEventListener('change', e => { Settings.set({ about: e.target.value.trim() }); toast('Guardado: Claude lo usará en las próximas actas'); });
   $('#s-vocab').addEventListener('change', e => { Settings.set({ vocab: e.target.value }); toast(`Vocabulario guardado · ${vocabList().length} palabras`); });
   bindLockSettings(app); bindBrandSettings(app);
   $$('[data-wset]').forEach(b => b.onclick = () => { const p = b.dataset.wset; const v = parseFloat(($('#w-' + p + '-val').value || '').replace(',', '.')); if (!(v >= 0)) { toast('Escribe el saldo en dólares, por ejemplo 4.85'); return; } Usage.set(p, v); toast('Saldo ajustado'); renderSettings(app); });
@@ -2765,6 +2941,23 @@ async function loadDemo() {
     followUp: { whatsapp: 'Hola Camila y Diego, resumen de hoy:\n\n*Avance*\n• Diseño ya con fotos y logo ✅\n• Presupuesto: llega mañana\n\n*Nuevo acuerdo*\n• Piloto con 10 clientas la primera semana de noviembre\n\n*Tareas*\n• Diego: presupuesto (mañana)\n• Camila: elegir clientas (lunes)\n• Yo: agenda con 5 profesionales los sábados', emailSubject: 'Avance app de reservas y piloto', emailBody: 'Hola Camila y Diego:\n\nResumen de la revisión de avance.\n\n- El diseño ya incorpora fotos y logo.\n- Diego envía el presupuesto mañana.\n- Acordamos un piloto con diez clientas la primera semana de noviembre.\n\nSaludos.' } };
   await DB.put('transcripts', { segments: segs2 }, id2);
   await saveMeeting({ id: id2, createdAt: Date.now() - 3600000, date: d2, durationSec: 110, participants: ['Camila', 'Diego', 'Tú'], template: 'uno', project: 'Peluquería Camila', context: '', notes: '', notesLog: [], marks: [], photos: [], audioParts: [], speakers: {}, status: 'ready', words: wordCount(segs2), analysis: a2 });
+  const id3 = 'ejemplo-' + uid();
+  const tx3 = `[0:00] Profesora: Hoy vemos flujo en canales abiertos. La ecuación clave es la de Manning.\n[0:20] Profesora: Velocidad igual a uno sobre n, por el radio hidráulico elevado a dos tercios, por la raíz de la pendiente.\n[0:48] Profesora: El radio hidráulico es el área mojada dividida por el perímetro mojado. Esto entra en la prueba, anótenlo.\n[1:15] Alumno: ¿Y el n de Manning de qué depende?\n[1:22] Profesora: De la rugosidad del material. Hormigón liso anda cerca de 0,013; un canal de tierra, 0,025 o más.\n[1:50] Profesora: Para la próxima clase lean el capítulo 4. La prueba es el 28 de octubre.`;
+  const segs3 = parseTranscript(tx3).segments;
+  const a3 = { title: 'Clase: flujo en canales abiertos', tldr: 'Se presentó la ecuación de Manning para calcular la velocidad en canales abiertos, el radio hidráulico y cómo la rugosidad define el coeficiente n. La prueba es el 28 de octubre.', mood: { label: 'Clara', score: 80, note: 'Clase expositiva con una pregunta del curso.' }, tags: ['ejemplo', 'hidráulica'], participants: ['Profesora', 'Tú'], speakers: [],
+    keyPoints: [{ title: 'Ecuación de Manning', detail: 'V = (1/n)·R^(2/3)·S^(1/2).', icon: 'tech' }, { title: 'Radio hidráulico', detail: 'Área mojada dividida por perímetro mojado.', icon: 'target' }, { title: 'Rugosidad', detail: 'Hormigón liso n≈0,013; tierra n≈0,025.', icon: 'design' }],
+    topics: [{ name: 'Manning', start: 0, end: 48, summary: 'La ecuación.' }, { name: 'Radio hidráulico', start: 48, end: 75, summary: 'Definición.' }, { name: 'Coeficiente n', start: 75, end: 110, summary: 'Rugosidad.' }, { name: 'Cierre', start: 110, end: 130, summary: 'Lectura y prueba.' }],
+    decisions: [], actions: [{ id: uid(), task: 'Leer el capítulo 4', owner: 'Tú', due: 'próxima clase', dueDate: '', priority: 'media', done: false }, { id: uid(), task: 'Estudiar para la prueba', owner: 'Tú', due: '28 de octubre', dueDate: parseDue('28 de octubre', today()), priority: 'alta', done: false }],
+    ideas: [], risks: [], questions: [], numbers: [{ value: '0,013', label: 'n hormigón liso' }, { value: '0,025', label: 'n canal de tierra' }, { value: '28 oct', label: 'prueba' }], quotes: [{ text: 'Esto entra en la prueba, anótenlo.', who: 'Profesora', t: 48 }],
+    mindmap: { center: 'Canales abiertos', branches: [{ label: 'Manning', children: ['V = 1/n·R^2/3·S^1/2'] }, { label: 'Radio hidráulico', children: ['A / P mojado'] }, { label: 'Rugosidad n', children: ['Hormigón 0,013', 'Tierra 0,025'] }] },
+    nextSteps: ['Leer capítulo 4', 'Prueba 28 de octubre'], brief: '', ficha: [{ label: 'Asignatura', value: 'Hidráulica' }, { label: 'Unidad o tema', value: 'Flujo en canales abiertos' }, { label: 'Evaluaciones y fechas', value: 'Prueba el 28 de octubre' }, { label: 'Lecturas o trabajos pedidos', value: 'Capítulo 4' }], corrections: [], previousTasks: [], continuity: '',
+    followUp: { whatsapp: 'Resumen de hidráulica: ecuación de Manning, radio hidráulico (entra en la prueba) y coeficiente n. Leer capítulo 4. Prueba el 28 de octubre.', emailSubject: 'Apuntes: canales abiertos', emailBody: 'Apuntes de la clase de canales abiertos.' },
+    study: { notes: '## Ecuación de Manning\n\nLa velocidad media en un canal abierto es:\n\n- **V = (1/n) · R^(2/3) · S^(1/2)**\n- **n**: coeficiente de rugosidad de Manning\n- **R**: radio hidráulico (m)\n- **S**: pendiente del fondo (m/m)\n\n## Radio hidráulico\n\n**R = A / P**, donde A es el área mojada y P el perímetro mojado. *Entra en la prueba.*\n\n## Coeficiente de rugosidad\n\nDepende del material del canal:\n\n- Hormigón liso: n ≈ 0,013\n- Canal de tierra: n ≈ 0,025 o más', exam: [{ text: 'Definición y cálculo del radio hidráulico (área mojada / perímetro mojado)', t: 48 }, { text: 'Prueba el 28 de octubre: unidad de canales abiertos', t: 110 }],
+      glossary: [{ term: 'Ecuación de Manning', def: 'Relación empírica para la velocidad media en canales abiertos.' }, { term: 'Radio hidráulico', def: 'Área mojada dividida por perímetro mojado.' }, { term: 'Perímetro mojado', def: 'Longitud del contorno en contacto con el agua.' }, { term: 'Coeficiente n', def: 'Mide la rugosidad del canal en Manning.' }, { term: 'Pendiente S', def: 'Inclinación del fondo del canal, en m/m.' }],
+      flashcards: [{ q: '¿Cuál es la ecuación de Manning?', a: 'V = (1/n)·R^(2/3)·S^(1/2)' }, { q: '¿Cómo se calcula el radio hidráulico?', a: 'Área mojada / perímetro mojado' }, { q: '¿De qué depende el n de Manning?', a: 'De la rugosidad del material' }, { q: 'n aproximado del hormigón liso', a: '0,013' }, { q: 'n aproximado de un canal de tierra', a: '0,025 o más' }, { q: '¿Qué unidades tiene la pendiente S?', a: 'm/m (adimensional)' }],
+      quiz: [{ q: 'En Manning, la velocidad es proporcional a R elevado a:', options: ['1/2', '2/3', '3/2', '1'], answer: 1, why: 'V = (1/n)·R^(2/3)·S^(1/2).' }, { q: 'El radio hidráulico es:', options: ['Perímetro / área', 'Área / perímetro mojado', 'Ancho / profundidad', 'Caudal / área'], answer: 1, why: 'R = A/P.' }, { q: 'Un canal de tierra comparado con uno de hormigón liso tiene:', options: ['Menor n', 'Igual n', 'Mayor n', 'n = 0'], answer: 2, why: 'Más rugosidad, mayor n.' }, { q: 'Si aumenta n, la velocidad:', options: ['Aumenta', 'Disminuye', 'No cambia', 'Se duplica'], answer: 1, why: 'n está en el denominador.' }] } };
+  await DB.put('transcripts', { segments: segs3 }, id3);
+  await saveMeeting({ id: id3, createdAt: Date.now() - 2 * 86400000, date: ago(2), durationSec: 130, participants: ['Profesora', 'Tú'], template: 'clase', project: 'Hidráulica', context: '', notes: '', notesLog: [], marks: [{ t: 48, label: 'Entra en la prueba' }], photos: [], audioParts: [], speakers: {}, status: 'ready', words: wordCount(segs3), analysis: a3 });
   go('m/' + id2);
 }
 
