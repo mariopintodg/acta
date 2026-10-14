@@ -80,6 +80,7 @@ const TOPIC_COLORS = ['var(--t1)', 'var(--t2)', 'var(--t3)', 'var(--t4)', 'var(-
 const tc = i => TOPIC_COLORS[((i % 6) + 6) % 6];
 
 const TEMPLATES = {
+  auto: { name: 'Que Acta lo decida', desc: 'Detecta si fue reunión, clase, venta u obra', focus: 'Primero identifica qué tipo de conversación es (reunión de trabajo, clase o capacitación, venta, obra, consulta profesional, asamblea, lluvia de ideas, etc.) y aplica el enfoque que mejor le sirva a quien grabó.' },
   general: { name: 'General', desc: 'Resumen equilibrado de cualquier conversación', focus: 'Cubre todo de forma equilibrada.' },
   proyecto: { name: 'Proyecto / kickoff', desc: 'Alcance, requisitos, plazos y responsables', focus: 'Enfócate en alcance, requisitos, entregables, plazos, presupuesto, responsables y dependencias. El brief debe servir para arrancar el proyecto.' },
   cliente: { name: 'Cliente / venta', desc: 'Necesidades, objeciones, presupuesto y cierre', focus: 'Enfócate en necesidades y dolores del cliente, presupuesto, objeciones, criterios de decisión, competencia y próximo paso comercial.' },
@@ -96,6 +97,7 @@ const TEMPLATES = {
   equipo: { group: 'rubro', name: 'Equipo semanal', desc: 'Estado por persona y bloqueos', focus: 'Es la reunión semanal de un equipo de trabajo. Enfócate en el estado de cada persona o área, metas de la semana, bloqueos, ayudas pedidas y compromisos con fecha.', ficha: ['Metas de la semana', 'Bloqueos', 'Ayuda pedida', 'Indicadores mencionados'] }
 };
 const TPL_GROUPS = [['', 'General'], ['estudio', 'Estudio'], ['rubro', 'Por rubro']];
+const tplName = m => m.template === 'auto' ? (TEMPLATES[m.analysis?.detected]?.name || 'Automático') : (TEMPLATES[m.template] || TEMPLATES.general).name;
 const tplOptions = sel => TPL_GROUPS.map(([g, l]) => `<optgroup label="${l}">${Object.entries(TEMPLATES).filter(([, t]) => (t.group || '') === g).map(([k, t]) => `<option value="${k}" ${sel === k ? 'selected' : ''}>${t.name}</option>`).join('')}</optgroup>`).join('');
 const KP_ICONS = ['target', 'money', 'people', 'time', 'tech', 'design', 'legal', 'growth', 'idea', 'risk'];
 const CLAUDE_MODELS = [['claude-sonnet-5-5', 'Claude Sonnet 5.5 — recomendado'], ['claude-opus-5-5', 'Claude Opus 5.5 — máximo detalle'], ['claude-haiku-5-5', 'Claude Haiku 5.5 — más rápido y económico']];
@@ -347,6 +349,7 @@ const ANALYSIS_SCHEMA = {
   type: 'object',
   properties: {
     title: { type: 'string', description: 'Título corto y específico (máx. 8 palabras)' },
+    detected: { type: 'string', enum: Object.keys(TEMPLATES).filter(k => k !== 'auto'), description: 'Tipo de conversación detectado (general = reunión de trabajo)' },
     tldr: { type: 'string', description: 'Resumen de 2-3 frases con lo esencial y el resultado' },
     mood: { type: 'object', properties: { label: { type: 'string' }, score: { type: 'integer', minimum: 0, maximum: 100 }, note: { type: 'string' } }, required: ['label', 'score', 'note'] },
     tags: { type: 'array', items: { type: 'string' } },
@@ -395,7 +398,7 @@ Reglas:
 - Los tiempos de la transcripción están como [m:ss] o [h:mm:ss]; en tu respuesta exprésalos en segundos.
 - Los temas (topics) cubren la reunión en orden, sin solaparse, de 2 a 7.
 - keyPoints: 3 a 6. mindmap: 3 a 6 ramas con 2 a 4 hojas.
-- Las notas y momentos marcados por el usuario son prioridad: los anotó porque le importan.
+- Las notas y momentos marcados por el usuario son prioridad: los anotó porque le importan. En una clase, los momentos marcados suelen ser lo que entra en la prueba.
 - Tareas: empieza con verbo; owner es la persona responsable si se dijo, si no "Sin asignar"; due solo si se mencionó un plazo.
 - quotes: frases textuales cortas y memorables.
 - speakers: ${labels.length ? `etiquetas presentes: ${labels.join(', ')}. Deduce el nombre de cada una solo si es claro (alguien la nombra, se presenta o coincide con un participante); si no, deja name vacío. Las etiquetas con sufijo ·2, ·3… vienen de partes posteriores de la misma reunión (la grabación se reanudó): si por el contexto son la misma persona que otra etiqueta, dales el mismo nombre; si no se puede saber, usa "Persona A", "Persona B" coherentes entre partes.` : 'no hay etiquetas de hablante; devuelve un arreglo vacío.'}
@@ -403,9 +406,11 @@ Reglas:
 - En cada tarea agrega t (segundo en que el responsable se comprometió) y quote (sus palabras textuales y breves al comprometerse), copiadas de la transcripción.
 - followUp: mensaje para enviar después de la reunión, con los acuerdos y tareas reales; no inventes fechas ni nombres.
 - Enfoque de esta reunión: ${tpl.focus}
-- study: ${template === 'clase' ? 'OBLIGATORIO: completa apuntes, entra en la prueba, glosario, tarjetas y prueba de práctica, todo basado en lo que se enseñó.' : 'omítelo.'}
+- detected: el tipo de conversación que mejor la describe.
+${template === 'auto' ? `- Tipo elegido: "Que Acta lo decida". Si es una clase, charla o capacitación, completa study (obligatorio en ese caso). Si es de un rubro, llena ficha con sus campos: ${Object.entries(TEMPLATES).filter(([, t]) => t.ficha).map(([k, t]) => `${k}: ${t.ficha.join(', ')}`).join(' | ')}. Si no aplica, ficha vacía.` : ''}
+- study: ${template === 'auto' ? 'solo si es una clase (ver arriba).' : template === 'clase' ? 'OBLIGATORIO: completa apuntes, entra en la prueba, glosario, tarjetas y prueba de práctica, todo basado en lo que se enseñó.' : 'omítelo.'}
 ${Settings.v.about ? `- Sobre quien graba (úsalo para el tono, el enfoque y los nombres): ${Settings.v.about}` : ''}
-- ficha: ${tpl.ficha ? `completa estos campos en este orden: ${tpl.ficha.join(' · ')}.` : 'devuelve un arreglo vacío.'}
+- ficha: ${template === 'auto' ? 'ver arriba.' : tpl.ficha ? `completa estos campos en este orden: ${tpl.ficha.join(' · ')}.` : 'devuelve un arreglo vacío.'}
 ${vocab.length ? `- Vocabulario del usuario (así se escriben estos nombres, marcas y términos): ${vocab.join(', ')}. Escríbelos así en el acta y agrega a corrections cada palabra que la transcripción escribió mal (solo si estás seguro).` : '- corrections: solo nombres propios claramente mal escritos; si no hay, arreglo vacío.'}
 ${prevCtx ? '- Esta reunión continúa un proyecto con reuniones anteriores (ver abajo). Llena continuity y, para cada tarea pendiente entregada, previousTasks con su ref y su estado según lo conversado hoy. No repitas en actions una tarea anterior salvo que se haya reasignado o cambiado.' : '- previousTasks: arreglo vacío. continuity: vacío.'}`;
   const user = `Datos de la reunión
@@ -451,7 +456,7 @@ function normalize(a, dur, titleHint) {
     followUp: a.followUp && typeof a.followUp === 'object' ? { whatsapp: a.followUp.whatsapp || '', emailSubject: a.followUp.emailSubject || '', emailBody: a.followUp.emailBody || '' } : null,
     corrections: arr(a.corrections).filter(x => x && x.wrong && x.right && x.wrong !== x.right).slice(0, 40).map(x => ({ wrong: String(x.wrong), right: String(x.right) })),
     previousTasks: arr(a.previousTasks).filter(x => x && x.ref).map(x => ({ ref: String(x.ref), status: ['hecha', 'en curso', 'sin novedad'].includes(x.status) ? x.status : 'sin novedad', note: x.note || '' })),
-    continuity: a.continuity || '',
+    continuity: a.continuity || '', detected: TEMPLATES[a.detected] && a.detected !== 'auto' ? a.detected : '',
     study: a.study && typeof a.study === 'object' && (a.study.notes || a.study.flashcards?.length) ? { notes: a.study.notes || '', exam: arr(a.study.exam).filter(x => x && x.text).map(x => ({ text: String(x.text), t: Number.isFinite(+x.t) && x.t != null ? +x.t : null })), glossary: arr(a.study.glossary).filter(g => g && g.term).map(g => ({ term: String(g.term), def: String(g.def || '') })), flashcards: arr(a.study.flashcards).filter(c => c && c.q && c.a).map(c => ({ q: String(c.q), a: String(c.a) })), quiz: arr(a.study.quiz).filter(q => q && q.q && Array.isArray(q.options) && q.options.length >= 2).map(q => ({ q: String(q.q), options: q.options.slice(0, 4).map(String), answer: Math.max(0, Math.min(q.options.length - 1, +q.answer || 0)), why: q.why || '' })) } : null,
     actions: arr(a.actions).map(x => ({ id: uid(), task: x.task || String(x), owner: x.owner || 'Sin asignar', due: x.due || '', dueDate: /^\d{4}-\d{2}-\d{2}$/.test(x.dueDate || '') ? x.dueDate : '', t: Number.isFinite(+x.t) && x.t !== '' && x.t != null ? +x.t : null, quote: x.quote ? String(x.quote) : '', priority: ['alta', 'media', 'baja'].includes(x.priority) ? x.priority : 'media', done: false })),
     ideas: arr(a.ideas).map(x => ({ text: x.text || String(x), note: x.note || '' })),
@@ -831,7 +836,7 @@ async function recoverRecording() {
 let recMeta = null;
 function renderRecord(app) {
   const st = Rec.state; const on = st !== 'idle'; const intr = st === 'interrupted';
-  recMeta = recMeta || { title: '', participants: '', template: 'general', context: '', project: '' };
+  recMeta = recMeta || { title: '', participants: '', template: 'auto', context: '', project: '' };
   const liveCls = st === 'recording' ? 'on' : (st === 'paused' || intr) ? 'warn' : '';
   const liveTxt = st === 'recording' ? 'Grabando' : st === 'paused' ? 'En pausa' : intr ? 'Grabación en pausa' : 'Listo para grabar';
   app.innerHTML = `
@@ -863,22 +868,19 @@ function renderRecord(app) {
         <div class="notes-log" id="notes-log">${Rec.notesLog.map(n => `<div><b>${fmtT(n.t)}</b><span>${esc(n.text)}</span></div>`).join('') || '<span class="muted" style="font-size:13px">Aún no hay notas.</span>'}</div>
         <form class="note-in field" id="note-f" style="margin-top:12px;display:flex"><input id="note-in" placeholder="${on ? 'Escribe y presiona Enter' : 'Disponible al grabar'}" ${on ? '' : 'disabled'} aria-label="Nota"><button class="btn" ${on ? '' : 'disabled'}>Añadir</button></form>
       </section>
-      <section class="panel">
-        <div class="eyebrow">Detalles de la reunión</div>
+      <details class="panel more-det" ${recMeta.title || recMeta.participants || recMeta.context ? 'open' : ''}>
+        <summary><span class="eyebrow">Más detalles</span><span class="muted">Opcional · título, participantes, contexto</span></summary>
         <div class="form" style="margin-top:12px;gap:14px">
           <div class="field"><label for="r-title">Título</label><input id="r-title" value="${esc(recMeta.title)}" placeholder="Claude propone uno"></div>
           <div class="field"><label for="r-people">Participantes</label><input id="r-people" value="${esc(recMeta.participants)}" placeholder="Camila, Diego, yo"><span class="hint">Ayuda a ponerle nombre a cada voz.</span></div>
-          <div class="field"><label for="r-proj">${recMeta.template === 'clase' ? 'Ramo o asignatura' : 'Proyecto o cliente'}</label><input id="r-proj" list="proj-list" value="${esc(recMeta.project || '')}" placeholder="Opcional · une esta reunión con las anteriores" autocomplete="off"><datalist id="proj-list">${projectsList().map(p => `<option value="${esc(p)}">`).join('')}</datalist><span class="hint">Acta revisa las tareas pendientes de las reuniones anteriores del mismo proyecto.</span></div>
-          <div class="field"><label for="r-tpl">Tipo de reunión</label><select id="r-tpl">${tplOptions(recMeta.template)}</select></div>
-          ${on ? '' : `<button class="btn" id="r-prep" type="button">${icon('spark', 2)}Prepárame: qué quedó pendiente</button>`}
-          <div class="field"><label for="r-ctx">Contexto</label><textarea id="r-ctx" rows="2" placeholder="¿De qué proyecto se trata?">${esc(recMeta.context)}</textarea></div>
+          <div class="field"><label for="r-ctx">Contexto</label><textarea id="r-ctx" rows="2" placeholder="¿De qué se trata?">${esc(recMeta.context)}</textarea></div>
         </div>
-      </section>
+        <p class="hint" style="margin-top:10px">El tipo (reunión, clase, obra…) y el proyecto los eliges al terminar.</p>
+      </details>
     </aside>
   </div>`;
-  const syncMeta = () => { recMeta = { title: $('#r-title').value, participants: $('#r-people').value, template: $('#r-tpl').value, context: $('#r-ctx').value, project: $('#r-proj').value }; if (Rec.state !== 'idle') { Rec.meta = metaFromForm(); Rec.saveActive(); } };
-  $$('#r-title,#r-people,#r-tpl,#r-ctx,#r-proj').forEach(el => el.addEventListener('input', syncMeta));
-  $('#r-tpl').addEventListener('change', () => { syncMeta(); render(); });
+  const syncMeta = () => { recMeta = { ...recMeta, title: $('#r-title').value, participants: $('#r-people').value, context: $('#r-ctx').value }; if (Rec.state !== 'idle') { Rec.meta = metaFromForm(); Rec.saveActive(); } };
+  $$('#r-title,#r-people,#r-ctx').forEach(el => el.addEventListener('input', syncMeta));
   const rcs = $('#r-consent'); if (rcs) rcs.onclick = consentSheet;
   const rr = $('#rec-room'); if (rr) hoursLeft().then(h => { if (h != null && $('#rec-room')) rr.textContent = h > 999 ? 'Espacio para cientos de horas de grabación' : `Espacio para unas ${Math.floor(h)} horas de grabación en este teléfono`; });
   const rex = $('#r-exam'); if (rex) rex.onclick = () => { const t = Rec.addMark('Entra en la prueba'); $('#marks').insertAdjacentHTML('beforeend', `<span class="mark exam"><b>${fmtT(t)}</b>Entra en la prueba</span>`); if (navigator.vibrate) navigator.vibrate(30); toast('Marcado: entra en la prueba'); };
@@ -905,10 +907,11 @@ function renderRecord(app) {
     const btn = $('#r-main'); if (btn) btn.disabled = true; const ts = $('#timer-sub'); if (ts) ts.textContent = 'Guardando audio…';
     Rec.meta = metaFromForm(); Pocket.off();
     const info = await Rec.stop();
+    const pre = { ...recMeta };
     const m = await finishRecording(info);
-    recMeta = null; document.body.classList.remove('recording');
-    go('m/' + m.id);
-    if (m.status === 'queued') processMeeting(m.id);
+    recMeta = null; document.body.classList.remove('recording'); render();
+    if (m.status !== 'queued') { go('m/' + m.id); return; }
+    whatSheet(m, pre);
   };
   $('#r-main').onclick = async () => {
     if (Rec.state === 'idle') {
@@ -928,7 +931,27 @@ function renderRecord(app) {
   startOrb();
   updateCaption();
 }
-function metaFromForm() { const g = id => ($(id)?.value || '').trim(); return { title: g('#r-title'), participants: g('#r-people').split(',').map(x => x.trim()).filter(Boolean), template: $('#r-tpl')?.value || 'general', context: g('#r-ctx'), project: g('#r-proj') }; }
+/* After recording: one clear question, "¿Qué grabaste?" */
+const WHAT_MAIN = [['auto', 'spark', 'Que Acta lo decida', 'Detecta solo qué fue'], ['general', 'users', 'Reunión de trabajo', 'Acuerdos y tareas'], ['clase', 'idea', 'Clase', 'Apuntes, tarjetas y prueba'], ['cliente', 'money', 'Cliente o venta', 'Necesidades y cierre'], ['proyecto', 'target', 'Proyecto / kickoff', 'Alcance y plazos'], ['uno', 'chat', '1:1 o seguimiento', 'Avances y bloqueos']];
+function whatSheet(m, pre = {}) {
+  let tpl = pre.template && TEMPLATES[pre.template] ? pre.template : 'auto'; let done = false;
+  const recent = projectsList().slice(0, 8);
+  const rubros = Object.entries(TEMPLATES).filter(([, t]) => t.group === 'rubro');
+  sheet(`<div class="eyebrow">Grabación guardada · ${fmtT(m.durationSec)}</div><h3>¿Qué grabaste?</h3><p class="muted">Así Acta sabe qué hacer con ella. Lo puedes cambiar después.</p>
+    <div class="what-grid">${WHAT_MAIN.map(([k, ic, n, d]) => `<button class="what ${k === 'auto' ? 'auto' : ''}" data-what="${k}" aria-pressed="${tpl === k}"><span class="w-ic">${icon(ic, 2)}</span><b>${n}</b><small>${d}</small></button>`).join('')}</div>
+    <details class="what-more" ${TEMPLATES[tpl]?.group === 'rubro' ? 'open' : ''}><summary>Más tipos: obra, propiedades, pyme, consulta, ideas…</summary><div class="what-chips">${[...rubros, ['ideas', TEMPLATES.ideas]].map(([k, t]) => `<button class="chip ${tpl === k ? 'on' : ''}" data-what="${k}">${esc(t.name)}</button>`).join('')}</div></details>
+    <div class="field" style="margin-top:14px"><label for="w-proj" id="w-proj-l">Proyecto, cliente o ramo <span class="muted" style="font-weight:400">· opcional</span></label><input id="w-proj" list="w-proj-list" value="${esc(pre.project || '')}" placeholder="Ej.: Obra Totihue, Hidráulica, Cliente Pérez" autocomplete="off"><datalist id="w-proj-list">${projectsList().map(p => `<option value="${esc(p)}">`).join('')}</datalist>
+      ${recent.length ? `<div class="pj-chips">${recent.map(p => `<button class="chip" data-wp="${esc(p)}">${icon('folder', 2)}${esc(p)}</button>`).join('')}</div>` : ''}<span class="hint">Une esta grabación con las anteriores del mismo proyecto o ramo.</span></div>
+    <div class="sheet-actions"><button class="btn primary lg" id="w-go">${icon('spark', 2)}Crear acta</button></div>`, el => {
+    const mark = () => $$('[data-what]', el).forEach(b => { const on = b.dataset.what === tpl; b.setAttribute('aria-pressed', on); b.classList.toggle('on', on); });
+    $$('[data-what]', el).forEach(b => b.onclick = () => { tpl = b.dataset.what; mark(); $('#w-proj-l', el).firstChild.textContent = tpl === 'clase' ? 'Ramo o asignatura ' : 'Proyecto, cliente o ramo '; });
+    $$('[data-wp]', el).forEach(b => b.onclick = () => { $('#w-proj', el).value = b.dataset.wp; });
+    const finishIt = async () => { if (done) return; done = true; const project = ($('#w-proj', el)?.value || '').trim(); await patchMeeting(m.id, { template: tpl, project: project || m.project || '' }); closeSheet(); go('m/' + m.id); processMeeting(m.id); };
+    $('#w-go', el).onclick = finishIt;
+    $('.sheet-bg')?.addEventListener('closing', () => { if (!done) { done = true; const project = ($('#w-proj', el)?.value || '').trim(); patchMeeting(m.id, { template: tpl, project: project || m.project || '' }).then(() => { go('m/' + m.id); processMeeting(m.id); }); } });
+  }, 'what');
+}
+function metaFromForm() { const g = id => ($(id)?.value || '').trim(); return { title: g('#r-title'), participants: g('#r-people').split(',').map(x => x.trim()).filter(Boolean), template: recMeta?.template || 'auto', context: g('#r-ctx'), project: recMeta?.project || '' }; }
 /* Photos: compressed on the phone, stored next to the meeting, never sent to any AI */
 async function savePhoto(file, owner, t) {
   let bmp, w, h;
@@ -1036,7 +1059,7 @@ const Pocket = {
    ========================================================= */
 let impDraft = null;
 function renderImport(app) {
-  const d = impDraft || (impDraft = { mode: S.meetings.some(m => m.audioParts?.length) ? 'mine' : 'audio', title: '', date: today(), participants: '', template: 'general', context: '', notes: '', transcript: '', file: null, duration: '' });
+  const d = impDraft || (impDraft = { mode: S.meetings.some(m => m.audioParts?.length) ? 'mine' : 'audio', title: '', date: today(), participants: '', template: 'auto', context: '', notes: '', transcript: '', file: null, duration: '' });
   app.innerHTML = `
   <div class="page-head"><div><div class="eyebrow">Importar</div><h1>Trae una conversación que ya tienes</h1><p>Una grabación que ya hiciste en Acta, un audio de otra app, o la transcripción de Meet, Zoom, Teams o las notas de voz.</p></div></div>
   <section class="panel" style="max-width:860px">
@@ -1153,7 +1176,7 @@ function renderMeeting(app, m) {
       <span>${icon('cal')}${esc(fmtDate(m.date))}</span>
       ${m.durationSec ? `<span class="mono">${icon('time')}${esc(fmtT(m.durationSec))}${m.estimatedTimes ? ' aprox.' : ''}</span>` : ''}
       ${people.length ? `<span class="m-people">${icon('users')}${people.map(n => isMe(n) || isNobody(n) ? esc(n) : `<button class="tlink pl" data-per="${esc(personKey(n))}">${esc(n)}</button>`).join(', ')}</span>` : ''}
-      <span class="chip">${esc((TEMPLATES[m.template] || TEMPLATES.general).name)}</span>
+      <span class="chip">${esc(tplName(m))}</span>
       ${m.seal ? `<button class="chip seal" id="m-seal-chip">${icon('lock', 2)}Acta ${folioTxt(m.seal.folio)}</button>` : ''}
       <span id="proj-slot">${m.project ? `<button class="chip proj" id="m-proj-open" data-proj="${esc(m.project)}">${icon('folder', 2)}${esc(m.project)}</button><button class="chip ghosty" id="m-proj" aria-label="Cambiar proyecto">${icon('edit', 2)}</button>` : `<button class="chip ghosty" id="m-proj">${icon('folder', 2)}Asignar proyecto</button>`}</span>
     </div>
@@ -2597,7 +2620,7 @@ async function renderSettings(app) {
       <li>Tus reuniones, audios y actas viven en este dispositivo.</li>
       <li>El audio se envía a OpenAI solo para transcribirlo; el texto se envía a Anthropic solo para crear el acta y responder preguntas.</li>
       <li>Avísales a los participantes que estás grabando.</li></ol><a class="btn sm" href="privacidad.html" target="_blank" rel="noopener" style="margin-top:12px">${icon('doc')}Política de privacidad</a></section>
-    <p class="status-line">Acta 3.2.1</p>
+    <p class="status-line">Acta 3.3</p>
   </div>`;
   const keyIn = (id, k) => { const el = $(id); el.addEventListener('input', e => Settings.set({ [k]: e.target.value.trim() })); el.addEventListener('change', e => { Settings.set({ [k]: e.target.value.trim() }); keepStorage(); toast('Clave guardada en este teléfono'); }); };
   keyIn('#k-anthropic', 'anthropicKey'); keyIn('#k-openai', 'openaiKey');
@@ -2709,7 +2732,7 @@ function reportHTML(m, a, segs) {
     <div style="display:grid;gap:12px;position:relative;z-index:1">
       ${Settings.v.brandLogo || Settings.v.brandName ? `<div class="rp-brand own">${Settings.v.brandLogo ? `<img src="${Settings.v.brandLogo}" alt="">` : ''}${Settings.v.brandName ? `<span>${esc(Settings.v.brandName)}</span>` : ''}<em>${m.seal ? 'Acta ' + folioTxt(m.seal.folio) : 'Informe de reunión'}</em></div>` : `<div class="rp-brand"><i><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2"/></svg></i>${m.seal ? 'Acta ' + folioTxt(m.seal.folio) : 'Acta · Informe de reunión'}</div>`}
       <h1 class="rp-title">${esc(a.title)}</h1>
-      <div class="rp-meta"><span>${icon('cal')}${esc(fmtDate(m.date))}</span>${dur ? `<span>${icon('time')}${fmtT(dur)}${m.estimatedTimes ? ' aprox.' : ''}</span>` : ''}${people.length ? `<span>${icon('users')}${esc(people.join(', '))}</span>` : ''}<span>${icon('doc')}${esc((TEMPLATES[m.template] || TEMPLATES.general).name)}</span></div>
+      <div class="rp-meta"><span>${icon('cal')}${esc(fmtDate(m.date))}</span>${dur ? `<span>${icon('time')}${fmtT(dur)}${m.estimatedTimes ? ' aprox.' : ''}</span>` : ''}${people.length ? `<span>${icon('users')}${esc(people.join(', '))}</span>` : ''}<span>${icon('doc')}${esc(tplName(m))}</span></div>
       ${(a.tags || []).filter(t => t !== 'ejemplo').length ? `<div class="rp-tags">${a.tags.filter(t => t !== 'ejemplo').map(t => `<span>#${esc(t)}</span>`).join('')}</div>` : ''}
     </div>
     ${a.mood ? `<div class="rp-gauge">${gaugeSVG(a.mood.score)}<b>${esc(a.mood.label)}</b><small>Clima de la reunión</small></div>` : ''}
