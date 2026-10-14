@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "cl.mariopinto.acta",
+    "sha256_cert_fingerprints": ["BC:69:0A:DE:D5:53:BC:8D:C3:6C:F8:7B:57:37:F7:C9:32:E6:F4:B6:4F:D4:01:90:06:53:94:C8:B7:71:13:1C"]
+  }
+}]
