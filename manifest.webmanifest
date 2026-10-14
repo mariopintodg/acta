@@ -1,7 +1,7 @@
 {
   "name": "Acta — reuniones que se convierten en trabajo",
   "short_name": "Acta",
-  "description": "Graba tus reuniones y conviértelas en actas visuales: transcripción con hablantes, decisiones, tareas, mapa mental y brief del proyecto.",
+  "description": "Graba reuniones y clases y conviértelas en actas, apuntes, tareas y tarjetas de estudio. Todo queda en tu teléfono.",
   "lang": "es",
   "start_url": "./",
   "scope": "./",
@@ -61,5 +61,14 @@
         }
       ]
     }
+  ],
+  "id": "./",
+  "categories": [
+    "productivity",
+    "business",
+    "education"
+  ],
+  "display_override": [
+    "standalone"
   ]
 }
