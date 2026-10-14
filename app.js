@@ -109,8 +109,18 @@ const vocabList = () => String(Settings.v.vocab || '').split(/[\n,;]+/).map(x =>
 const Settings = {
   v: { ...DEFAULTS },
   load() { try { Object.assign(this.v, JSON.parse(localStorage.getItem('acta:settings') || '{}')); } catch {} return this; },
-  set(patch) { Object.assign(this.v, patch); try { localStorage.setItem('acta:settings', JSON.stringify(this.v)); if ('theme' in patch) localStorage.setItem('acta:theme', this.v.theme); } catch {} if ('theme' in patch) applyTheme(); }
+  set(patch) { Object.assign(this.v, patch); try { localStorage.setItem('acta:settings', JSON.stringify(this.v)); if ('theme' in patch) localStorage.setItem('acta:theme', this.v.theme); } catch {} if ('theme' in patch) applyTheme(); this.mirror(); },
+  /* Second copy in IndexedDB: if the phone clears one storage, the keys come back from the other */
+  mirror() { clearTimeout(this._mt); this._mt = setTimeout(() => { try { DB.put('kv', { ...this.v, savedAt: Date.now() }, 'settings').catch(() => {}); } catch {} }, 300); },
+  async restore() {
+    let saved = null; try { saved = await DB.get('kv', 'settings'); } catch {}
+    const has = o => !!(o && (o.anthropicKey || o.openaiKey));
+    if (!has(this.v) && has(saved)) { const { savedAt, ...rest } = saved; Object.assign(this.v, rest); try { localStorage.setItem('acta:settings', JSON.stringify(this.v)); } catch {} this.restored = true; return true; }
+    if (has(this.v)) this.mirror();
+    return false;
+  }
 }.load();
+async function keepStorage() { try { if (navigator.storage?.persist && !(await navigator.storage.persisted())) await navigator.storage.persist(); } catch {} }
 function applyTheme() { document.documentElement.setAttribute('data-theme', 'dark'); }
 applyTheme();
 
@@ -732,7 +742,7 @@ function renderLibrary(app) {
   const low = Settings.v.anthropicKey && (Usage.left('anthropic') < 1 || (Settings.v.openaiKey && Usage.left('openai') < 1));
   app.innerHTML = `
   ${S.recovery ? `<div class="notice" style="margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:220px"><b>Hay una grabación sin terminar</b> de ${fmtT(S.recovery.elapsed)}. La app se cerró mientras grababas, pero el audio quedó guardado.</span><button class="btn sm primary" id="rec-recover">Recuperar y procesar</button><button class="btn sm ghost danger" id="rec-discard">Descartar</button></div>` : ''}
-  ${needsKeys && S.loaded ? `<div class="notice info" style="margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:220px"><b>Configura Acta en 2 minutos.</b> Agrega tus claves de Claude y OpenAI para transcribir con hablantes y crear las actas.</span><button class="btn sm primary" data-nav="settings">${icon('key')}Ir a Ajustes</button></div>` : ''}
+  ${needsKeys && S.loaded ? `<div class="notice info" style="margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:220px">${S.meetings.some(m => !String(m.id).startsWith('ejemplo-')) || !IS_STANDALONE ? `<b>Faltan tus claves en esta pantalla.</b> ${IS_STANDALONE ? 'Pégalas de nuevo en Ajustes; desde ahora quedan con respaldo.' : 'Estás en el navegador, no en la app instalada: Safari, el ícono de inicio y los links de WhatsApp guardan sus datos por separado. Abre Acta desde el ícono de tu pantalla de inicio.'}` : '<b>Configura Acta en 2 minutos.</b> Agrega tus claves de Claude y OpenAI para transcribir con hablantes y crear las actas.'}</span><button class="btn sm primary" data-nav="settings">${icon('key')}Ir a Ajustes</button></div>` : ''}
   ${low ? `<div class="notice" style="margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:220px"><b>Te queda poco saldo.</b> Recarga en la consola del proveedor para no quedarte sin actas en medio de una reunión.</span><button class="btn sm" data-nav="settings">Ver saldo</button></div>` : ''}
   ${q ? '' : `<section class="home-hero rise">
     <span class="aura a1"></span><span class="aura a2"></span><span class="aura a3"></span>
@@ -1981,13 +1991,13 @@ async function renderSettings(app) {
     ${standalone ? '' : `<section class="panel howto"><h2>Instálala en tu celular</h2><ol style="margin-top:10px"><li><b>iPhone (Safari):</b> botón Compartir → <b>Agregar a pantalla de inicio</b>.</li><li><b>Android (Chrome):</b> menú ⋮ → <b>Instalar aplicación</b>.</li></ol><p class="muted" style="font-size:13px;margin-top:10px">Así se abre a pantalla completa, funciona sin conexión para revisar tus actas y aparece junto a tus otras apps.</p></section>`}
     <section class="panel">
       <h2>Claves de servicio</h2>
-      <p class="muted" style="font-size:13.5px;margin-top:6px">Acta usa tu propia cuenta: pagas solo lo que usas, directo al proveedor. Las claves no salen de este dispositivo salvo para llamar a cada servicio.</p>
+      <p class="muted" style="font-size:13.5px;margin-top:6px">Acta usa tu propia cuenta: pagas solo lo que usas, directo al proveedor. Las claves no salen de este dispositivo salvo para llamar a cada servicio. Se guardan dos veces en el teléfono por seguridad. Al tocar <b>Probar y guardar</b>, el iPhone puede ofrecer guardarlas en tus Contraseñas para rellenarlas con Face ID si algún día se borran.</p><p class="notice cool" style="margin-top:10px;font-size:13px">Abre Acta siempre desde el <b>ícono de tu pantalla de inicio</b>. Safari y los links que abres desde WhatsApp guardan sus datos aparte, por eso ahí no aparecen tus claves ni tus reuniones.</p>
       <div class="form">
         <div class="field"><label for="k-anthropic">Claude (Anthropic) — análisis y preguntas</label>
-          <div class="key-row"><input id="k-anthropic" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-…" value="${esc(v.anthropicKey)}"><button class="btn" id="t-anthropic" type="button">Probar</button></div>
+          <form class="key-row" autocomplete="on" onsubmit="return false"><input type="text" name="username" autocomplete="username" value="Acta · Claude" hidden readonly><input id="k-anthropic" name="password" type="password" autocomplete="current-password" spellcheck="false" placeholder="sk-ant-…" value="${esc(v.anthropicKey)}"><button class="btn" id="t-anthropic" type="submit">Probar y guardar</button></form>
           <span class="hint" id="r-anthropic">Créala en console.anthropic.com → API Keys.</span></div>
         <div class="field"><label for="k-openai">OpenAI — transcripción con hablantes</label>
-          <div class="key-row"><input id="k-openai" type="password" autocomplete="off" spellcheck="false" placeholder="sk-…" value="${esc(v.openaiKey)}"><button class="btn" id="t-openai" type="button">Probar</button></div>
+          <form class="key-row" autocomplete="on" onsubmit="return false"><input type="text" name="username" autocomplete="username" value="Acta · OpenAI" hidden readonly><input id="k-openai" name="password" type="password" autocomplete="current-password" spellcheck="false" placeholder="sk-…" value="${esc(v.openaiKey)}"><button class="btn" id="t-openai" type="submit">Probar y guardar</button></form>
           <span class="hint" id="r-openai">Créala en platform.openai.com → API keys. Sin esta clave, Acta usa el dictado del teléfono (menos preciso y sin hablantes).</span></div>
       </div>
     </section>
@@ -2029,15 +2039,15 @@ async function renderSettings(app) {
       <li>Avísales a los participantes que estás grabando.</li></ol></section>
     <p class="status-line">Acta 3.0</p>
   </div>`;
-  const keyIn = (id, k) => $(id).addEventListener('change', e => { Settings.set({ [k]: e.target.value.trim() }); toast('Clave guardada'); });
+  const keyIn = (id, k) => { const el = $(id); el.addEventListener('input', e => Settings.set({ [k]: e.target.value.trim() })); el.addEventListener('change', e => { Settings.set({ [k]: e.target.value.trim() }); keepStorage(); toast('Clave guardada en este teléfono'); }); };
   keyIn('#k-anthropic', 'anthropicKey'); keyIn('#k-openai', 'openaiKey');
   $('#t-anthropic').onclick = async () => {
-    Settings.set({ anthropicKey: $('#k-anthropic').value.trim() }); const r = $('#r-anthropic'); r.textContent = 'Probando…';
+    Settings.set({ anthropicKey: $('#k-anthropic').value.trim() }); keepStorage(); const r = $('#r-anthropic'); r.textContent = 'Probando…';
     try { await claude({ messages: [{ role: 'user', content: 'Responde solo: ok' }], max_tokens: 5, kind: 'prueba' }); r.innerHTML = `<span class="ok-badge">${icon('check', 2.4, 14)}Conectado con ${esc(Settings.v.claudeModel)}</span>`; }
     catch (e) { r.innerHTML = `<span class="ok-badge bad">${esc(e.message || 'No funcionó')}</span>`; }
   };
   $('#t-openai').onclick = async () => {
-    Settings.set({ openaiKey: $('#k-openai').value.trim() }); const r = $('#r-openai'); r.textContent = 'Probando…';
+    Settings.set({ openaiKey: $('#k-openai').value.trim() }); keepStorage(); const r = $('#r-openai'); r.textContent = 'Probando…';
     try { const res = await fetch('https://api.openai.com/v1/models', { headers: { Authorization: 'Bearer ' + Settings.v.openaiKey } }); if (!res.ok) throw new Error(res.status === 401 ? 'La clave no es válida' : 'Error ' + res.status); r.innerHTML = `<span class="ok-badge">${icon('check', 2.4, 14)}Conectado</span>`; }
     catch (e) { r.innerHTML = `<span class="ok-badge bad">${esc(e.message === 'Failed to fetch' ? 'Sin conexión con OpenAI' : e.message)}</span>`; }
   };
@@ -2412,6 +2422,7 @@ document.addEventListener('dblclick', e => { if (!e.target.closest('input,textar
    Boot
    ========================================================= */
 (async () => {
+  try { if (await Settings.restore()) setTimeout(() => toast('Tus claves se recuperaron del respaldo del teléfono', 4500), 800); } catch {}
   try { await loadMeetings(); } catch (e) { S.loaded = true; toast('No se pudo abrir el almacenamiento del navegador. Revisa que no estés en modo privado.', 6000); }
   if (Lock.enabled()) Lock.show();
   try { const r = await DB.get('kv', 'activeRec'); if (r && r.recId) { const ch = await DB.chunksFor(r.recId); if (ch.length) S.recovery = r; else await DB.del('kv', 'activeRec'); } } catch {}
