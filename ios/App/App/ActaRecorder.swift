@@ -86,7 +86,7 @@ public class ActaRecorderPlugin: CAPPlugin, CAPBridgedPlugin, AVAudioRecorderDel
 
     @objc func stop(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
-            if self.state == .idle { call.resolve(["parts": [], "duration": 0]); return }
+            if self.state == .idle { call.resolve(["parts": [Any](), "duration": 0]); return }
             self.closePart(notify: false)
             self.stopTimers(); self.removeObservers()
             self.state = .idle; self.resumeWhenActive = false
@@ -102,7 +102,7 @@ public class ActaRecorderPlugin: CAPPlugin, CAPBridgedPlugin, AVAudioRecorderDel
     /// Lista las partes guardadas de una grabación (sirve para recuperar si la app se cerró).
     @objc func listParts(_ call: CAPPluginCall) {
         guard let id = call.getString("id"),
-              let base = try? FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false) else { call.resolve(["parts": []]); return }
+              let base = try? FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false) else { call.resolve(["parts": [Any]()]); return }
         let d = base.appendingPathComponent("rec/\(id)", isDirectory: true)
         let files = ((try? FileManager.default.contentsOfDirectory(at: d, includingPropertiesForKeys: nil)) ?? [])
             .filter { $0.pathExtension == "m4a" }

@@ -1,0 +1,66 @@
+# Compilación de Acta para iPhone en Codemagic (Mac en la nube, plan gratis: 500 min/mes).
+# - "acta-ios-prueba": compila sin firmar para comprobar que todo funciona (no necesita cuenta de Apple).
+# - "acta-ios-testflight": firma con la clave de App Store Connect y sube a TestFlight.
+#   Requiere en Codemagic: Team settings › Integrations › Developer Portal, con el nombre "Acta ASC".
+
+workflows:
+  acta-ios-prueba:
+    name: Acta iOS · prueba (sin firmar)
+    max_build_duration: 40
+    instance_type: mac_mini_m2
+    environment:
+      node: 22
+      xcode: latest
+    scripts:
+      - name: App web dentro del proyecto nativo
+        script: |
+          npm ci
+          npm run build:www
+          npx cap sync ios
+      - name: Compilar para el simulador
+        script: |
+          set -o pipefail
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build | tail -60
+
+  acta-ios-testflight:
+    name: Acta iOS · TestFlight
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: Acta ASC
+    environment:
+      node: 22
+      xcode: latest
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: cl.mariopinto.acta
+    scripts:
+      - name: App web dentro del proyecto nativo
+        script: |
+          npm ci
+          npm run build:www
+          npx cap sync ios
+      - name: Firmas
+        script: xcode-project use-profiles --project ios/App/App.xcodeproj
+      - name: Número de compilación
+        script: |
+          cd ios/App
+          agvtool new-version -all $((PROJECT_BUILD_NUMBER + 1))
+      - name: Compilar y empaquetar
+        script: |
+          xcode-project build-ipa --project ios/App/App.xcodeproj --scheme App --config Release
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      email:
+        recipients:
+          - mariopintodg2023@gmail.com
+        notify:
+          success: true
+          failure: true
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
