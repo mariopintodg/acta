@@ -475,7 +475,30 @@ function normalize(a, dur, titleHint) {
 /* =========================================================
    Processing pipeline
    ========================================================= */
-function setProgress(id, text) { S.progress[id] = text; const el = $('#proc-detail'); if (el && S.route.view === 'meeting' && S.route.id === id) el.textContent = text; }
+function setProgress(id, text, pct) {
+  S.progress[id] = text; S.progressPct = S.progressPct || {}; if (pct !== undefined) S.progressPct[id] = pct;
+  if (S.route.view !== 'meeting' || S.route.id !== id) return;
+  const el = $('#proc-detail'); if (el) el.textContent = text;
+  const bar = $('#proc-bar'); if (bar && S.progressPct[id] != null) { bar.hidden = false; bar.firstElementChild.style.width = Math.round(S.progressPct[id] * 100) + '%'; }
+}
+/* Long audio: cut into ~5 min pieces at quiet moments and transcribe them at the same time (same cost, much faster) */
+const CHUNK_SEC = 300, PARALLEL = 4;
+async function splitAudio(blob) {
+  const SR = 16000; const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext; if (!OAC) return null;
+  const ctx = new OAC(1, SR, SR); const ab = await blob.arrayBuffer();
+  const buf = await new Promise((res, rej) => { try { const pr = ctx.decodeAudioData(ab, res, rej); if (pr && pr.then) pr.then(res, rej); } catch (e) { rej(e); } });
+  const sr = buf.sampleRate; const n = buf.length; const total = n / sr; if (total < CHUNK_SEC * 1.3) return null;
+  let data = buf.getChannelData(0);
+  if (buf.numberOfChannels > 1) { const mix = new Float32Array(n); for (let c = 0; c < buf.numberOfChannels; c++) { const d = buf.getChannelData(c); for (let i = 0; i < n; i++) mix[i] += d[i] / buf.numberOfChannels; } data = mix; }
+  const win = Math.floor(sr * .1); const energy = (a) => { let e = 0; for (let i = a; i < Math.min(n, a + win); i++) e += data[i] * data[i]; return e; };
+  const cuts = [0];
+  for (let t = CHUNK_SEC; t < total - 60; t += CHUNK_SEC) { let best = Math.floor(t * sr), be = Infinity; for (let s0 = Math.floor((t - 12) * sr); s0 < Math.floor((t + 12) * sr); s0 += win) { const e = energy(s0); if (e < be) { be = e; best = s0; } } cuts.push(best + Math.floor(win / 2)); }
+  cuts.push(n);
+  const out = [];
+  for (let k = 0; k < cuts.length - 1; k++) out.push({ start: cuts[k] / sr, blob: new Blob([wavBytes(data.subarray(cuts[k], cuts[k + 1]), sr)], { type: 'audio/wav' }) });
+  return out;
+}
+async function pool(items, limit, fn) { const res = new Array(items.length); let next = 0; const run = async () => { while (next < items.length) { const i = next++; res[i] = await fn(items[i], i); } }; await Promise.all(Array.from({ length: Math.min(limit, items.length) }, run)); return res; }
 async function processMeeting(id, { template } = {}) {
   if (S.running.has(id)) return; S.running.add(id);
   let m = meetingById(id) || await DB.get('meetings', id);
@@ -489,19 +512,36 @@ async function processMeeting(id, { template } = {}) {
       } else {
         if (!m.audioParts?.length) throw { code: 'no_audio', message: 'Esta reunión no tiene audio ni transcripción.' };
         m = await patchMeeting(id, { status: 'transcribing', error: null }); render();
-        const all = [];
+        const jobs = [];
         for (let p = 0; p < m.audioParts.length; p++) {
           const part = m.audioParts[p]; const blob = await DB.get('audio', part.key);
           if (!blob) throw { code: 'no_audio', message: 'No encuentro el audio de esta reunión en el dispositivo.' };
-          setProgress(id, m.audioParts.length > 1 ? `Transcribiendo parte ${p + 1} de ${m.audioParts.length} (${fmtBytes(blob.size)})…` : `Transcribiendo ${fmtT(m.durationSec)} de audio (${fmtBytes(blob.size)})…`);
-          all.push(...await openaiTranscribe(blob, part.offset || 0, p));
+          const next = m.audioParts[p + 1]; const partDur = (next ? next.offset : (m.durationSec || 0)) - (part.offset || 0);
+          let pieces = null;
+          if (partDur > CHUNK_SEC * 1.3 && partDur <= 35 * 60) { setProgress(id, 'Preparando el audio para transcribir más rápido…', 0); try { pieces = await splitAudio(blob); } catch (e) { console.warn('split', e); } }
+          if (pieces) pieces.forEach(pc => jobs.push({ blob: pc.blob, offset: (part.offset || 0) + pc.start, dur: 0 }));
+          else jobs.push({ blob, offset: part.offset || 0, dur: partDur });
         }
+        jobs.forEach((j, i) => { const nx = jobs[i + 1]; j.dur = j.dur || ((nx ? nx.offset : (m.durationSec || j.offset + CHUNK_SEC)) - j.offset); });
+        const t0 = Date.now(); let doneN = 0;
+        const label = () => { if (jobs.length === 1) return `Transcribiendo ${fmtT(m.durationSec)} de audio…`; const el = (Date.now() - t0) / 1000; const rem = doneN ? Math.max(5, el / doneN * (jobs.length - doneN)) : null; return `Transcribiendo en ${jobs.length} trozos a la vez · ${doneN} de ${jobs.length} listos${rem ? ` · falta ~${rem < 60 ? Math.round(rem) + ' s' : Math.ceil(rem / 60) + ' min'}` : ''}`; };
+        setProgress(id, label(), jobs.length > 1 ? .03 : null);
+        const tick = jobs.length === 1 ? setInterval(() => { const el = (Date.now() - t0) / 1000; const est = Math.max(30, (m.durationSec || 60) * .45); setProgress(id, `Transcribiendo ${fmtT(m.durationSec)} de audio · ${Math.round(el)} s`, Math.min(.95, el / est)); }, 1000) : null;
+        let results;
+        try {
+          results = await pool(jobs, PARALLEL, async (j, i) => {
+            let r; try { r = await openaiTranscribe(j.blob, j.offset, i); } catch (e) { if (/bad_openai_key|network/.test(e.code || '')) throw e; await sleep(1500); r = await openaiTranscribe(j.blob, j.offset, i); }
+            doneN++; setProgress(id, label(), doneN / jobs.length); return r;
+          });
+        } finally { clearInterval(tick); }
+        const all = results.flat();
         segs = mergeSegments(all);
         if (!segs.length) throw { code: 'empty', message: 'No se detectó voz en la grabación. Revisa que el micrófono haya captado audio.' };
         await DB.put('transcripts', { segments: segs }, id);
         if (!m.durationSec) m.durationSec = segDuration(segs);
       }
     }
+    setProgress(id, '', null);
     m = await patchMeeting(id, { status: 'analyzing', error: null, hasTranscript: true, words: wordCount(segs), durationSec: m.durationSec || segDuration(segs) }); render();
     setProgress(id, `Claude está leyendo ${nf(wordCount(segs))} palabras…`);
     const tpl = template || m.template || 'general';
@@ -517,12 +557,14 @@ async function processMeeting(id, { template } = {}) {
       if (t && !t.done) { t.done = true; t.closedBy = id; await saveMeeting(pm); closed++; }
     }
     await patchMeeting(id, { status: 'ready', error: null, analysis, template: tpl, speakers, analyzedAt: Date.now() });
-    if (S.route.view === 'meeting' && S.route.id === id) toast(closed ? `Acta lista · ${closed} ${closed === 1 ? 'tarea anterior marcada' : 'tareas anteriores marcadas'} como hecha${closed === 1 ? '' : 's'}` : 'Acta lista', 4200);
+    toast(closed ? `Acta lista · ${closed} ${closed === 1 ? 'tarea anterior marcada' : 'tareas anteriores marcadas'} como hecha${closed === 1 ? '' : 's'}` : `Acta lista: ${analysis.title}`, 4500);
+    try { if (navigator.vibrate) navigator.vibrate([90, 70, 90]); } catch {}
+    try { if (document.visibilityState === 'hidden' && 'Notification' in window && Notification.permission === 'granted') { const reg = await navigator.serviceWorker?.ready; reg?.showNotification('Tu acta está lista', { body: analysis.title, icon: 'icon-192.png', badge: 'icon-192.png', tag: 'acta-' + id, data: { url: './#m/' + id } }); } } catch {}
   } catch (e) {
     console.error(e);
     if (e.code === 'network' || !navigator.onLine) await patchMeeting(id, { status: 'waiting', error: null });
     else await patchMeeting(id, { status: 'error', error: { code: e.code || 'error', message: e.message || 'No se pudo completar el proceso.' } });
-  } finally { S.running.delete(id); delete S.progress[id]; render(); }
+  } finally { S.running.delete(id); delete S.progress[id]; if (S.progressPct) delete S.progressPct[id]; render(); }
 }
 
 function applyCorrections(segs, corr) {
@@ -1248,6 +1290,8 @@ function renderProcessing(app, m) {
     <h2>${st === 'error' ? 'El acta necesita tu atención' : st === 'waiting' ? 'Esperando internet' : 'Preparando el acta'}</h2>
     ${st === 'waiting' ? `<div class="notice cool" style="margin-top:12px;display:flex;gap:10px;align-items:flex-start">${icon('wifioff', 2, 18)}<span><b>Grabaste sin conexión y está todo a salvo.</b> Acta transcribe y crea el acta sola apenas vuelva internet, aunque estés en otra pantalla.</span></div>` : ''}
     <div class="stepper">${steps.map(s => `<div class="pstep ${s.s}"><span class="dot">${s.s === 'done' ? icon('check', 3) : s.s === 'fail' ? '!' : ''}</span><div><b>${s.t}</b><small ${s.s === 'run' ? 'id="proc-detail"' : ''}>${esc(s.s === 'run' ? (S.progress[m.id] || 'Trabajando…') : s.s === 'fail' ? (err?.message || '') : s.d)}</small></div></div>`).join('')}</div>
+    <div class="pbar" id="proc-bar" ${S.progressPct?.[m.id] != null && st === 'transcribing' ? '' : 'hidden'}><i style="width:${Math.round((S.progressPct?.[m.id] || 0) * 100)}%"></i></div>
+    ${running && 'Notification' in window && Notification.permission === 'default' ? `<button class="btn sm ghost" id="p-notify" style="margin-top:10px">${icon('time')}Avisarme cuando esté lista</button>` : ''}
     ${st === 'error' ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
       <button class="btn primary" id="p-retry">${icon('refresh')}Reintentar</button>
       ${/key|no_openai|no_anthropic/.test(err?.code || '') ? `<button class="btn" data-nav="settings">${icon('key')}Ir a Ajustes</button>` : ''}
@@ -1258,6 +1302,7 @@ function renderProcessing(app, m) {
   </section>
   ${(m.marks?.length || m.notesLog?.length) ? `<section class="panel" style="max-width:720px;margin-top:16px"><div class="eyebrow">Lo que marcaste</div><div class="notes-log" style="margin-top:10px">${[...(m.marks || []).map(k => ({ t: k.t, text: '★ ' + (k.label || 'Momento importante') })), ...(m.notesLog || [])].sort((a, b) => a.t - b.t).map(n => `<div><b>${fmtT(n.t)}</b><span>${esc(n.text)}</span></div>`).join('')}</div></section>` : ''}`;
   if (hasAudio) DB.get('audio', m.audioParts[0].key).then(b => { const el = $('#p-audio'); if (b && el) el.src = URL.createObjectURL(b); });
+  const pn = $('#p-notify'); if (pn) pn.onclick = async () => { try { const ok = await Notification.requestPermission(); toast(ok === 'granted' ? 'Te avisaremos cuando el acta esté lista' : 'No se activaron los avisos'); } catch {} pn.remove(); };
   const r = $('#p-retry'); if (r) r.onclick = () => { if (!navigator.onLine) { toast('Todavía no hay conexión. Se procesará sola cuando vuelva.'); return; } processMeeting(m.id); };
   const pd = $('#p-del'); if (pd) pd.onclick = async () => { await deleteMeeting(m.id); go(''); toast('Reunión eliminada'); };
   const pp = $('#p-paste'); if (pp) pp.onclick = () => { $('#p-paste-box').innerHTML = `<div class="field" style="margin-top:14px"><label for="pp-tx">Transcripción</label><textarea id="pp-tx" class="mono-area" rows="8" placeholder="Pega aquí el texto de la reunión"></textarea><button class="btn primary" id="pp-go" style="justify-self:start">Usar este texto</button></div>`; $('#pp-go').onclick = async () => { const p = parseTranscript($('#pp-tx').value, m.durationSec ? m.durationSec / 60 : null); if (p.segments.length < 2) { toast('Pega la transcripción completa'); return; } await DB.put('transcripts', { segments: p.segments }, m.id); processMeeting(m.id); }; };
@@ -2620,7 +2665,7 @@ async function renderSettings(app) {
       <li>Tus reuniones, audios y actas viven en este dispositivo.</li>
       <li>El audio se envía a OpenAI solo para transcribirlo; el texto se envía a Anthropic solo para crear el acta y responder preguntas.</li>
       <li>Avísales a los participantes que estás grabando.</li></ol><a class="btn sm" href="privacidad.html" target="_blank" rel="noopener" style="margin-top:12px">${icon('doc')}Política de privacidad</a></section>
-    <p class="status-line">Acta 3.3</p>
+    <p class="status-line">Acta 3.3.1</p>
   </div>`;
   const keyIn = (id, k) => { const el = $(id); el.addEventListener('input', e => Settings.set({ [k]: e.target.value.trim() })); el.addEventListener('change', e => { Settings.set({ [k]: e.target.value.trim() }); keepStorage(); toast('Clave guardada en este teléfono'); }); };
   keyIn('#k-anthropic', 'anthropicKey'); keyIn('#k-openai', 'openaiKey');
