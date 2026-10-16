@@ -11,7 +11,7 @@
 <meta property="og:type" content="website">
 <meta property="og:title" content="Acta · Graba la reunión. Acta hace el acta.">
 <meta property="og:description" content="Actas, tareas, informes y apuntes de cada reunión o clase, listos en minutos. En español de Chile.">
-<meta property="og:image" content="https://actasapp.com/img/og.jpg">
+<meta property="og:image" content="https://actasapp.com/img/og.jpg?v=2">
 <meta property="og:url" content="https://actasapp.com/">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preload" href="/app/fonts/bricolage.woff2" as="font" type="font/woff2" crossorigin>
@@ -49,6 +49,7 @@
   <section class="hero" id="hero" aria-label="Portada">
     <div class="hero-media" id="heroMedia">
       <video class="bgv" autoplay muted loop playsinline preload="auto" poster="/media/hero.jpg"><source src="/media/hero.mp4" type="video/mp4"></video>
+      <img class="hero-photo-m" src="/fotos/f1-portada-vertical.webp" alt="" width="900" height="1600" fetchpriority="high">
       <div class="hero-shade"></div>
     </div>
     <div class="wrap hero-in">
@@ -72,6 +73,7 @@
 
   <!-- 2 · MANIFIESTO -->
   <section class="manifesto" id="manifiesto">
+    <div class="mf-bg" aria-hidden="true"><img src="/fotos/f2-libreta.webp" alt="" width="1672" height="941" loading="lazy"></div>
     <div class="wrap">
       <p class="big-read" id="bigRead">En cada reunión se dicen cosas que importan: acuerdos, plazos, promesas. <span class="hl">Y casi nada queda por escrito.</span> ¿Quién quedó de mandar el presupuesto? ¿Qué acordamos el martes? Con Acta, lo que se habla, queda.</p>
     </div>
@@ -83,7 +85,8 @@
       <div class="stage-bg">
         <video class="bgv scene s0 on" muted loop playsinline preload="metadata" poster="/media/obra.jpg" data-src="/media/obra.mp4"></video>
         <video class="bgv scene s1" muted loop playsinline preload="none" poster="/media/oficina.jpg" data-src="/media/oficina.mp4"></video>
-        <video class="bgv scene s2" muted loop playsinline preload="none" poster="/media/clase.jpg" data-src="/media/clase.mp4"></video>
+        <img class="scene s2 kb" src="/fotos/f5-asamblea.webp" alt="" width="1672" height="941" loading="lazy">
+        <video class="bgv scene s3" muted loop playsinline preload="none" poster="/media/clase.jpg" data-src="/media/clase.mp4"></video>
         <div class="stage-shade"></div>
       </div>
       <div class="wrap stage-in">
@@ -93,12 +96,13 @@
           <ol class="places">
             <li class="on"><b>En la obra</b><span>Reunión de avance con la inspección, el jefe de obra y los subcontratos.</span></li>
             <li><b>En la oficina</b><span>Comité, clientes, proveedores. Acta separa a cada persona que habla.</span></li>
+            <li><b>En la asamblea</b><span>Junta de vecinos, comité o directorio. Queda quién propuso qué y cómo se votó.</span></li>
             <li><b>En clases</b><span>Graba toda la cátedra, sin límite de tiempo, y llega preparado a la prueba.</span></li>
           </ol>
         </div>
         <div class="stage-device"><div class="device"><img src="/shots/grabando.webp" alt="Acta grabando una reunión" width="390" height="844" loading="lazy"></div></div>
       </div>
-      <div class="stage-progress" aria-hidden="true"><i></i><i></i><i></i></div>
+      <div class="stage-progress" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
     </div>
   </section>
 
@@ -125,6 +129,7 @@
   <!-- 5 · EL ACTA SE ARMA SOLA -->
   <section class="assemble" id="acta" aria-label="El acta se arma sola">
     <div class="assemble-pin">
+      <img class="as-bg" src="/fotos/f8-mesa-arriba.webp" alt="" width="1672" height="941" loading="lazy" aria-hidden="true">
       <div class="wrap assemble-in">
         <div class="as-copy">
           <p class="eyebrow">03 · Ordena</p>
@@ -158,7 +163,8 @@
   </section>
 
   <!-- 7 · COMPROMISOS -->
-  <section class="split" id="compromisos">
+  <section class="split has-photo" id="compromisos">
+    <picture class="sec-photo" aria-hidden="true"><source media="(max-width:900px)" srcset="/fotos/f7-mano-vertical.webp"><img src="/fotos/f7-mano.webp" alt="" width="1672" height="941" loading="lazy"></picture>
     <div class="wrap split-in">
       <div class="split-copy">
         <p class="eyebrow">05 · Memoria de compromisos</p>
@@ -186,7 +192,7 @@
         </div>
       </div>
       <div class="split-art">
-        <div class="vframe"><video class="bgv" muted loop playsinline preload="none" poster="/media/clase.jpg" data-src="/media/clase.mp4"></video></div>
+        <div class="vframe"><video class="bgv" muted loop playsinline preload="none" poster="/fotos/f6-clase.webp" data-src="/media/clase.mp4"></video></div>
         <div class="device sd small"><img src="/shots/estudiar.webp" alt="Modo Clase en Acta" width="390" height="844" loading="lazy"></div>
       </div>
     </div>
@@ -222,8 +228,22 @@
     </div>
   </section>
 
+  <!-- PARA QUIÉN -->
+  <section class="who" aria-label="Para quién es Acta">
+    <div class="wrap">
+      <div class="sec-head"><p class="eyebrow">Para quién</p><h2>Donde se habla, <span class="grad">Acta escucha.</span></h2></div>
+      <div class="who-grid">
+        <figure><img src="/fotos/f3-obra.webp" alt="Reunión en obra con planos y cascos sobre la mesa" width="1672" height="941" loading="lazy"><figcaption><b>Obras y terreno</b>Reuniones de avance, inspección y subcontratos.</figcaption></figure>
+        <figure><img src="/fotos/f4-oficina.webp" alt="Reunión de oficina al atardecer" width="1672" height="941" loading="lazy"><figcaption><b>Oficinas y equipos</b>Comités, clientes y proveedores.</figcaption></figure>
+        <figure><img src="/fotos/f5-asamblea.webp" alt="Asamblea de vecinos grabada con un teléfono" width="1672" height="941" loading="lazy"><figcaption><b>Asambleas y directorios</b>Juntas de vecinos, comunidades y consejos.</figcaption></figure>
+        <figure><img src="/fotos/f6-clase.webp" alt="Clase universitaria con un teléfono sobre la mesa" width="1672" height="941" loading="lazy"><figcaption><b>Estudiantes</b>Cátedras completas convertidas en apuntes.</figcaption></figure>
+      </div>
+    </div>
+  </section>
+
   <!-- 11 · PRECIOS -->
-  <section class="sec" id="precios">
+  <section class="sec has-glow" id="precios">
+    <img class="glow-bg" src="/fotos/f10-fondo.webp" alt="" width="1672" height="940" loading="lazy" aria-hidden="true">
     <div class="wrap">
       <div class="sec-head"><p class="eyebrow">Precios</p><h2>Precios de lanzamiento</h2><p>Los planes se activan con el lanzamiento en App Store y Google Play. Mientras tanto, Acta está en acceso anticipado y la activamos sin costo.</p></div>
       <div class="plans">
@@ -249,7 +269,7 @@
 
   <!-- 13 · CIERRE -->
   <section class="final" id="acceso">
-    <video class="bgv" muted loop playsinline preload="none" poster="/media/cierre.jpg" data-src="/media/cierre.mp4"></video>
+    <video class="bgv" muted loop playsinline preload="none" poster="/fotos/f9-cierre.webp" data-src="/media/cierre.mp4"></video>
     <div class="final-shade"></div>
     <div class="wrap final-in">
       <h2>Tu próxima reunión<br><span class="grad">ya puede tener acta.</span></h2>

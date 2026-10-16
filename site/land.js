@@ -60,17 +60,22 @@
 
     const mm = G.matchMedia();
 
+    /* Fondos con fotografía: leve desplazamiento */
+    G.fromTo('.mf-bg', { yPercent: -8 }, { yPercent: 8, ease: 'none', scrollTrigger: { trigger: '#manifiesto', start: 'top bottom', end: 'bottom top', scrub: true } });
+    G.fromTo('.sec-photo img', { scale: 1.12 }, { scale: 1, ease: 'none', scrollTrigger: { trigger: '#compromisos', start: 'top bottom', end: 'bottom top', scrub: true } });
+    $$('.who figure').forEach((f, i) => G.from(f, { y: 60 + i * 20, opacity: 0, duration: 1, ease: 'power3.out', scrollTrigger: { trigger: '.who-grid', start: 'top 85%' } }));
+
     /* 3 · Graba: escena fija, cambia el lugar */
     const scenes = $$('#graba .scene'), places = $$('#graba .places li'), dots = $$('#graba .stage-progress i');
     let cur = -1;
     const setScene = i => {
       if (i === cur) return; cur = i;
-      scenes.forEach((v, k) => { const on = k === i; v.classList.toggle('on', on); if (on) { if (v.dataset.src && !v.src) { v.src = v.dataset.src; v.load(); } v.play().catch(() => {}); } else v.pause(); });
+      scenes.forEach((v, k) => { const on = k === i; v.classList.toggle('on', on); if (v.tagName !== 'VIDEO') return; if (on) { if (v.dataset.src && !v.src) { v.src = v.dataset.src; v.load(); } v.play().catch(() => {}); } else v.pause(); });
       places.forEach((p, k) => p.classList.toggle('on', k === i));
       dots.forEach((d, k) => d.classList.toggle('on', k <= i));
     };
     setScene(0);
-    ST.create({ trigger: '#graba', start: 'top top', end: '+=220%', pin: '.stage-pin', scrub: true, onUpdate: s => setScene(Math.min(2, Math.floor(s.progress * 3))) });
+    ST.create({ trigger: '#graba', start: 'top top', end: '+=300%', pin: '.stage-pin', scrub: true, onUpdate: s => setScene(Math.min(3, Math.floor(s.progress * 4))) });
     G.from('.stage-device .device', { y: 140, rotate: -6, opacity: 0, ease: 'power2.out', scrollTrigger: { trigger: '#graba', start: 'top 70%', end: 'top top', scrub: true } });
 
     /* 4 · La voz se vuelve texto: el video avanza con el scroll */
