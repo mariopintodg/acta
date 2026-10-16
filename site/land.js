@@ -4,8 +4,9 @@
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  /* Volver a la app si ya se usa en este equipo */
-  try { if (localStorage.getItem('acta:settings')) $('#returning').hidden = false; } catch (e) {}
+  /* Botones bloqueados: muestran "muy pronto" */
+  const toast = $('#soonToast'); let tt;
+  $$('[data-soon]').forEach(b => b.addEventListener('click', () => { toast.classList.add('show'); clearTimeout(tt); tt = setTimeout(() => toast.classList.remove('show'), 3200); }));
 
   /* Nav sólida al bajar */
   const nav = $('#nav');
@@ -75,20 +76,26 @@
       dots.forEach((d, k) => d.classList.toggle('on', k <= i));
     };
     setScene(0);
-    ST.create({ trigger: '#graba', start: 'top top', end: '+=300%', pin: '.stage-pin', scrub: true, onUpdate: s => setScene(Math.min(3, Math.floor(s.progress * 4))) });
+    ST.create({ trigger: '#graba', start: 'top top', end: '+=300%', pin: '.stage-pin', scrub: true,
+      snap: { snapTo: [0, 1 / 3, 2 / 3, 1], duration: { min: .35, max: .8 }, delay: .08, ease: 'power2.inOut' },
+      onUpdate: s => setScene(Math.round(s.progress * 3)) });
     G.from('.stage-device .device', { y: 140, rotate: -6, opacity: 0, ease: 'power2.out', scrollTrigger: { trigger: '#graba', start: 'top 70%', end: 'top top', scrub: true } });
 
     /* 4 · La voz se vuelve texto: el video avanza con el scroll */
     const vv = $('#voiceVideo');
-    const voiceTl = G.timeline({ scrollTrigger: { trigger: '#voz', start: 'top top', end: '+=200%', pin: '.voice-pin', scrub: .5,
-      onUpdate: s => { if (vv && vv.duration) { const t = Math.min(vv.duration - .05, s.progress * 1.25 * vv.duration); if (Math.abs(vv.currentTime - t) > .03) vv.currentTime = t; } } } });
-    voiceTl.from('.voice-copy', { y: 40, opacity: 0, duration: .25 })
-      .to('.tx-l', { opacity: 1, y: 0, stagger: .12, duration: .2 }, .35)
-      .to({}, { duration: .2 });
+    if (vv) vv.loop = true;
+    const voiceTl = G.timeline({ paused: true });
+    voiceTl.from('.voice-copy', { y: 40, opacity: 0, duration: .7, ease: 'power3.out' })
+      .to('.tx-l', { opacity: 1, y: 0, stagger: .35, duration: .6, ease: 'power3.out' }, .3);
+    ST.create({ trigger: '#voz', start: 'top 55%', end: 'bottom 20%',
+      onEnter: () => { voiceTl.play(); if (vv) { vv.currentTime = 0; vv.play().catch(() => {}); } },
+      onEnterBack: () => { if (vv) vv.play().catch(() => {}); },
+      onLeave: () => vv && vv.pause(), onLeaveBack: () => { voiceTl.reverse(); if (vv) vv.pause(); } });
 
     /* 5 · El acta se arma sola */
     const wide = innerWidth > 820;
-    const asTl = G.timeline({ scrollTrigger: wide ? { trigger: '#acta', start: 'top top', end: '+=180%', pin: '.assemble-pin', scrub: .6 } : { trigger: '#acta', start: 'top 75%', end: 'bottom 85%', scrub: .6 } });
+    const asTl = G.timeline({ defaults: { ease: 'power3.out' }, scrollTrigger: { trigger: '#acta', start: wide ? 'top 45%' : 'top 70%', toggleActions: 'play none none reverse' } });
+    asTl.timeScale(.55);
     asTl.from('.as-copy', { y: 40, opacity: 0, duration: .3 })
       .from('.as-dev', { scale: .82, opacity: 0, y: 60, duration: .4 }, 0)
       .from('.piece.p1', { x: -260, y: -80, rotate: -12, opacity: 0, duration: .35 }, .25)
@@ -104,12 +111,13 @@
     mm.add('(min-width: 821px)', () => {
       const track = $('#gTrack');
       const dist = () => Math.max(0, track.scrollWidth - innerWidth);
-      G.to(track, { x: () => -dist(), ease: 'none', scrollTrigger: { trigger: '#pantallas', start: 'top top', end: () => '+=' + dist(), pin: '.gallery-pin', scrub: .6, invalidateOnRefresh: true } });
+      G.to(track, { x: () => -dist(), ease: 'none', scrollTrigger: { trigger: '#pantallas', start: 'top top', end: () => '+=' + dist(), pin: '.gallery-pin', scrub: .6, invalidateOnRefresh: true,
+        snap: { snapTo: 1 / Math.max(1, $$('.g-item').length - 1), duration: { min: .3, max: .7 }, delay: .08, ease: 'power2.inOut' } } });
       $$('.g-item .device').forEach((d, i) => G.from(d, { y: 60 + (i % 2) * 40, rotate: i % 2 ? 3 : -3, ease: 'none', scrollTrigger: { trigger: '#pantallas', start: 'top 80%', end: 'top top', scrub: true } }));
     });
 
     /* 7 · Compromisos: primer plano de la frase y mensaje de WhatsApp */
-    const cmTl = G.timeline({ scrollTrigger: { trigger: '#compromisos', start: 'top 70%', end: 'center 45%', scrub: .6 } });
+    const cmTl = G.timeline({ defaults: { ease: 'power3.out', duration: .9 }, scrollTrigger: { trigger: '#compromisos', start: 'top 60%', toggleActions: 'play none none reverse' } });
     cmTl.from('#compromisos .sd', { y: 120, rotate: 5, opacity: 0, duration: .5 })
       .from('.zoom-card', { scale: .5, x: 80, opacity: 0, duration: .4 }, .3)
       .from('.wa', { y: 60, x: 40, opacity: 0, scale: .9, duration: .4 }, .5);
@@ -117,15 +125,18 @@
 
     /* 8 · Modo Clase: la página pasa a claro */
     ST.create({ trigger: '#clase', start: 'top 55%', end: 'bottom 45%', onToggle: s => document.body.classList.toggle('is-light', s.isActive) });
-    G.from('#clase .vframe', { clipPath: 'inset(18% 18% 18% 18% round 32px)', scale: 1.08, ease: 'none', scrollTrigger: { trigger: '#clase', start: 'top 85%', end: 'center center', scrub: true } });
-    G.from('#clase .sd', { y: 140, opacity: 0, ease: 'none', scrollTrigger: { trigger: '#clase', start: 'top 60%', end: 'center center', scrub: true } });
+    G.timeline({ defaults: { ease: 'power3.out' }, scrollTrigger: { trigger: '#clase', start: 'top 55%', toggleActions: 'play none none reverse' } })
+      .from('#clase .vframe', { clipPath: 'inset(18% 18% 18% 18% round 32px)', scale: 1.08, duration: 1.3, ease: 'expo.out' })
+      .from('#clase .sd', { y: 140, opacity: 0, duration: 1 }, .35);
 
     /* 9 · Todo de una vez: abanico de archivos */
-    const fan = innerWidth < 900 ? 0.62 : 1;
-    const pos = [[-210, -120, -14], [-70, -170, -5], [80, -150, 6], [210, -60, 14], [-150, 90, -8], [140, 110, 9]];
+    const fan = innerWidth < 520 ? 0.5 : innerWidth < 900 ? 0.62 : 1;
+    const pos = [[-250, -120, -11], [-85, -185, -4], [85, -170, 5], [250, -95, 11], [-165, 105, -7], [160, 115, 8]];
+    const grid = [[-118, -88, -3], [0, -96, 1], [118, -88, 3], [-118, 92, 2], [0, 84, -1], [118, 92, -2]];
+    const small = innerWidth < 520;
     $$('.files .file').forEach((f, i) => {
-      const [x, y, r] = pos[i];
-      G.fromTo(f, { x: 0, y: 40, rotate: 0, scale: .7, opacity: 0 }, { x: x * fan, y: y * fan + 40, rotate: r, scale: 1, opacity: 1, ease: 'power2.out', scrollTrigger: { trigger: '#exportar', start: 'top 70%', end: 'center 55%', scrub: .6 } });
+      const [x, y, r] = small ? grid[i] : pos[i];
+      G.fromTo(f, { x: 0, y: 40, rotate: 0, scale: .7, opacity: 0 }, { x: small ? x : x * fan, y: small ? y : y * fan + 40, rotate: r, scale: 1, opacity: 1, duration: 1.1, delay: .15 + i * .09, ease: 'back.out(1.4)', scrollTrigger: { trigger: '#exportar', start: 'top 55%', toggleActions: 'play none none reverse' } });
     });
     G.from('.ex-copy > *', { y: 30, opacity: 0, stagger: .08, duration: .8, ease: 'power3.out', scrollTrigger: { trigger: '#exportar', start: 'top 65%' } });
 

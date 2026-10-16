@@ -17,7 +17,7 @@
 <link rel="preload" href="/app/fonts/bricolage.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/app/fonts/plex-sans-400.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/media/hero.jpg" as="image">
-<link rel="stylesheet" href="/land.css?v=381">
+<link rel="stylesheet" href="/land.css?v=383">
 <script>
   /* Acta instalada en el teléfono: abre la app directo */
   (function () { try { if (matchMedia('(display-mode: standalone)').matches || navigator.standalone) location.replace('/app/' + location.hash); } catch (e) {} })();
@@ -39,7 +39,7 @@
       <a href="#clase">Modo Clase</a>
       <a href="#precios">Precios</a>
     </nav>
-    <a class="btn btn-sm" href="#acceso">Pedir acceso</a>
+    <button class="btn btn-sm is-soon" type="button" data-soon><svg class="ic16" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Muy pronto</button>
   </div>
 </header>
 
@@ -58,7 +58,7 @@
         <h1 class="hero-title"><span class="line"><span class="w">Graba</span> <span class="w">la</span> <span class="w">reunión.</span></span><span class="line"><span class="w grad">Acta</span> <span class="w grad">hace</span> <span class="w grad">el</span> <span class="w grad">acta.</span></span></h1>
         <p class="lead reveal-up">Quién dijo qué, las decisiones, las tareas con responsable y plazo, y un informe listo para mandar. En minutos y en español de Chile.</p>
         <div class="cta-row reveal-up">
-          <a class="btn btn-lg" href="#acceso">Pedir acceso anticipado</a>
+          <button class="btn btn-lg is-soon" type="button" data-soon><svg class="ic16" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Disponible muy pronto</button>
           <a class="btn btn-ghost btn-lg" href="#graba"><svg class="ic16" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>Ver cómo funciona</a>
         </div>
       </div>
@@ -208,12 +208,12 @@
         <p class="sub">Informe en PDF tamaño carta, acta en Word, resumen, transcripción, mapa mental y el audio original, en un solo archivo. Con tu logo, tu color y tu firma.</p>
       </div>
       <div class="files" aria-hidden="true">
-        <div class="file f-pdf"><i>PDF</i><b>Informe</b></div>
-        <div class="file f-doc"><i>DOC</i><b>Acta en Word</b></div>
-        <div class="file f-map"><i>PDF</i><b>Mapa mental</b></div>
-        <div class="file f-tx"><i>PDF</i><b>Transcripción</b></div>
-        <div class="file f-aud"><i>M4A</i><b>Audio</b></div>
-        <div class="file f-cal"><i>ICS</i><b>Tareas</b></div>
+        <div class="file f-pdf"><i>PDF</i><div class="fp fp-rep"><span class="fp-band"></span><span class="fp-gauge"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="14"/><circle class="v" cx="18" cy="18" r="14"/></svg><em>74</em></span><span class="ln w9"></span><span class="ln w7"></span><span class="fp-bars"><s style="--h:60%"></s><s style="--h:90%"></s><s style="--h:40%"></s><s style="--h:75%"></s></span></div><b>Informe</b></div>
+        <div class="file f-doc"><i>DOC</i><div class="fp fp-doc"><span class="ln tt"></span><span class="ln w9"></span><span class="ln w8"></span><span class="ln w6"></span><span class="ck"><u></u><span class="ln w7"></span></span><span class="ck"><u></u><span class="ln w5"></span></span></div><b>Acta en Word</b></div>
+        <div class="file f-map"><i>PDF</i><div class="fp fp-map"><svg viewBox="0 0 100 64"><path d="M50 32 18 12M50 32 16 50M50 32 84 12M50 32 84 52M50 32 50 6"/><circle class="c" cx="50" cy="32" r="8"/><circle cx="18" cy="12" r="5"/><circle cx="16" cy="50" r="5"/><circle cx="84" cy="12" r="5"/><circle cx="84" cy="52" r="5"/><circle cx="50" cy="6" r="4"/></svg></div><b>Mapa mental</b></div>
+        <div class="file f-tx"><i>PDF</i><div class="fp fp-tx"><span class="row"><u style="--c:#FF8A3D"></u><span class="ln w9"></span></span><span class="row"><u style="--c:#4C8DFF"></u><span class="ln w7"></span></span><span class="row"><u style="--c:#A35CFF"></u><span class="ln w8"></span></span><span class="row"><u style="--c:#4C8DFF"></u><span class="ln w5"></span></span></div><b>Transcripción</b></div>
+        <div class="file f-aud"><i>M4A</i><div class="fp fp-aud"><span class="pl"></span><span class="wave"><s style="--h:30%"></s><s style="--h:70%"></s><s style="--h:45%"></s><s style="--h:95%"></s><s style="--h:60%"></s><s style="--h:80%"></s><s style="--h:35%"></s><s style="--h:65%"></s><s style="--h:50%"></s><s style="--h:85%"></s><s style="--h:40%"></s><s style="--h:25%"></s></span><em>1:24:06</em></div><b>Audio</b></div>
+        <div class="file f-cal"><i>ICS</i><div class="fp fp-cal"><span class="mh">OCT</span><span class="grid"><s></s><s></s><s class="on"></s><s></s><s></s><s></s><s></s><s></s><s></s><s></s><s class="on"></s><s></s><s></s><s class="on"></s><s></s><s></s><s></s><s></s><s></s><s></s><s></s></span></div><b>Tareas</b></div>
       </div>
     </div>
   </section>
@@ -247,7 +247,7 @@
     <div class="wrap">
       <div class="sec-head"><p class="eyebrow">Precios</p><h2>Precios de lanzamiento</h2><p>Los planes se activan con el lanzamiento en App Store y Google Play. Mientras tanto, Acta está en acceso anticipado y la activamos sin costo.</p></div>
       <div class="plans">
-        <article class="plan"><h3>Gratis</h3><p class="price">$0</p><p class="per">para probar</p><ul><li>1 hora de grabación</li><li>Actas, tareas e informe</li><li>Exporta en PDF</li></ul><a class="btn btn-ghost" href="#acceso">Pedir acceso</a></article>
+        <article class="plan"><h3>Gratis</h3><p class="price">$0</p><p class="per">para probar</p><ul><li>1 hora de grabación</li><li>Actas, tareas e informe</li><li>Exporta en PDF</li></ul><span class="soon">Muy pronto</span></article>
         <article class="plan"><h3>Personal</h3><p class="price">$3.990</p><p class="per">al mes · IVA incluido</p><ul><li>5 horas al mes</li><li>Modo Clase y tarjetas</li><li>Ideal para estudiantes</li></ul><span class="soon">Muy pronto</span></article>
         <article class="plan hot"><span class="ptag">Recomendado</span><h3>Pro</h3><p class="price">$9.990</p><p class="per">al mes · IVA incluido</p><ul><li>12 horas al mes</li><li>Informe extendido</li><li>Tu logo, color y firma</li><li>Memoria de compromisos</li></ul><span class="soon">Muy pronto</span></article>
       </div>
@@ -258,7 +258,7 @@
   <section class="sec" id="preguntas">
     <div class="wrap narrow">
       <div class="sec-head"><p class="eyebrow">Preguntas frecuentes</p><h2>Lo que nos preguntan</h2></div>
-      <details><summary>¿Necesito descargar algo?</summary><p>No. Acta se abre en el navegador, en actasapp.com/app, y en el iPhone se agrega a la pantalla de inicio como una app más. Muy pronto también estará en App Store y Google Play.</p></details>
+      <details><summary>¿Necesito descargar algo?</summary><p>No. Acta llegará como app para iPhone y Android, en App Store y Google Play. Estamos afinando los últimos detalles antes del lanzamiento.</p></details>
       <details><summary>¿Dónde quedan mis grabaciones?</summary><p>En tu propio teléfono o computador. Para crear el acta, el audio viaja cifrado a los servicios de inteligencia artificial que lo procesan; no se usa para entrenarlos ni se comparte. Puedes borrar todo cuando quieras.</p></details>
       <details><summary>¿Cuánto puede durar una grabación?</summary><p>No hay límite. Acta guarda la grabación en partes y las procesa en paralelo, así que una reunión larga también queda lista en minutos.</p></details>
       <details><summary>¿Funciona sin internet?</summary><p>Sí, puedes grabar sin señal. El acta se crea sola cuando el teléfono vuelve a tener conexión.</p></details>
@@ -273,10 +273,9 @@
     <div class="final-shade"></div>
     <div class="wrap final-in">
       <h2>Tu próxima reunión<br><span class="grad">ya puede tener acta.</span></h2>
-      <p>Pide tu acceso anticipado y pruébala gratis en tu teléfono.</p>
+      <p>Estamos afinando los últimos detalles. Muy pronto en tu teléfono.</p>
       <div class="cta-row center">
-        <a class="btn btn-lg" href="mailto:mariopintodg2023@gmail.com?subject=Quiero%20probar%20Acta&body=Hola%2C%20me%20gustar%C3%ADa%20probar%20Acta.%20Mi%20nombre%20y%20a%20qu%C3%A9%20me%20dedico%3A%20">Pedir acceso anticipado</a>
-        <a class="btn btn-ghost btn-lg" href="/app/">Ya tengo cuenta</a>
+        <button class="btn btn-lg is-soon" type="button" data-soon><svg class="ic16" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Muy pronto en App Store y Google Play</button>
       </div>
       <p class="stores">App Store y Google Play · muy pronto</p>
     </div>
@@ -286,15 +285,15 @@
 <footer class="foot">
   <div class="wrap foot-in">
     <a class="brand" href="/"><span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 10v4M9 7v10M13 4v16M17 8v8M21 11v2"/></svg></span><span>Acta</span></a>
-    <nav aria-label="Pie de página"><a href="/app/">Abrir la app</a><a href="/privacidad.html">Privacidad</a><a href="mailto:mariopintodg2023@gmail.com">Contacto</a></nav>
+    <nav aria-label="Pie de página"><a href="/privacidad.html">Privacidad</a><a href="mailto:mariopintodg2023@gmail.com">Contacto</a></nav>
     <p>© 2026 Acta · Hecha en Chile</p>
   </div>
 </footer>
 
-<div class="returning" id="returning" hidden><span><b>Ya usas Acta en este equipo.</b></span><a class="btn btn-sm" href="/app/">Abrir mi Acta</a></div>
+<div class="toast" id="soonToast" role="status" aria-live="polite"><b>Muy pronto</b><span>Acta se lanza en App Store y Google Play. Estamos afinando los últimos detalles.</span></div>
 
 <script src="/vendor/gsap.min.js" defer></script>
 <script src="/vendor/ScrollTrigger.min.js" defer></script>
-<script src="/land.js?v=381" defer></script>
+<script src="/land.js?v=383" defer></script>
 </body>
 </html>
