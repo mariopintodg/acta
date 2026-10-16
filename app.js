@@ -108,7 +108,7 @@ const PART_SEC = 5 * 60; /* recordings are saved in 5-minute pieces so they can 
 /* =========================================================
    Settings (localStorage — only this device)
    ========================================================= */
-const DEFAULTS = { anthropicKey: '', openaiKey: '', claudeModel: 'claude-sonnet-5-5', sttModel: 'gpt-4o-transcribe-diarize', language: 'es', theme: 'system', captions: false, bitrate: 32000, followAudio: true, vocab: '', lockOn: false, lockCred: '', lockPin: '', lockSalt: '', lockAfter: 60, myName: '', brandName: '', brandColor: '', brandLogo: '', signature: '', folioNext: 1, admin: null, viewAsClient: false, adminPin: '', adminSalt: '', planName: 'Plan Pro', planMinutes: 600, planRenewDay: 1, profileOrg: '' };
+const DEFAULTS = { anthropicKey: '', openaiKey: '', claudeModel: 'claude-sonnet-5-5', sttModel: 'gpt-4o-transcribe-diarize', language: 'es', theme: 'system', captions: false, bitrate: 32000, followAudio: true, vocab: '', lockOn: false, lockCred: '', lockPin: '', lockSalt: '', lockAfter: 60, myName: '', brandName: '', brandColor: '', brandLogo: '', signature: '', folioNext: 1, admin: null, viewAsClient: false, adminPin: '', adminSalt: '', planName: 'Plan Pro', planMinutes: 600, planRenewDay: 1, profileOrg: '', lastBackup: 0, backupSnooze: 0 };
 /* Customer view vs administrator view: customers never see keys, models or dollar balances */
 const isAdmin = () => Settings.v.admin === true;
 const adminView = () => isAdmin() && !Settings.v.viewAsClient;
@@ -882,6 +882,7 @@ function renderLibrary(app) {
   app.innerHTML = `
   ${S.recovery ? `<div class="notice" style="margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:220px"><b>Hay una grabación sin terminar</b> de ${fmtT(S.recovery.elapsed)}. La app se cerró mientras grababas, pero el audio quedó guardado.</span><button class="btn sm primary" id="rec-recover">Recuperar y procesar</button><button class="btn sm ghost danger" id="rec-discard">Descartar</button></div>` : ''}
   ${notActive && S.loaded ? `<div class="notice info" style="margin-bottom:14px"><b>Tu cuenta aún no está activada.</b> Puedes grabar y tus reuniones quedan guardadas; las actas se crearán apenas se active tu plan.</div>` : ''}
+  ${backupDue() ? `<div class="notice" style="margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:220px"><b>${Settings.v.lastBackup ? 'Hace más de una semana que no respaldas.' : 'Aún no tienes respaldo de tus reuniones.'}</b> Si cambias o pierdes el teléfono, el respaldo es la única copia.</span><button class="btn sm primary" id="bk-now">${icon('download')}Respaldar ahora</button><button class="btn sm ghost" id="bk-later">Después</button></div>` : ''}
   ${needsKeys && S.loaded ? `<div class="notice info" style="margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:220px">${S.meetings.some(m => !String(m.id).startsWith('ejemplo-')) || !IS_STANDALONE ? `<b>Faltan tus claves en esta pantalla.</b> ${IS_STANDALONE ? 'Pégalas de nuevo en Ajustes; desde ahora quedan con respaldo.' : 'Estás en el navegador, no en la app instalada: Safari, el ícono de inicio y los links de WhatsApp guardan sus datos por separado. Abre Acta desde el ícono de tu pantalla de inicio.'}` : '<b>Configura Acta en 2 minutos.</b> Agrega tus claves de Claude y OpenAI para transcribir con hablantes y crear las actas.'}</span><button class="btn sm primary" data-nav="settings">${icon('key')}Ir a Ajustes</button></div>` : ''}
   ${low ? `<div class="notice" style="margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:220px"><b>Te queda poco saldo.</b> Recarga en la consola del proveedor para no quedarte sin actas en medio de una reunión.</span><button class="btn sm" data-nav="settings">Ver saldo</button></div>` : ''}
   ${q ? '' : `<section class="home-hero rise">
@@ -914,6 +915,8 @@ function renderLibrary(app) {
   <p class="status-line">Todo se guarda solo en este dispositivo${S.meetings.length ? ' · respáldalo desde Ajustes' : ''}</p>`;
   $$('[data-open]', app).forEach(b => b.onclick = () => go('m/' + b.dataset.open));
   const rr = $('#rec-recover'); if (rr) rr.onclick = recoverRecording;
+  const bn = $('#bk-now'); if (bn) bn.onclick = exportBackup;
+  const bl = $('#bk-later'); if (bl) bl.onclick = () => { Settings.set({ backupSnooze: Date.now() + 3 * 864e5 }); render(); };
   const rd = $('#rec-discard'); if (rd) rd.onclick = async () => { const r = S.recovery; S.recovery = null; await DB.delChunks(r.recId); await DB.del('kv', 'activeRec'); render(); toast('Grabación descartada'); };
   const ld = $('#load-demo'); if (ld) ld.onclick = loadDemo;
   $$('[data-hit]', app).forEach(b => b.onclick = () => { const [id, tab, t] = b.dataset.hit.split('|'); if (tab === 'transcripcion') { S.jump = +t; S.trqNext = S.q; } go('m/' + id + '/' + tab); });
@@ -2744,9 +2747,9 @@ async function renderSettings(app) {
       <div class="tools-row" style="margin-top:14px">
         ${persisted ? '' : `<button class="btn sm" id="s-persist">${icon('pin')}Proteger mis datos</button>`}
         <button class="btn sm" id="s-export">${icon('download')}Exportar respaldo</button>
-        <span class="btn sm filebtn">${icon('upload')}Importar respaldo<input type="file" id="s-import" accept="application/json,.json"></span>
+        <span class="btn sm filebtn">${icon('upload')}Importar respaldo<input type="file" id="s-import" accept="application/json,.json,application/zip,.zip"></span>
       </div>
-      <p class="muted" style="font-size:12.5px">El respaldo incluye actas, transcripciones y tareas (no el audio).</p>
+      <p class="muted" style="font-size:12.5px">El respaldo completo trae actas, transcripciones, tareas, audio y fotos en un solo archivo. ${Settings.v.lastBackup ? 'Último respaldo: ' + esc(new Date(Settings.v.lastBackup).toLocaleDateString('es-CL', { day: 'numeric', month: 'long' })) + '.' : 'Aún no has hecho un respaldo.'}</p>
       <div style="margin-top:14px" id="wipe-slot"><button class="btn sm ghost danger" id="s-wipe">${icon('trash')}Borrar todo</button></div>
     </section>
     <section class="panel howto"><h2>Privacidad</h2><ol style="margin-top:10px">
@@ -2864,20 +2867,85 @@ function adminGate(app) {
     });
   }, 'pinsheet');
 }
-async function exportBackup() {
+function backupDue() {
+  if (!S.loaded) return false; const real = S.meetings.filter(m => !String(m.id).startsWith('ejemplo-'));
+  if (!real.length || Date.now() < (Settings.v.backupSnooze || 0)) return false;
+  const newest = Math.max(...real.map(m => m.createdAt || 0));
+  return !Settings.v.lastBackup || (Date.now() - Settings.v.lastBackup > 7 * 864e5 && newest > Settings.v.lastBackup);
+}
+async function backupData() {
   const meetings = await DB.all('meetings'); const transcripts = {};
   for (const m of meetings) { const t = await DB.get('transcripts', m.id); if (t) transcripts[m.id] = t.segments; }
-  const data = { app: 'acta', version: 1, exportedAt: new Date().toISOString(), meetings: meetings.map(m => ({ ...m, audioParts: [] })), transcripts };
-  downloadText(`acta-respaldo-${today()}.json`, JSON.stringify(data), 'application/json');
+  return { meetings, transcripts };
+}
+/* Respaldo: completo (un .zip con actas, transcripciones, audio y fotos) o liviano (solo texto, .json) */
+async function exportBackup() {
+  const { meetings } = await backupData(); const real = meetings.filter(m => !String(m.id).startsWith('ejemplo-'));
+  let audioBytes = 0; for (const m of real) for (const p of m.audioParts || []) audioBytes += p.size || 0;
+  sheet(`<div class="eyebrow">Respaldo</div><h3>Guarda una copia fuera del teléfono</h3>
+    <p class="muted">${real.length} ${real.length === 1 ? 'reunión' : 'reuniones'}. Mándatelo por WhatsApp o correo, o guárdalo en Archivos / Drive.</p>
+    <div class="sheet-actions" style="flex-direction:column;align-items:stretch;gap:8px">
+      <button class="btn primary" id="bk-full">${icon('download')}Respaldo completo, con audio${audioBytes ? ` (~${fmtBytes(audioBytes)})` : ''}</button>
+      <button class="btn" id="bk-lite">${icon('doc')}Solo actas y transcripciones (liviano)</button>
+    </div>`, el => {
+    $('#bk-full', el).onclick = () => { closeSheet(); makeBackup(true); };
+    $('#bk-lite', el).onclick = () => { closeSheet(); makeBackup(false); };
+  });
+}
+async function makeBackup(full) {
+  try {
+    toast(full ? 'Armando el respaldo con audio…' : 'Armando el respaldo…', 4000);
+    const { meetings, transcripts } = await backupData();
+    const data = { app: 'acta', version: full ? 2 : 1, exportedAt: new Date().toISOString(), meetings: full ? meetings : meetings.map(m => ({ ...m, audioParts: [] })), transcripts };
+    let file;
+    if (full) {
+      const files = [['respaldo.json', JSON.stringify(data)]];
+      for (const m of meetings) {
+        for (const p of m.audioParts || []) { const b = await DB.get('audio', p.key); if (b) files.push(['audio/' + encodeURIComponent(p.key), new Uint8Array(await b.arrayBuffer())]); }
+        for (const ph of m.photos || []) { const b = ph.key && await DB.get('photos', ph.key); if (b) files.push(['fotos/' + encodeURIComponent(ph.key), new Uint8Array(await b.arrayBuffer())]); }
+      }
+      file = new File([zipStore(files)], `acta-respaldo-completo-${today()}.zip`, { type: 'application/zip' });
+    } else file = new File([JSON.stringify(data)], `acta-respaldo-${today()}.json`, { type: 'application/json' });
+    Settings.set({ lastBackup: Date.now() });
+    deliverFile(file, full ? 'Respaldo completo' : 'Respaldo de actas');
+  } catch (e) { toast('No se pudo armar el respaldo: ' + (e.message || 'error'), 5000); }
+}
+/* Lee un .zip sin comprimir (como los que arma Acta) */
+function unzipStore(buf) {
+  const v = new DataView(buf), u = new Uint8Array(buf), dec = new TextDecoder(); const out = new Map();
+  let e = buf.byteLength - 22; while (e >= 0 && v.getUint32(e, true) !== 0x06054b50) e--;
+  if (e < 0) throw new Error('El archivo no es un respaldo de Acta');
+  const n = v.getUint16(e + 10, true); let c = v.getUint32(e + 16, true);
+  for (let i = 0; i < n; i++) {
+    if (v.getUint32(c, true) !== 0x02014b50) break;
+    const method = v.getUint16(c + 10, true), size = v.getUint32(c + 20, true), nl = v.getUint16(c + 28, true), xl = v.getUint16(c + 30, true), cl = v.getUint16(c + 32, true), lo = v.getUint32(c + 42, true);
+    const name = dec.decode(u.subarray(c + 46, c + 46 + nl));
+    if (method !== 0) throw new Error('Este .zip fue comprimido de nuevo; usa el archivo original que entregó Acta');
+    const start = lo + 30 + v.getUint16(lo + 26, true) + v.getUint16(lo + 28, true);
+    out.set(name, u.subarray(start, start + size)); c += 46 + nl + xl + cl;
+  }
+  return out;
 }
 async function importBackup(file) {
   if (!file) return;
   try {
-    const data = JSON.parse(await file.text()); if (data.app !== 'acta' || !Array.isArray(data.meetings)) throw new Error();
-    let n = 0;
-    for (const m of data.meetings) { if (!m.id) continue; const exists = await DB.get('meetings', m.id); if (exists) continue; m.audioParts = []; await DB.put('meetings', m); if (data.transcripts?.[m.id]) await DB.put('transcripts', { segments: data.transcripts[m.id] }, m.id); n++; }
-    await loadMeetings(); toast(n ? `${n} ${n === 1 ? 'reunión importada' : 'reuniones importadas'}` : 'No había reuniones nuevas en el respaldo');
-  } catch { toast('Ese archivo no es un respaldo de Acta.'); }
+    let data, zip = null;
+    if (/\.zip$/i.test(file.name) || file.type.includes('zip')) { zip = unzipStore(await file.arrayBuffer()); const j = zip.get('respaldo.json'); if (!j) throw new Error(); data = JSON.parse(new TextDecoder().decode(j)); }
+    else data = JSON.parse(await file.text());
+    if (data.app !== 'acta' || !Array.isArray(data.meetings)) throw new Error();
+    let n = 0, audios = 0;
+    for (const m of data.meetings) {
+      if (!m.id) continue; const exists = await DB.get('meetings', m.id);
+      const parts = [];
+      for (const p of m.audioParts || []) { const b = zip?.get('audio/' + encodeURIComponent(p.key)); if (b) { if (!exists || !(exists.audioParts || []).length) await DB.put('audio', new Blob([b], { type: p.type || 'audio/webm' }), p.key); parts.push(p); } }
+      if (exists) { if (parts.length && !(exists.audioParts || []).length) { exists.audioParts = parts; await DB.put('meetings', exists); audios++; } continue; }
+      if (parts.length) audios++;
+      m.audioParts = parts;
+      for (const ph of m.photos || []) { const b = zip?.get('fotos/' + encodeURIComponent(ph.key)); if (b) await DB.put('photos', new Blob([b], { type: ph.type || 'image/jpeg' }), ph.key); }
+      await DB.put('meetings', m); if (data.transcripts?.[m.id]) await DB.put('transcripts', { segments: data.transcripts[m.id] }, m.id); n++;
+    }
+    await loadMeetings(); toast(n ? `${n} ${n === 1 ? 'reunión importada' : 'reuniones importadas'}${audios ? ' con su audio' : ''}` : 'No había reuniones nuevas en el respaldo', 4000);
+  } catch (e) { toast(/zip|respaldo/i.test(e?.message || '') ? e.message : 'Ese archivo no es un respaldo de Acta.', 5000); }
 }
 
 /* =========================================================
