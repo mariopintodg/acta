@@ -103,6 +103,7 @@ const KP_ICONS = ['target', 'money', 'people', 'time', 'tech', 'design', 'legal'
 const CLAUDE_MODELS = [['claude-sonnet-5-5', 'Claude Sonnet 5.5 — recomendado'], ['claude-opus-5-5', 'Claude Opus 5.5 — máximo detalle'], ['claude-haiku-5-5', 'Claude Haiku 5.5 — más rápido y económico']];
 const STT_MODELS = [['gpt-4o-transcribe-diarize', 'Con hablantes (recomendado)'], ['whisper-1', 'Whisper — con marcas de tiempo, sin hablantes'], ['gpt-4o-transcribe', 'Solo texto']];
 const MAX_UPLOAD = 25 * 1024 * 1024;
+const APP_VERSION = '3.5.5';
 const PART_SEC = 5 * 60; /* recordings are saved in 5-minute pieces so they can be transcribed in parallel */
 
 /* =========================================================
@@ -2758,7 +2759,7 @@ async function renderSettings(app) {
       <li>Tus reuniones, audios y actas viven en este dispositivo.</li>
       <li>El audio se envía a OpenAI solo para transcribirlo; el texto se envía a Anthropic solo para crear el acta y responder preguntas.</li>
       <li>Avísales a los participantes que estás grabando.</li></ol><a class="btn sm" href="privacidad.html" target="_blank" rel="noopener" style="margin-top:12px">${icon('doc')}Política de privacidad</a></section>
-    <p class="status-line" id="ver-line">Acta 3.5${isAdmin() ? (adminView() ? ' · administrador' : ' · vista cliente') : ''}</p>
+    <p class="status-line" id="ver-line">Acta ${APP_VERSION}${isAdmin() ? (adminView() ? ' · administrador' : ' · vista cliente') : ''}</p>
   </div>`;
   const keyIn = (id, k) => { const el = $(id); el.addEventListener('input', e => Settings.set({ [k]: e.target.value.trim() })); el.addEventListener('change', e => { Settings.set({ [k]: e.target.value.trim() }); keepStorage(); toast('Clave guardada en este teléfono'); }); };
   keyIn('#k-anthropic', 'anthropicKey'); keyIn('#k-openai', 'openaiKey');
@@ -3512,6 +3513,16 @@ document.addEventListener('dblclick', e => { if (!e.target.closest('input,textar
   onRoute();
   if (!navigator.onLine) document.body.classList.add('offline');
   for (const m of S.meetings) if (['queued', 'transcribing', 'analyzing', 'waiting'].includes(m.status)) processMeeting(m.id);
-  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    /* Actualización automática: al volver a la app busca versión nueva y, si llegó, recarga (nunca mientras graba) */
+    const hadCtrl = !!navigator.serviceWorker.controller; let reloading = false;
+    navigator.serviceWorker.register('sw.js').then(reg => { const chk = () => reg.update().catch(() => {}); document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') chk(); }); setInterval(chk, 30 * 60 * 1000); }).catch(() => {});
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadCtrl || reloading) return;
+      const go = () => { if (Rec.state !== 'idle' || S.running?.size || S.extBusy) return setTimeout(go, 5000); reloading = true; try { sessionStorage.setItem('acta:updated', '1'); } catch {} location.reload(); };
+      go();
+    });
+    try { if (sessionStorage.getItem('acta:updated')) { sessionStorage.removeItem('acta:updated'); setTimeout(() => toast('Acta se actualizó a la versión ' + APP_VERSION), 1200); } } catch {}
+  }
 })();
 })();

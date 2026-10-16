@@ -1122,3 +1122,6 @@ body:not(.admin) .adm-only{display:none!important}
 .rp-chrono .mono{font-size:12px;color:var(--p-faint);padding-top:2px}
 .rp-chrono p{margin:0;font-size:13.5px;color:var(--p-ink)}
 @media (max-width:600px){.rp-table{font-size:12px}.rp-table th:nth-child(5),.rp-table td:nth-child(5){display:none}}
+/* El menú Exportar se abre dentro de la tarjeta (antes quedaba cortado por los bordes en el teléfono) */
+.m-actions .menu-wrap:has(> .menu:not([hidden])){flex-basis:100%;display:flex;flex-direction:column;align-items:flex-start}
+.m-actions .menu{position:static;margin-top:8px;width:100%;max-width:440px;box-shadow:none}

@@ -1,5 +1,5 @@
 /* Acta service worker: app shell offline, network-first for the app files, cache-first for fonts. API calls are never cached. */
-const VERSION = 'acta-v3.5.4';
+const VERSION = 'acta-v3.5.5';
 const SHELL = ['./', './privacidad.html', './index.html', './app.css', './app.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './favicon.png', './h2i.js'];
 
 self.addEventListener('install', e => {
@@ -21,7 +21,7 @@ self.addEventListener('fetch', e => {
     return;
   }
   if (url.origin !== self.location.origin) return;
-  e.respondWith(fetch(req).then(res => {
+  e.respondWith(fetch(req, { cache: 'no-cache' }).then(res => {
     if (res.ok) { const copy = res.clone(); caches.open(VERSION).then(c => c.put(req, copy)); }
     return res;
   }).catch(() => caches.match(req, { ignoreSearch: true }).then(r => r || caches.match('./index.html'))));
