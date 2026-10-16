@@ -103,7 +103,7 @@ const KP_ICONS = ['target', 'money', 'people', 'time', 'tech', 'design', 'legal'
 const CLAUDE_MODELS = [['claude-sonnet-5-5', 'Claude Sonnet 5.5 — recomendado'], ['claude-opus-5-5', 'Claude Opus 5.5 — máximo detalle'], ['claude-haiku-5-5', 'Claude Haiku 5.5 — más rápido y económico']];
 const STT_MODELS = [['gpt-4o-transcribe-diarize', 'Con hablantes (recomendado)'], ['whisper-1', 'Whisper — con marcas de tiempo, sin hablantes'], ['gpt-4o-transcribe', 'Solo texto']];
 const MAX_UPLOAD = 25 * 1024 * 1024;
-const APP_VERSION = '3.6.1';
+const APP_VERSION = '3.7.0';
 const PART_SEC = 5 * 60; /* recordings are saved in 5-minute pieces so they can be transcribed in parallel */
 
 /* =========================================================
@@ -883,7 +883,7 @@ function renderLibrary(app) {
   app.innerHTML = `
   ${S.recovery ? `<div class="notice" style="margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:220px"><b>Hay una grabación sin terminar</b> de ${fmtT(S.recovery.elapsed)}. La app se cerró mientras grababas, pero el audio quedó guardado.</span><button class="btn sm primary" id="rec-recover">Recuperar y procesar</button><button class="btn sm ghost danger" id="rec-discard">Descartar</button></div>` : ''}
   ${notActive && S.loaded ? `<div class="notice info" style="margin-bottom:14px"><b>Tu cuenta aún no está activada.</b> Puedes grabar y tus reuniones quedan guardadas; las actas se crearán apenas se active tu plan.</div>` : ''}
-  ${S.moveNotice ? `<div class="notice info" style="margin-bottom:14px"><b>Acta ahora vive en ${S.moveNotice}.</b> Para llevar tus reuniones: toca <b>Respaldar ahora</b> (respaldo completo), abre <b>${S.moveNotice}</b> en Safari o Chrome, agrégala a la pantalla de inicio y en Ajustes usa <b>Importar respaldo</b>. Luego vuelve a pegar tus claves. <button class="btn sm primary" id="mv-bk" style="margin-top:8px">Respaldar ahora</button></div>` : ''}
+  ${S.moveNotice ? `<div class="notice info" style="margin-bottom:14px"><b>Acta ahora vive en ${S.moveNotice}/app.</b> Para llevar tus reuniones: toca <b>Respaldar ahora</b> (respaldo completo), abre <b>${S.moveNotice}/app</b> en Safari o Chrome, agrégala a la pantalla de inicio y en Ajustes usa <b>Importar respaldo</b>. Luego vuelve a pegar tus claves. <button class="btn sm primary" id="mv-bk" style="margin-top:8px">Respaldar ahora</button></div>` : ''}
   ${backupDue() ? `<div class="notice" style="margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:220px"><b>${Settings.v.lastBackup ? 'Hace más de una semana que no respaldas.' : 'Aún no tienes respaldo de tus reuniones.'}</b> Si cambias o pierdes el teléfono, el respaldo es la única copia.</span><button class="btn sm primary" id="bk-now">${icon('download')}Respaldar ahora</button><button class="btn sm ghost" id="bk-later">Después</button></div>` : ''}
   ${needsKeys && S.loaded ? `<div class="notice info" style="margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:220px">${S.meetings.some(m => !String(m.id).startsWith('ejemplo-')) || !IS_STANDALONE ? `<b>Faltan tus claves en esta pantalla.</b> ${IS_STANDALONE ? 'Pégalas de nuevo en Ajustes; desde ahora quedan con respaldo.' : 'Estás en el navegador, no en la app instalada: Safari, el ícono de inicio y los links de WhatsApp guardan sus datos por separado. Abre Acta desde el ícono de tu pantalla de inicio.'}` : '<b>Configura Acta en 2 minutos.</b> Agrega tus claves de Claude y OpenAI para transcribir con hablantes y crear las actas.'}</span><button class="btn sm primary" data-nav="settings">${icon('key')}Ir a Ajustes</button></div>` : ''}
   ${low ? `<div class="notice" style="margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><span style="flex:1;min-width:220px"><b>Te queda poco saldo.</b> Recarga en la consola del proveedor para no quedarte sin actas en medio de una reunión.</span><button class="btn sm" data-nav="settings">Ver saldo</button></div>` : ''}
@@ -3598,7 +3598,7 @@ document.addEventListener('dblclick', e => { if (!e.target.closest('input,textar
     const h = location.hostname, home = 'actasapp.com';
     if (h !== home && h !== 'localhost' && !/^\d/.test(h) && location.protocol === 'https:' && !NAT) {
       const hasData = S.meetings.some(m => !String(m.id).startsWith('ejemplo-')) || Settings.v.anthropicKey || Settings.v.openaiKey;
-      if (!hasData) { location.replace('https://' + home + location.pathname + location.search + location.hash); return; }
+      if (!hasData) { location.replace('https://' + home + '/app/' + location.hash); return; }
       S.moveNotice = home;
     }
   } catch {}
