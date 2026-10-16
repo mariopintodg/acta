@@ -103,7 +103,7 @@ const KP_ICONS = ['target', 'money', 'people', 'time', 'tech', 'design', 'legal'
 const CLAUDE_MODELS = [['claude-sonnet-5-5', 'Claude Sonnet 5.5 — recomendado'], ['claude-opus-5-5', 'Claude Opus 5.5 — máximo detalle'], ['claude-haiku-5-5', 'Claude Haiku 5.5 — más rápido y económico']];
 const STT_MODELS = [['gpt-4o-transcribe-diarize', 'Con hablantes (recomendado)'], ['whisper-1', 'Whisper — con marcas de tiempo, sin hablantes'], ['gpt-4o-transcribe', 'Solo texto']];
 const MAX_UPLOAD = 25 * 1024 * 1024;
-const APP_VERSION = '3.5.9';
+const APP_VERSION = '3.6.0';
 const PART_SEC = 5 * 60; /* recordings are saved in 5-minute pieces so they can be transcribed in parallel */
 
 /* =========================================================
@@ -1340,7 +1340,7 @@ function renderMeeting(app, m) {
   };
   const runExp = async k => {
     if (k === 'md') downloadText(slug(a.title) + '.md', await fullMd(m));
-    if (k === 'docx') { toast('Preparando el Word…'); try { deliverFile(await meetingDocx(m), 'Acta en Word'); } catch (e) { toast('No se pudo crear el Word: ' + (e.message || 'error'), 5000); } }
+    if (k === 'docx') { await Busy.show('Preparando el Word', 'Armando el acta…'); try { const f = await meetingDocx(m); Busy.hide(); deliverFile(f, 'Acta en Word'); } catch (e) { Busy.hide(); toast('No se pudo crear el Word: ' + (e.message || 'error'), 5000); } }
     if (k === 'ics') exportTasksICS([m]);
     if (k === 'seal') sealSheet(m);
     if (k === 'audio') exportAudio(m);
@@ -2904,21 +2904,23 @@ async function exportBackup() {
 }
 async function makeBackup(full) {
   try {
-    toast(full ? 'Armando el respaldo con audio…' : 'Armando el respaldo…', 4000);
+    await Busy.show(full ? 'Armando el respaldo completo' : 'Armando el respaldo', 'Leyendo tus reuniones…');
     const { meetings, transcripts } = await backupData();
     const data = { app: 'acta', version: full ? 2 : 1, exportedAt: new Date().toISOString(), meetings: full ? meetings : meetings.map(m => ({ ...m, audioParts: [] })), transcripts };
     let file;
     if (full) {
       const files = [['respaldo.json', JSON.stringify(data)]];
-      for (const m of meetings) {
+      for (const [mi, m] of meetings.entries()) {
+        await Busy.step(`Reunión ${mi + 1} de ${meetings.length}`, 5 + (mi / Math.max(1, meetings.length)) * 85);
         for (const p of m.audioParts || []) { const b = await DB.get('audio', p.key); if (b) files.push(['audio/' + encodeURIComponent(p.key), new Uint8Array(await b.arrayBuffer())]); }
         for (const ph of m.photos || []) { const b = ph.key && await DB.get('photos', ph.key); if (b) files.push(['fotos/' + encodeURIComponent(ph.key), new Uint8Array(await b.arrayBuffer())]); }
       }
+      await Busy.step('Empaquetando', 93);
       file = new File([zipStore(files)], `acta-respaldo-completo-${today()}.zip`, { type: 'application/zip' });
     } else file = new File([JSON.stringify(data)], `acta-respaldo-${today()}.json`, { type: 'application/json' });
-    Settings.set({ lastBackup: Date.now() });
+    Settings.set({ lastBackup: Date.now() }); Busy.hide();
     deliverFile(file, full ? 'Respaldo completo' : 'Respaldo de actas');
-  } catch (e) { toast('No se pudo armar el respaldo: ' + (e.message || 'error'), 5000); }
+  } catch (e) { Busy.hide(); toast('No se pudo armar el respaldo: ' + (e.message || 'error'), 5000); }
 }
 /* Lee un .zip sin comprimir (como los que arma Acta) */
 function unzipStore(buf) {
@@ -2938,6 +2940,7 @@ function unzipStore(buf) {
 }
 async function importBackup(file) {
   if (!file) return;
+  await Busy.show('Importando respaldo', 'Leyendo el archivo…');
   try {
     let data, zip = null;
     if (/\.zip$/i.test(file.name) || file.type.includes('zip')) { zip = unzipStore(await file.arrayBuffer()); const j = zip.get('respaldo.json'); if (!j) throw new Error(); data = JSON.parse(new TextDecoder().decode(j)); }
@@ -2954,8 +2957,8 @@ async function importBackup(file) {
       for (const ph of m.photos || []) { const b = zip?.get(data.files?.[ph.key] || 'fotos/' + encodeURIComponent(ph.key)); if (b) await DB.put('photos', new Blob([b], { type: ph.type || 'image/jpeg' }), ph.key); }
       await DB.put('meetings', m); if (data.transcripts?.[m.id]) await DB.put('transcripts', { segments: data.transcripts[m.id] }, m.id); n++;
     }
-    await loadMeetings(); toast(n ? `${n} ${n === 1 ? 'reunión importada' : 'reuniones importadas'}${audios ? ' con su audio' : ''}` : 'No había reuniones nuevas en el respaldo', 4000);
-  } catch (e) { toast(/zip|respaldo/i.test(e?.message || '') ? e.message : 'Ese archivo no es un respaldo de Acta.', 5000); }
+    Busy.hide(); await loadMeetings(); toast(n ? `${n} ${n === 1 ? 'reunión importada' : 'reuniones importadas'}${audios ? ' con su audio' : ''}` : 'No había reuniones nuevas en el respaldo', 4000);
+  } catch (e) { Busy.hide(); toast(/zip|respaldo/i.test(e?.message || '') ? e.message : 'Ese archivo no es un respaldo de Acta.', 5000); }
 }
 
 /* =========================================================
@@ -3178,7 +3181,7 @@ async function loadH2I() {
 }
 async function exportReport(m, a, segs, kind = 'png') {
   const btn = $(kind === 'pdf' ? '#rp-pdf' : '#rp-png'); const label = btn?.lastChild?.textContent; if (btn) { btn.disabled = true; btn.lastChild.textContent = 'Generando…'; }
-  toast(kind === 'pdf' ? 'Armando el PDF tamaño carta…' : 'Armando la imagen…', 2500);
+  await Busy.show(kind === 'pdf' ? 'Armando el PDF tamaño carta' : 'Armando la imagen', 'Diagramando el informe…');
   const wrap = document.createElement('div'); wrap.className = 'rep-export'; wrap.innerHTML = reportByMode(m, a, segs, S.repMode || 'normal');
   if (kind === 'pdf') wrap.style.width = PDF_CSS_W + 'px';
   document.body.appendChild(wrap);
@@ -3189,7 +3192,7 @@ async function exportReport(m, a, segs, kind = 'png') {
     const suf = (S.repMode || 'normal') === 'normal' ? '' : '-' + S.repMode;
     let file;
     if (kind === 'pdf') {
-      const pdf = await reportToLetterPdf(node, lib, a.title || 'Informe', (i, n) => { if (btn) btn.lastChild.textContent = `Página ${i} de ${n}…`; });
+      const pdf = await reportToLetterPdf(node, lib, a.title || 'Informe', (i, n) => { Busy.step(`Página ${i} de ${n}`, 5 + i / n * 90); });
       file = new File([pdf], slug(a.title) + '-informe' + suf + '.pdf', { type: 'application/pdf' });
     } else {
       const opts = { pixelRatio: 2, backgroundColor: '#ffffff', width: 1080 };
@@ -3197,9 +3200,9 @@ async function exportReport(m, a, segs, kind = 'png') {
       if (!out) throw new Error('El navegador no generó la imagen.');
       file = new File([out], slug(a.title) + '-informe' + suf + '.png', { type: 'image/png' });
     }
-    deliverFile(file, kind === 'pdf' ? 'Informe en PDF' : 'Informe en imagen');
+    Busy.hide(); deliverFile(file, kind === 'pdf' ? 'Informe en PDF' : 'Informe en imagen');
   } catch (e) { toast('No se pudo crear el archivo: ' + (e.message || 'error'), 5000); }
-  finally { wrap.remove(); if (btn) { btn.disabled = false; btn.lastChild.textContent = label; } }
+  finally { Busy.hide(); wrap.remove(); if (btn) { btn.disabled = false; btn.lastChild.textContent = label; } }
 }
 
 /* Documentos en PDF (resumen, brief, transcripción) con el mismo encabezado y diseño que los informes */
@@ -3226,37 +3229,56 @@ function transcriptTxt(m, segs) {
   const head = [a.title || m.titleHint || 'Reunión', fmtDate(m.date) + (m.durationSec ? ' · ' + fmtT(m.durationSec) : ''), ''];
   return head.concat(segs.map(x => `[${fmtT(x.t)}] ${x.s ? spkName(m, x.s) + ': ' : ''}${x.text}`)).join('\n');
 }
+/* Cuadro de carga a pantalla completa para tareas largas (exportar, respaldar, importar) */
+const Busy = {
+  el: null, t0: 0,
+  show(title, sub = '') {
+    this.hide(); this.t0 = Date.now();
+    const d = document.createElement('div'); d.className = 'busy'; d.setAttribute('role', 'alertdialog'); d.setAttribute('aria-live', 'polite');
+    d.innerHTML = `<div class="busy-card"><div class="busy-spin" aria-hidden="true"></div><h3>${esc(title)}</h3><p class="busy-step">${esc(sub)}</p><div class="busy-bar"><i style="width:3%"></i></div><p class="busy-sub"></p><p class="busy-note">No cierres la app ni bloquees el teléfono.</p></div>`;
+    document.body.appendChild(d); this.el = d; Wake.on();
+    return new Promise(r => requestAnimationFrame(() => setTimeout(r, 30)));
+  },
+  step(text, pct) { if (!this.el) return; if (text != null) $('.busy-step', this.el).textContent = text; if (pct != null) $('.busy-bar i', this.el).style.width = Math.max(3, Math.min(100, pct)) + '%'; $('.busy-sub', this.el).textContent = ''; return new Promise(r => setTimeout(r, 16)); },
+  sub(text) { if (this.el) $('.busy-sub', this.el).textContent = text || ''; },
+  hide() { this.el?.remove(); this.el = null; Wake.off(); }
+};
+/* Mantiene la pantalla encendida mientras trabaja */
+const Wake = { lock: null, async on() { try { if ('wakeLock' in navigator && Rec.state === 'idle') this.lock = await navigator.wakeLock.request('screen'); } catch {} }, off() { try { if (Rec.state === 'idle') this.lock?.release(); } catch {} this.lock = null; } };
+
 /* Descarga todo lo de una reunión en un solo .zip, ordenado y listo para abrir.
    El mismo archivo se puede volver a importar en Acta (trae respaldo.json). */
 async function exportEverything(m) {
   const a = m.analysis || {}; const base = slug(a.title || m.titleHint || 'reunion'); const files = []; const map = {};
-  const say = t => toast(t, 6000);
+  const say = (t, pct) => Busy.step(t, pct); const pg = (i, n) => Busy.sub(`Página ${i} de ${n}`);
+  await Busy.show('Preparando todo de la reunión', 'Empezando…');
   try {
     const segs = await getSegments(m.id);
     if (m.analysis) {
-      say('1/5 · Informe en PDF…'); files.push([`${base}/01-informe.pdf`, new Uint8Array(await (await reportPdfBlob(m, a, segs, 'normal')).arrayBuffer())]);
-      if (a.extended) { say('1/5 · Informe extendido en PDF…'); files.push([`${base}/02-informe-extendido.pdf`, new Uint8Array(await (await reportPdfBlob(m, a, segs, 'extendido')).arrayBuffer())]); }
-      say('2/5 · Acta en Word…'); files.push([`${base}/03-acta.docx`, new Uint8Array(await (await meetingDocx(m)).arrayBuffer())]);
-      say('3/5 · Resumen y brief en PDF…');
+      await say('Informe en PDF', 5); files.push([`${base}/01-informe.pdf`, new Uint8Array(await (await reportPdfBlob(m, a, segs, 'normal', pg)).arrayBuffer())]);
+      if (a.extended) { await say('Informe extendido en PDF', 25); files.push([`${base}/02-informe-extendido.pdf`, new Uint8Array(await (await reportPdfBlob(m, a, segs, 'extendido', pg)).arrayBuffer())]); }
+      await say('Acta en Word', 42); files.push([`${base}/03-acta.docx`, new Uint8Array(await (await meetingDocx(m)).arrayBuffer())]);
+      await say('Resumen en PDF', 48);
       const sumMd = (await fullMd(m, { transcript: false, brief: false })).split('\n'); const from = sumMd.findIndex(l => /^## /.test(l));
-      const pdfOf = async (label, body) => new Uint8Array(await (await htmlPdfBlob(docArticle(m, a, label, body), a.title)).arrayBuffer());
+      const pdfOf = async (label, body) => new Uint8Array(await (await htmlPdfBlob(docArticle(m, a, label, body), a.title, pg)).arrayBuffer());
       files.push([`${base}/04-resumen.pdf`, await pdfOf('Resumen completo', `<div class="doc-md">${md(sumMd.slice(from < 0 ? 0 : from).join('\n').replace(/^- \[ \] /gm, '- ☐ ').replace(/^- \[x\] /gm, '- ☑ '))}</div>`)]);
-      if (a.brief) files.push([`${base}/05-brief.pdf`, await pdfOf('Brief', `<div class="doc-md">${md(String(a.brief).replace(/^# .*\n?/, ''))}</div>`)]);
+      if (a.brief) { await say('Brief en PDF', 58); } if (a.brief) files.push([`${base}/05-brief.pdf`, await pdfOf('Brief', `<div class="doc-md">${md(String(a.brief).replace(/^# .*\n?/, ''))}</div>`)]);
       const evs = []; (a.actions || []).forEach(t => { if (t.done) return; const d = taskDate(t, m); if (d) evs.push(taskEvent(m, t, d)); });
       if (evs.length) files.push([`${base}/07-tareas-calendario.ics`, buildICS(evs)]);
     }
-    if (segs.length) { say('3/5 · Transcripción en PDF…'); files.push([`${base}/06-transcripcion.pdf`, new Uint8Array(await (await htmlPdfBlob(docArticle(m, a.title ? a : { ...a, title: m.titleHint || 'Reunión' }, 'Transcripción', transcriptDocHTML(m, segs)), a.title || m.titleHint)).arrayBuffer())]); }
-    say('4/5 · Audio y fotos…');
+    if (segs.length) { await say('Transcripción en PDF', 64); files.push([`${base}/06-transcripcion.pdf`, new Uint8Array(await (await htmlPdfBlob(docArticle(m, a.title ? a : { ...a, title: m.titleHint || 'Reunión' }, 'Transcripción', transcriptDocHTML(m, segs)), a.title || m.titleHint, pg)).arrayBuffer())]); }
+    await say('Audio y fotos', 80);
     const parts = m.audioParts || [];
     for (const [i, p] of parts.entries()) { const b = await DB.get('audio', p.key); if (!b) continue; const path = `${base}/audio/${base}${parts.length > 1 ? '-parte-' + (i + 1) : ''}.${extFor(b.type)}`; files.push([path, new Uint8Array(await b.arrayBuffer())]); map[p.key] = path; }
     for (const [i, ph] of (m.photos || []).entries()) { const b = ph.key && await DB.get('photos', ph.key); if (!b) continue; const path = `${base}/fotos/foto-${String(i + 1).padStart(2, '0')}${ph.t != null ? '-' + fmtT(ph.t).replace(/:/g, 'm') : ''}.${/png/.test(b.type) ? 'png' : 'jpg'}`; files.push([path, new Uint8Array(await b.arrayBuffer())]); map[ph.key] = path; }
-    say('5/5 · Empaquetando…');
+    await say('Empaquetando', 93);
     const t = segs.length ? { [m.id]: segs } : {};
     files.push(['respaldo.json', JSON.stringify({ app: 'acta', version: 2, exportedAt: new Date().toISOString(), meetings: [m], transcripts: t, files: map })]);
     files.push([`${base}/LEEME.txt`, `${a.title || 'Reunión'}\n\n01-informe.pdf: informe visual, tamaño carta\n02-informe-extendido.pdf: informe con todo el detalle (si se creó)\n03-acta.docx: acta completa para editar en Word\n04-resumen.pdf: resumen, decisiones, tareas, ideas y riesgos\n05-brief.pdf: brief del proyecto (si existe)\n06-transcripcion.pdf: transcripción con hablantes y minuto\n07-tareas-calendario.ics: tareas con fecha para el calendario\naudio/ y fotos/: la grabación original y las fotos\n\nPara volver a cargar esta reunión en Acta: Ajustes > Importar respaldo y elige este .zip tal como está.\n`]);
     const zip = new File([zipStore(files)], `${base}-todo.zip`, { type: 'application/zip' });
+    await say('¡Listo!', 100); Busy.hide();
     deliverFile(zip, 'Todo de la reunión');
-  } catch (e) { toast('No se pudo armar el paquete: ' + (e.message || 'error'), 6000); }
+  } catch (e) { Busy.hide(); toast('No se pudo armar el paquete: ' + (e.message || 'error'), 6000); }
 }
 /* ---------- PDF tamaño carta, con cortes de página que no parten tarjetas, filas ni párrafos ---------- */
 const PDF_CSS_W = 760;                                   /* ancho al que se diagrama el informe para papel */
