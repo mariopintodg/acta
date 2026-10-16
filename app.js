@@ -103,7 +103,7 @@ const KP_ICONS = ['target', 'money', 'people', 'time', 'tech', 'design', 'legal'
 const CLAUDE_MODELS = [['claude-sonnet-5-5', 'Claude Sonnet 5.5 — recomendado'], ['claude-opus-5-5', 'Claude Opus 5.5 — máximo detalle'], ['claude-haiku-5-5', 'Claude Haiku 5.5 — más rápido y económico']];
 const STT_MODELS = [['gpt-4o-transcribe-diarize', 'Con hablantes (recomendado)'], ['whisper-1', 'Whisper — con marcas de tiempo, sin hablantes'], ['gpt-4o-transcribe', 'Solo texto']];
 const MAX_UPLOAD = 25 * 1024 * 1024;
-const APP_VERSION = '3.6.0';
+const APP_VERSION = '3.6.1';
 const PART_SEC = 5 * 60; /* recordings are saved in 5-minute pieces so they can be transcribed in parallel */
 
 /* =========================================================
@@ -1311,6 +1311,7 @@ function renderMeeting(app, m) {
           <button data-exp="all">${icon('download', 2)}<span><b>Todo de una vez (.zip)</b><small>Informes PDF, Word, resumen, brief, transcripción, audio y fotos</small></span></button>
           <button data-exp="docx">${icon('word', 2)}<span><b>Word (.docx)</b><small>Acta completa para editar</small></span></button>
           <button data-exp="pdf">${icon('doc', 2)}<span><b>PDF</b><small>Informe infográfico</small></span></button>
+          ${a.mindmap?.branches?.length ? `<button data-exp="mm">${icon('mind', 2)}<span><b>Mapa mental (PDF)</b><small>El mapa dibujado, en hoja horizontal</small></span></button>` : ''}
           <button data-exp="ics">${icon('cal', 2)}<span><b>Tareas al calendario</b><small>Archivo .ics con los plazos</small></span></button>
           ${m.audioParts?.length ? `<button data-exp="audio">${icon('mic', 2)}<span><b>Audio original</b><small>El archivo de la grabación</small></span></button>` : ''}
           <button data-exp="md">${icon('text', 2)}<span><b>Markdown (.md)</b><small>Para Notion, Obsidian o Docs</small></span></button>
@@ -1345,6 +1346,7 @@ function renderMeeting(app, m) {
     if (k === 'seal') sealSheet(m);
     if (k === 'audio') exportAudio(m);
     if (k === 'all') exportEverything(m);
+    if (k === 'mm') exportMindmap(m);
     if (k === 'pdf') { const t = $('[data-tab="informe"]'); if (t) t.click(); setTimeout(async () => exportReport(m, a, await getSegments(m.id), 'pdf'), 400); }
   };
   $('#m-proj').onclick = () => editProject(m);
@@ -1402,7 +1404,7 @@ async function renderTab(m) {
   const tab = S.route.tab || 'resumen';
   if (tab === 'resumen') return renderSummary(body, m, a, segs);
   if (tab === 'informe') return renderReport(body, m, a, segs);
-  if (tab === 'mapa') { body.innerHTML = `<div class="mm-wrap">${mindmapSVG(a.mindmap)}</div><p class="mm-note">En el celular, desliza hacia el lado para recorrer el mapa.</p>`; return; }
+  if (tab === 'mapa') { body.innerHTML = `<div class="mm-wrap">${mindmapSVG(a.mindmap)}</div>${a.mindmap?.branches?.length ? `<div class="mm-tools"><button class="btn primary sm" id="mm-pdf">${icon('doc', 2)}Descargar mapa en PDF</button></div>` : ''}<p class="mm-note">En el celular, desliza hacia el lado para recorrer el mapa.</p>`; const b = $('#mm-pdf'); if (b) b.onclick = () => exportMindmap(m); return; }
   if (tab === 'brief') {
     body.innerHTML = `<div class="tools-row"><button class="btn sm" id="b-copy">${icon('copy')}Copiar brief</button><button class="btn sm" id="b-dl">${icon('download')}Descargar .md</button><button class="btn sm" id="b-share">${icon('share')}Compartir</button></div><article class="brief">${md(a.brief || '_Sin brief para esta reunión._')}</article>`;
     $('#b-copy').onclick = () => copyText(a.brief || '', 'Brief copiado');
@@ -1499,7 +1501,7 @@ function drawDensity(m, segs, dur) {
 
 /* mind map */
 function wrapLabel(s, max) { const w = String(s).split(/\s+/); const lines = []; let cur = ''; w.forEach(x => { if ((cur + ' ' + x).trim().length > max && cur) { lines.push(cur); cur = x; } else cur = (cur + ' ' + x).trim(); }); if (cur) lines.push(cur); return lines.slice(0, 3); }
-function mindmapSVG(mm) {
+function mindmapSVG(mm, k = 1) {  /* k > 1: letras más grandes para imprimir */
   if (!mm || !mm.branches?.length) return `<div class="empty-li" style="padding:28px">Sin mapa mental para esta reunión.</div>`;
   const W = 1100, H = 700, cx = W / 2, cy = H / 2, R1 = 215, R2 = 365; const n = mm.branches.length; let out = ''; const nodes = [];
   mm.branches.forEach((b, i) => {
@@ -1516,10 +1518,10 @@ function mindmapSVG(mm) {
     nodes.push({ x: bx, y: by, text: b.label, col, leaf: false });
   });
   const txt = (lines, x, y, size, weight, fill, fam = 'IBM Plex Sans, system-ui, sans-serif') => `<text x="${x}" y="${y - (lines.length - 1) * size * .6}" text-anchor="middle" font-family="${fam}" font-size="${size}" font-weight="${weight}" fill="${fill}">${lines.map((l, i) => `<tspan x="${x}" dy="${i ? size * 1.2 : 0}">${esc(l)}</tspan>`).join('')}</text>`;
-  nodes.filter(x => x.leaf).forEach(nd => { const lines = wrapLabel(nd.text, 20); const tw = Math.max(...lines.map(l => l.length)) * 7.4 + 20; const th = lines.length * 16 + 12; let x0 = nd.right ? nd.x : nd.x - tw; x0 = Math.max(6, Math.min(W - tw - 6, x0)); out += `<rect x="${x0}" y="${nd.y - th / 2}" width="${tw}" height="${th}" rx="8" fill="var(--surface)" stroke="${nd.col}" stroke-opacity=".55"/>` + txt(lines, x0 + tw / 2, nd.y + 4.5, 13, 400, 'var(--ink)'); });
-  nodes.filter(x => !x.leaf).forEach(nd => { const lines = wrapLabel(nd.text, 16); const tw = Math.max(...lines.map(l => l.length)) * 8.6 + 28; const th = lines.length * 18 + 16; out += `<rect x="${nd.x - tw / 2}" y="${nd.y - th / 2}" width="${tw}" height="${th}" rx="10" fill="${nd.col}"/>` + txt(lines, nd.x, nd.y + 5, 14.5, 600, 'var(--bg)'); });
-  const cl = wrapLabel(mm.center, 16); const cw = Math.max(...cl.map(l => l.length)) * 11 + 44, ch = cl.length * 24 + 26;
-  out += `<rect x="${cx - cw / 2}" y="${cy - ch / 2}" width="${cw}" height="${ch}" rx="14" fill="var(--ink)"/>` + txt(cl, cx, cy + 7, 20, 700, 'var(--bg)', 'Bricolage Grotesque, system-ui, sans-serif');
+  nodes.filter(x => x.leaf).forEach(nd => { const lines = wrapLabel(nd.text, 20); const tw = Math.max(...lines.map(l => l.length)) * 7.4 * k + 20; const th = lines.length * 16 * k + 12; let x0 = nd.right ? nd.x : nd.x - tw; x0 = Math.max(6, Math.min(W - tw - 6, x0)); out += `<rect x="${x0}" y="${nd.y - th / 2}" width="${tw}" height="${th}" rx="8" fill="var(--surface)" stroke="${nd.col}" stroke-opacity=".55"/>` + txt(lines, x0 + tw / 2, nd.y + 4.5 * k, 13 * k, k > 1 ? 500 : 400, 'var(--ink)'); });
+  nodes.filter(x => !x.leaf).forEach(nd => { const lines = wrapLabel(nd.text, 16); const tw = Math.max(...lines.map(l => l.length)) * 8.6 * k + 28; const th = lines.length * 18 * k + 16; out += `<rect x="${nd.x - tw / 2}" y="${nd.y - th / 2}" width="${tw}" height="${th}" rx="10" fill="${nd.col}"/>` + txt(lines, nd.x, nd.y + 5 * k, 14.5 * k, 600, k > 1 ? '#10121A' : 'var(--bg)'); });
+  const cl = wrapLabel(mm.center, 16); const cw = Math.max(...cl.map(l => l.length)) * 11 * k + 44, ch = cl.length * 24 * k + 26;
+  out += `<rect x="${cx - cw / 2}" y="${cy - ch / 2}" width="${cw}" height="${ch}" rx="14" fill="var(--ink)"/>` + txt(cl, cx, cy + 7 * k, 20 * k, 700, 'var(--bg)', 'Bricolage Grotesque, system-ui, sans-serif');
   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Mapa mental: ${esc(mm.center)}">${out}</svg>`;
 }
 
@@ -3192,7 +3194,8 @@ async function exportReport(m, a, segs, kind = 'png') {
     const suf = (S.repMode || 'normal') === 'normal' ? '' : '-' + S.repMode;
     let file;
     if (kind === 'pdf') {
-      const pdf = await reportToLetterPdf(node, lib, a.title || 'Informe', (i, n) => { Busy.step(`Página ${i} de ${n}`, 5 + i / n * 90); });
+      const extra = (S.repMode === 'extendido' && a.mindmap?.branches?.length) ? [await mindmapPage(m, a, lib)] : [];
+      const pdf = await reportToLetterPdf(node, lib, a.title || 'Informe', (i, n) => { Busy.step(`Página ${i} de ${n}`, 5 + i / n * 90); }, extra);
       file = new File([pdf], slug(a.title) + '-informe' + suf + '.pdf', { type: 'application/pdf' });
     } else {
       const opts = { pixelRatio: 2, backgroundColor: '#ffffff', width: 1080 };
@@ -3212,16 +3215,16 @@ function docArticle(m, a, label, body) {
 function transcriptDocHTML(m, segs) {
   return `<div class="doc-tx">${segs.map(x => `<div class="tx-line"><span class="t">${fmtT(x.t)}</span><p>${x.s ? `<b>${esc(spkName(m, x.s))}:</b> ` : ''}${esc(x.text)}</p></div>`).join('')}</div>`;
 }
-async function htmlPdfBlob(html, title, onPage) {
+async function htmlPdfBlob(html, title, onPage, extraFn) {
   const wrap = document.createElement('div'); wrap.className = 'rep-export'; wrap.style.width = PDF_CSS_W + 'px';
   wrap.innerHTML = html; document.body.appendChild(wrap);
-  try { const lib = await loadH2I(); return await reportToLetterPdf(wrap.firstElementChild, lib, title || 'Acta', onPage); }
+  try { const lib = await loadH2I(); const extra = extraFn ? (await extraFn(lib) || []) : []; return await reportToLetterPdf(wrap.firstElementChild, lib, title || 'Acta', onPage, extra); }
   finally { wrap.remove(); }
 }
 async function reportPdfBlob(m, a, segs, mode, onPage) {
   const wrap = document.createElement('div'); wrap.className = 'rep-export'; wrap.style.width = PDF_CSS_W + 'px';
   wrap.innerHTML = reportByMode(m, a, segs, mode); document.body.appendChild(wrap);
-  try { const lib = await loadH2I(); try { await document.fonts?.ready; } catch {} return await reportToLetterPdf(wrap.firstElementChild, lib, a.title || 'Informe', onPage); }
+  try { const lib = await loadH2I(); const extra = (mode === 'extendido' && a.mindmap?.branches?.length) ? [await mindmapPage(m, a, lib)] : []; return await reportToLetterPdf(wrap.firstElementChild, lib, a.title || 'Informe', onPage, extra); }
   finally { wrap.remove(); }
 }
 function transcriptTxt(m, segs) {
@@ -3259,9 +3262,11 @@ async function exportEverything(m) {
       if (a.extended) { await say('Informe extendido en PDF', 25); files.push([`${base}/02-informe-extendido.pdf`, new Uint8Array(await (await reportPdfBlob(m, a, segs, 'extendido', pg)).arrayBuffer())]); }
       await say('Acta en Word', 42); files.push([`${base}/03-acta.docx`, new Uint8Array(await (await meetingDocx(m)).arrayBuffer())]);
       await say('Resumen en PDF', 48);
-      const sumMd = (await fullMd(m, { transcript: false, brief: false })).split('\n'); const from = sumMd.findIndex(l => /^## /.test(l));
-      const pdfOf = async (label, body) => new Uint8Array(await (await htmlPdfBlob(docArticle(m, a, label, body), a.title, pg)).arrayBuffer());
-      files.push([`${base}/04-resumen.pdf`, await pdfOf('Resumen completo', `<div class="doc-md">${md(sumMd.slice(from < 0 ? 0 : from).join('\n').replace(/^- \[ \] /gm, '- ☐ ').replace(/^- \[x\] /gm, '- ☑ '))}</div>`)]);
+      const sumMd = (await fullMd(m, { transcript: false, brief: false, mindmap: false })).split('\n'); const from = sumMd.findIndex(l => /^## /.test(l));
+      const pdfOf = async (label, body, extraFn) => new Uint8Array(await (await htmlPdfBlob(docArticle(m, a, label, body), a.title, pg, extraFn)).arrayBuffer());
+      const mmExtra = a.mindmap?.branches?.length ? async lib => [await mindmapPage(m, a, lib)] : null;
+      files.push([`${base}/04-resumen.pdf`, await pdfOf('Resumen completo', `<div class="doc-md">${md(sumMd.slice(from < 0 ? 0 : from).join('\n').replace(/^- \[ \] /gm, '- ☐ ').replace(/^- \[x\] /gm, '- ☑ '))}${mmExtra ? '<p class="doc-note">El mapa mental va dibujado en la última página.</p>' : ''}</div>`, mmExtra)]);
+      if (mmExtra) { await say('Mapa mental en PDF', 61); files.push([`${base}/08-mapa-mental.pdf`, new Uint8Array(await (await mindmapPdfBlob(m, a)).arrayBuffer())]); }
       if (a.brief) { await say('Brief en PDF', 58); } if (a.brief) files.push([`${base}/05-brief.pdf`, await pdfOf('Brief', `<div class="doc-md">${md(String(a.brief).replace(/^# .*\n?/, ''))}</div>`)]);
       const evs = []; (a.actions || []).forEach(t => { if (t.done) return; const d = taskDate(t, m); if (d) evs.push(taskEvent(m, t, d)); });
       if (evs.length) files.push([`${base}/07-tareas-calendario.ics`, buildICS(evs)]);
@@ -3274,7 +3279,7 @@ async function exportEverything(m) {
     await say('Empaquetando', 93);
     const t = segs.length ? { [m.id]: segs } : {};
     files.push(['respaldo.json', JSON.stringify({ app: 'acta', version: 2, exportedAt: new Date().toISOString(), meetings: [m], transcripts: t, files: map })]);
-    files.push([`${base}/LEEME.txt`, `${a.title || 'Reunión'}\n\n01-informe.pdf: informe visual, tamaño carta\n02-informe-extendido.pdf: informe con todo el detalle (si se creó)\n03-acta.docx: acta completa para editar en Word\n04-resumen.pdf: resumen, decisiones, tareas, ideas y riesgos\n05-brief.pdf: brief del proyecto (si existe)\n06-transcripcion.pdf: transcripción con hablantes y minuto\n07-tareas-calendario.ics: tareas con fecha para el calendario\naudio/ y fotos/: la grabación original y las fotos\n\nPara volver a cargar esta reunión en Acta: Ajustes > Importar respaldo y elige este .zip tal como está.\n`]);
+    files.push([`${base}/LEEME.txt`, `${a.title || 'Reunión'}\n\n01-informe.pdf: informe visual, tamaño carta\n02-informe-extendido.pdf: informe con todo el detalle (si se creó)\n03-acta.docx: acta completa para editar en Word\n04-resumen.pdf: resumen, decisiones, tareas, ideas y riesgos\n05-brief.pdf: brief del proyecto (si existe)\n06-transcripcion.pdf: transcripción con hablantes y minuto\n07-tareas-calendario.ics: tareas con fecha para el calendario\n08-mapa-mental.pdf: el mapa mental dibujado, en hoja horizontal\naudio/ y fotos/: la grabación original y las fotos\n\nPara volver a cargar esta reunión en Acta: Ajustes > Importar respaldo y elige este .zip tal como está.\n`]);
     const zip = new File([zipStore(files)], `${base}-todo.zip`, { type: 'application/zip' });
     await say('¡Listo!', 100); Busy.hide();
     deliverFile(zip, 'Todo de la reunión');
@@ -3283,6 +3288,31 @@ async function exportEverything(m) {
 /* ---------- PDF tamaño carta, con cortes de página que no parten tarjetas, filas ni párrafos ---------- */
 const PDF_CSS_W = 760;                                   /* ancho al que se diagrama el informe para papel */
 const LETTER = { w: 612, h: 792, mx: 40, mt: 40, mb: 48 }; /* puntos (1/72"): carta 8,5 × 11" */
+const LETTER_H = { w: 792, h: 612, mx: 36, mt: 32, mb: 46 };  /* carta horizontal, para el mapa mental */
+const MM_CSS_W = 1040;
+function mindmapPageHTML(m, a) {
+  return `<div class="mmp"><div class="mmp-h"><div><span class="mmp-k">Mapa mental</span><b>${esc(a.title || m.titleHint || 'Reunión')}</b></div><span>${esc(fmtDate(m.date))}</span></div><div class="mmp-svg">${mindmapSVG(a.mindmap, 1.3)}</div></div>`;
+}
+/* Página horizontal con el mapa mental dibujado, lista para sumarse a cualquier PDF */
+async function mindmapPage(m, a, lib) {
+  if (!a?.mindmap?.branches?.length) return null;
+  const host = document.createElement('div'); host.className = 'rep-export'; host.style.width = MM_CSS_W + 'px';
+  host.innerHTML = mindmapPageHTML(m, a); document.body.appendChild(host);
+  try {
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const node = host.firstElementChild; const h = Math.ceil(node.getBoundingClientRect().height);
+    const o = { pixelRatio: 2, backgroundColor: '#ffffff', width: MM_CSS_W, height: h, quality: .92 };
+    let url; try { url = await lib.toJpeg(node, o); } catch { url = await lib.toJpeg(node, { ...o, skipFonts: true }); }
+    const cw = LETTER_H.w - 2 * LETTER_H.mx; return { url, h: h * cw / MM_CSS_W, L: LETTER_H };
+  } finally { host.remove(); }
+}
+async function exportMindmap(m) {
+  const a = m.analysis || {};
+  await Busy.show('Dibujando el mapa mental', 'Armando el PDF…');
+  try { const pdf = await mindmapPdfBlob(m, a); Busy.hide(); deliverFile(new File([pdf], slug(a.title || 'reunion') + '-mapa-mental.pdf', { type: 'application/pdf' }), 'Mapa mental en PDF'); }
+  catch (e) { Busy.hide(); toast('No se pudo crear el mapa: ' + (e.message || 'error'), 5000); }
+}
+async function mindmapPdfBlob(m, a) { const lib = await loadH2I(); const pg = await mindmapPage(m, a, lib); if (!pg) throw new Error('Esta reunión no tiene mapa mental'); return imagesToPdf([pg], a.title || 'Mapa mental'); }
 function pageBreaks(node, pageCss) {
   const base = node.getBoundingClientRect().top; const total = Math.ceil(node.scrollHeight);
   const blocked = new Uint8Array(total + 2);
@@ -3308,7 +3338,7 @@ function pageBreaks(node, pageCss) {
   if (n > 1) { const last = cuts[n - 1], prev = cuts[n - 2]; if (last[1] - last[0] < pageCss * .15 && last[1] - prev[0] <= pageCss * 1.15) { prev[1] = last[1]; cuts.pop(); } }
   return cuts;
 }
-async function reportToLetterPdf(node, lib, title, onPage) {
+async function reportToLetterPdf(node, lib, title, onPage, extra = []) {
   const L = LETTER, cw = L.w - 2 * L.mx, k = cw / PDF_CSS_W, pageCss = Math.floor((L.h - L.mt - L.mb) / k);
   await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
   const cuts = pageBreaks(node, pageCss); const imgs = [];
@@ -3324,11 +3354,11 @@ async function reportToLetterPdf(node, lib, title, onPage) {
       imgs.push({ url, h: h * k });
     } finally { host.remove(); }
   }
-  return imagesToPdf(imgs, title);
+  return imagesToPdf(imgs.concat(extra), title);
 }
 /* Arma el PDF a mano: una imagen por página, márgenes y pie con título y número de página */
 async function imagesToPdf(imgs, title) {
-  const L = LETTER, cw = L.w - 2 * L.mx, n = imgs.length;
+  const n = imgs.length;
   const enc = new TextEncoder(); const parts = []; const offs = []; let len = 0;
   const add = x => { const u = typeof x === 'string' ? enc.encode(x) : x; parts.push(u); len += u.length; };
   const obj = (num, body) => { offs[num] = len; add(`${num} 0 obj\n`); body(); add('\nendobj\n'); };
@@ -3345,6 +3375,7 @@ async function imagesToPdf(imgs, title) {
     const bin = atob(im.url.split(',')[1]); const jpg = Uint8Array.from(bin, ch => ch.charCodeAt(0));
     const el = await new Promise((res, rej) => { const x = new Image(); x.onload = () => res(x); x.onerror = rej; x.src = im.url; });
     obj(io, () => { add(`<< /Type /XObject /Subtype /Image /Width ${el.naturalWidth} /Height ${el.naturalHeight} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpg.length} >>\nstream\n`); add(jpg); add('\nendstream'); });
+    const L = im.L || LETTER, cw = L.w - 2 * L.mx;
     const avail = L.h - L.mt - L.mb, f = Math.min(1, avail / im.h), iw = cw * f, ih = im.h * f, ix = L.mx + (cw - iw) / 2;
     const y = L.h - L.mt - ih; const pg = `P\\341gina ${i + 1} de ${n}`;
     const cs = `q ${iw.toFixed(2)} 0 0 ${ih.toFixed(2)} ${ix.toFixed(2)} ${y.toFixed(2)} cm /Im${i} Do Q\n` +
@@ -3412,7 +3443,7 @@ function summaryText(m) {
   if (a.nextSteps?.length) { L.push('Próximos pasos:'); a.nextSteps.forEach((s, i) => L.push(`${i + 1}. ${s}`)); }
   return L.join('\n').trim();
 }
-async function fullMd(m, { transcript = true, brief = true } = {}) {
+async function fullMd(m, { transcript = true, brief = true, mindmap = true } = {}) {
   const a = m.analysis || {}; const segs = await getSegments(m.id); const L = [];
   const people = (a.participants?.length ? a.participants : m.participants) || [];
   L.push(`# ${a.title}`, '', `**Fecha:** ${fmtDate(m.date)}${m.durationSec ? ` · **Duración:** ${fmtT(m.durationSec)}` : ''}${people.length ? ` · **Participantes:** ${people.join(', ')}` : ''}`, '');
@@ -3431,7 +3462,7 @@ async function fullMd(m, { transcript = true, brief = true } = {}) {
   sec('Momentos marcados', m.marks, k => `- \`${fmtT(k.t)}\` ${k.label || 'Momento importante'}`);
   sec('Notas', m.notesLog, n => `- \`${fmtT(n.t)}\` ${n.text}`);
   if (a.nextSteps?.length) { L.push('## Próximos pasos', ''); a.nextSteps.forEach((s, i) => L.push(`${i + 1}. ${s}`)); L.push(''); }
-  if (a.mindmap) { L.push('## Mapa mental', '', `- **${a.mindmap.center}**`); a.mindmap.branches.forEach(b => { L.push(`  - ${b.label}`); b.children.forEach(c => L.push(`    - ${c}`)); }); L.push(''); }
+  if (a.mindmap && mindmap) { L.push('## Mapa mental', '', `- **${a.mindmap.center}**`); a.mindmap.branches.forEach(b => { L.push(`  - ${b.label}`); b.children.forEach(c => L.push(`    - ${c}`)); }); L.push(''); }
   if (a.brief && brief) L.push('---', '', a.brief.replace(/^# /m, '## Brief: '), '');
   if (segs.length && transcript) { L.push('---', '', '## Transcripción', ''); segs.forEach(x => L.push(`\`${fmtT(x.t)}\` ${x.s ? `**${spkName(m, x.s)}:** ` : ''}${x.text}  `)); }
   return L.join('\n');
