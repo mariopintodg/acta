@@ -1305,6 +1305,7 @@ function renderMeeting(app, m) {
       <button class="btn sm" id="m-share">${icon('share')}Compartir</button>
       <span class="menu-wrap"><button class="btn sm" id="m-exp" aria-haspopup="true" aria-expanded="false">${icon('download')}Exportar</button>
         <span class="menu" id="m-exp-menu" hidden>
+          <button data-exp="all">${icon('download', 2)}<span><b>Todo de una vez (.zip)</b><small>Informes PDF, Word, resumen, brief, transcripción, audio y fotos</small></span></button>
           <button data-exp="docx">${icon('word', 2)}<span><b>Word (.docx)</b><small>Acta completa para editar</small></span></button>
           <button data-exp="pdf">${icon('doc', 2)}<span><b>PDF</b><small>Informe infográfico</small></span></button>
           <button data-exp="ics">${icon('cal', 2)}<span><b>Tareas al calendario</b><small>Archivo .ics con los plazos</small></span></button>
@@ -1335,6 +1336,7 @@ function renderMeeting(app, m) {
     if (k === 'ics') exportTasksICS([m]);
     if (k === 'seal') sealSheet(m);
     if (k === 'audio') exportAudio(m);
+    if (k === 'all') exportEverything(m);
     if (k === 'pdf') { const t = $('[data-tab="informe"]'); if (t) t.click(); setTimeout(async () => exportReport(m, a, await getSegments(m.id), 'pdf'), 400); }
   });
   $('#m-proj').onclick = () => editProject(m);
@@ -2937,11 +2939,11 @@ async function importBackup(file) {
     for (const m of data.meetings) {
       if (!m.id) continue; const exists = await DB.get('meetings', m.id);
       const parts = [];
-      for (const p of m.audioParts || []) { const b = zip?.get('audio/' + encodeURIComponent(p.key)); if (b) { if (!exists || !(exists.audioParts || []).length) await DB.put('audio', new Blob([b], { type: p.type || 'audio/webm' }), p.key); parts.push(p); } }
+      for (const p of m.audioParts || []) { const b = zip?.get(data.files?.[p.key] || 'audio/' + encodeURIComponent(p.key)); if (b) { if (!exists || !(exists.audioParts || []).length) await DB.put('audio', new Blob([b], { type: p.type || 'audio/webm' }), p.key); parts.push(p); } }
       if (exists) { if (parts.length && !(exists.audioParts || []).length) { exists.audioParts = parts; await DB.put('meetings', exists); audios++; } continue; }
       if (parts.length) audios++;
       m.audioParts = parts;
-      for (const ph of m.photos || []) { const b = zip?.get('fotos/' + encodeURIComponent(ph.key)); if (b) await DB.put('photos', new Blob([b], { type: ph.type || 'image/jpeg' }), ph.key); }
+      for (const ph of m.photos || []) { const b = zip?.get(data.files?.[ph.key] || 'fotos/' + encodeURIComponent(ph.key)); if (b) await DB.put('photos', new Blob([b], { type: ph.type || 'image/jpeg' }), ph.key); }
       await DB.put('meetings', m); if (data.transcripts?.[m.id]) await DB.put('transcripts', { segments: data.transcripts[m.id] }, m.id); n++;
     }
     await loadMeetings(); toast(n ? `${n} ${n === 1 ? 'reunión importada' : 'reuniones importadas'}${audios ? ' con su audio' : ''}` : 'No había reuniones nuevas en el respaldo', 4000);
@@ -3174,6 +3176,47 @@ async function exportReport(m, a, segs, kind = 'png') {
   finally { wrap.remove(); if (btn) { btn.disabled = false; btn.lastChild.textContent = label; } }
 }
 
+async function reportPdfBlob(m, a, segs, mode, onPage) {
+  const wrap = document.createElement('div'); wrap.className = 'rep-export'; wrap.style.width = PDF_CSS_W + 'px';
+  wrap.innerHTML = reportByMode(m, a, segs, mode); document.body.appendChild(wrap);
+  try { const lib = await loadH2I(); try { await document.fonts?.ready; } catch {} return await reportToLetterPdf(wrap.firstElementChild, lib, a.title || 'Informe', onPage); }
+  finally { wrap.remove(); }
+}
+function transcriptTxt(m, segs) {
+  const a = m.analysis || {};
+  const head = [a.title || m.titleHint || 'Reunión', fmtDate(m.date) + (m.durationSec ? ' · ' + fmtT(m.durationSec) : ''), ''];
+  return head.concat(segs.map(x => `[${fmtT(x.t)}] ${x.s ? spkName(m, x.s) + ': ' : ''}${x.text}`)).join('\n');
+}
+/* Descarga todo lo de una reunión en un solo .zip, ordenado y listo para abrir.
+   El mismo archivo se puede volver a importar en Acta (trae respaldo.json). */
+async function exportEverything(m) {
+  const a = m.analysis || {}; const base = slug(a.title || m.titleHint || 'reunion'); const files = []; const map = {};
+  const say = t => toast(t, 6000);
+  try {
+    const segs = await getSegments(m.id);
+    if (m.analysis) {
+      say('1/5 · Informe en PDF…'); files.push([`${base}/01-informe.pdf`, new Uint8Array(await (await reportPdfBlob(m, a, segs, 'normal')).arrayBuffer())]);
+      if (a.extended) { say('1/5 · Informe extendido en PDF…'); files.push([`${base}/02-informe-extendido.pdf`, new Uint8Array(await (await reportPdfBlob(m, a, segs, 'extendido')).arrayBuffer())]); }
+      say('2/5 · Acta en Word…'); files.push([`${base}/03-acta.docx`, new Uint8Array(await (await meetingDocx(m)).arrayBuffer())]);
+      say('3/5 · Resumen y brief…');
+      files.push([`${base}/04-resumen.md`, await fullMd(m, { transcript: false, brief: false })]);
+      if (a.brief) files.push([`${base}/05-brief.md`, a.brief]);
+      const evs = []; (a.actions || []).forEach(t => { if (t.done) return; const d = taskDate(t, m); if (d) evs.push(taskEvent(m, t, d)); });
+      if (evs.length) files.push([`${base}/07-tareas-calendario.ics`, buildICS(evs)]);
+    }
+    if (segs.length) files.push([`${base}/06-transcripcion.txt`, transcriptTxt(m, segs)]);
+    say('4/5 · Audio y fotos…');
+    const parts = m.audioParts || [];
+    for (const [i, p] of parts.entries()) { const b = await DB.get('audio', p.key); if (!b) continue; const path = `${base}/audio/${base}${parts.length > 1 ? '-parte-' + (i + 1) : ''}.${extFor(b.type)}`; files.push([path, new Uint8Array(await b.arrayBuffer())]); map[p.key] = path; }
+    for (const [i, ph] of (m.photos || []).entries()) { const b = ph.key && await DB.get('photos', ph.key); if (!b) continue; const path = `${base}/fotos/foto-${String(i + 1).padStart(2, '0')}${ph.t != null ? '-' + fmtT(ph.t).replace(/:/g, 'm') : ''}.${/png/.test(b.type) ? 'png' : 'jpg'}`; files.push([path, new Uint8Array(await b.arrayBuffer())]); map[ph.key] = path; }
+    say('5/5 · Empaquetando…');
+    const t = segs.length ? { [m.id]: segs } : {};
+    files.push(['respaldo.json', JSON.stringify({ app: 'acta', version: 2, exportedAt: new Date().toISOString(), meetings: [m], transcripts: t, files: map })]);
+    files.push([`${base}/LEEME.txt`, `${a.title || 'Reunión'}\n\n01-informe.pdf: informe visual, tamaño carta\n02-informe-extendido.pdf: informe con todo el detalle (si se creó)\n03-acta.docx: acta completa para editar en Word\n04-resumen.md: resumen, decisiones, tareas, ideas y riesgos\n05-brief.md: brief del proyecto (si existe)\n06-transcripcion.txt: transcripción con hablantes y minuto\n07-tareas-calendario.ics: tareas con fecha para el calendario\naudio/ y fotos/: la grabación original y las fotos\n\nPara volver a cargar esta reunión en Acta: Ajustes > Importar respaldo y elige este .zip tal como está.\n`]);
+    const zip = new File([zipStore(files)], `${base}-todo.zip`, { type: 'application/zip' });
+    deliverFile(zip, 'Todo de la reunión');
+  } catch (e) { toast('No se pudo armar el paquete: ' + (e.message || 'error'), 6000); }
+}
 /* ---------- PDF tamaño carta, con cortes de página que no parten tarjetas, filas ni párrafos ---------- */
 const PDF_CSS_W = 760;                                   /* ancho al que se diagrama el informe para papel */
 const LETTER = { w: 612, h: 792, mx: 40, mt: 40, mb: 48 }; /* puntos (1/72"): carta 8,5 × 11" */
@@ -3306,7 +3349,7 @@ function summaryText(m) {
   if (a.nextSteps?.length) { L.push('Próximos pasos:'); a.nextSteps.forEach((s, i) => L.push(`${i + 1}. ${s}`)); }
   return L.join('\n').trim();
 }
-async function fullMd(m) {
+async function fullMd(m, { transcript = true, brief = true } = {}) {
   const a = m.analysis || {}; const segs = await getSegments(m.id); const L = [];
   const people = (a.participants?.length ? a.participants : m.participants) || [];
   L.push(`# ${a.title}`, '', `**Fecha:** ${fmtDate(m.date)}${m.durationSec ? ` · **Duración:** ${fmtT(m.durationSec)}` : ''}${people.length ? ` · **Participantes:** ${people.join(', ')}` : ''}`, '');
@@ -3326,8 +3369,8 @@ async function fullMd(m) {
   sec('Notas', m.notesLog, n => `- \`${fmtT(n.t)}\` ${n.text}`);
   if (a.nextSteps?.length) { L.push('## Próximos pasos', ''); a.nextSteps.forEach((s, i) => L.push(`${i + 1}. ${s}`)); L.push(''); }
   if (a.mindmap) { L.push('## Mapa mental', '', `- **${a.mindmap.center}**`); a.mindmap.branches.forEach(b => { L.push(`  - ${b.label}`); b.children.forEach(c => L.push(`    - ${c}`)); }); L.push(''); }
-  if (a.brief) L.push('---', '', a.brief.replace(/^# /m, '## Brief: '), '');
-  if (segs.length) { L.push('---', '', '## Transcripción', ''); segs.forEach(x => L.push(`\`${fmtT(x.t)}\` ${x.s ? `**${spkName(m, x.s)}:** ` : ''}${x.text}  `)); }
+  if (a.brief && brief) L.push('---', '', a.brief.replace(/^# /m, '## Brief: '), '');
+  if (segs.length && transcript) { L.push('---', '', '## Transcripción', ''); segs.forEach(x => L.push(`\`${fmtT(x.t)}\` ${x.s ? `**${spkName(m, x.s)}:** ` : ''}${x.text}  `)); }
   return L.join('\n');
 }
 function downloadText(name, text, type = 'text/markdown') { deliverFile(new File([text], name, { type: type + ';charset=utf-8' }), name); }
