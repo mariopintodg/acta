@@ -3082,47 +3082,108 @@ function loadH2I() {
 }
 async function exportReport(m, a, segs, kind = 'png') {
   const btn = $(kind === 'pdf' ? '#rp-pdf' : '#rp-png'); const label = btn?.lastChild?.textContent; if (btn) { btn.disabled = true; btn.lastChild.textContent = 'Generando…'; }
-  toast(kind === 'pdf' ? 'Armando el PDF…' : 'Armando la imagen…', 2500);
-  const wrap = document.createElement('div'); wrap.className = 'rep-export'; wrap.innerHTML = reportByMode(m, a, segs, S.repMode || 'normal'); document.body.appendChild(wrap);
+  toast(kind === 'pdf' ? 'Armando el PDF tamaño carta…' : 'Armando la imagen…', 2500);
+  const wrap = document.createElement('div'); wrap.className = 'rep-export'; wrap.innerHTML = reportByMode(m, a, segs, S.repMode || 'normal');
+  if (kind === 'pdf') wrap.style.width = PDF_CSS_W + 'px';
+  document.body.appendChild(wrap);
   const node = wrap.firstElementChild;
   try {
     const lib = await loadH2I();
     try { await document.fonts?.ready; } catch {}
-    const opts = { pixelRatio: 2, backgroundColor: '#ffffff', width: 1080 };
-    const go = async o => kind === 'pdf' ? lib.toJpeg(node, { ...o, quality: .9 }) : lib.toBlob(node, o);
-    let out;
-    try { await go(opts); out = await go(opts); } catch { out = await go({ ...opts, skipFonts: true }); }
-    if (!out) throw new Error('El navegador no generó la imagen.');
-    let file;
     const suf = (S.repMode || 'normal') === 'normal' ? '' : '-' + S.repMode;
-    if (kind === 'pdf') { const pdf = await jpegToPdf(out); file = new File([pdf], slug(a.title) + '-informe' + suf + '.pdf', { type: 'application/pdf' }); }
-    else file = new File([out], slug(a.title) + '-informe' + suf + '.png', { type: 'image/png' });
+    let file;
+    if (kind === 'pdf') {
+      const pdf = await reportToLetterPdf(node, lib, a.title || 'Informe', (i, n) => { if (btn) btn.lastChild.textContent = `Página ${i} de ${n}…`; });
+      file = new File([pdf], slug(a.title) + '-informe' + suf + '.pdf', { type: 'application/pdf' });
+    } else {
+      const opts = { pixelRatio: 2, backgroundColor: '#ffffff', width: 1080 };
+      let out; try { await lib.toBlob(node, opts); out = await lib.toBlob(node, opts); } catch { out = await lib.toBlob(node, { ...opts, skipFonts: true }); }
+      if (!out) throw new Error('El navegador no generó la imagen.');
+      file = new File([out], slug(a.title) + '-informe' + suf + '.png', { type: 'image/png' });
+    }
     deliverFile(file, kind === 'pdf' ? 'Informe en PDF' : 'Informe en imagen');
   } catch (e) { toast('No se pudo crear el archivo: ' + (e.message || 'error'), 5000); }
   finally { wrap.remove(); if (btn) { btn.disabled = false; btn.lastChild.textContent = label; } }
 }
-/* A real PDF (A4 pages) made from the report image, no printing needed */
-async function jpegToPdf(dataUrl) {
-  const bin = atob(dataUrl.split(',')[1]); const jpg = Uint8Array.from(bin, c => c.charCodeAt(0));
-  const img = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = dataUrl; });
-  const W = 595.28, PH = 841.89, H = W * img.naturalHeight / img.naturalWidth; const pages = Math.max(1, Math.ceil(H / PH - 0.02));
+
+/* ---------- PDF tamaño carta, con cortes de página que no parten tarjetas, filas ni párrafos ---------- */
+const PDF_CSS_W = 760;                                   /* ancho al que se diagrama el informe para papel */
+const LETTER = { w: 612, h: 792, mx: 40, mt: 40, mb: 48 }; /* puntos (1/72"): carta 8,5 × 11" */
+function pageBreaks(node, pageCss) {
+  const base = node.getBoundingClientRect().top; const total = Math.ceil(node.scrollHeight);
+  const blocked = new Uint8Array(total + 2);
+  const block = (t, b) => { t = Math.max(0, Math.floor(t) + 1); b = Math.min(total, Math.ceil(b) - 1); for (let y = t; y <= b; y++) blocked[y] = 1; };
+  node.querySelectorAll('*').forEach(el => {
+    const r = el.getBoundingClientRect(); if (r.height < 2) return;
+    const t = r.top - base, b = r.bottom - base;
+    /* un título nunca queda solo al final de la página: va pegado a lo que sigue */
+    if ((/^H[1-4]$/.test(el.tagName) || /(^|[-_\s])(title|eyebrow)([-_\s]|$)/i.test(String(el.className?.baseVal ?? el.className ?? ''))) && r.height < 80) block(t, Math.min(b + 90, total));
+    if (r.height <= pageCss * .92) block(t, b);           /* lo que cabe en una página no se corta */
+  });
+  const cuts = []; let y = 0;
+  while (y < total - 4) {
+    const ideal = y + pageCss;
+    if (ideal >= total) { cuts.push([y, total]); break; }
+    let c = ideal; const floor = y + pageCss * .45;
+    while (c > floor && blocked[c]) c--;
+    if (c <= floor) { c = ideal; while (c > floor && blocked[c] && !(blocked[c - 1] === 0)) c--; if (c <= floor) c = ideal; }
+    cuts.push([y, c]); y = c;
+  }
+  /* un resto chico (por ejemplo, solo el pie del informe) se junta con la página anterior y se reduce un poco */
+  const n = cuts.length;
+  if (n > 1) { const last = cuts[n - 1], prev = cuts[n - 2]; if (last[1] - last[0] < pageCss * .15 && last[1] - prev[0] <= pageCss * 1.15) { prev[1] = last[1]; cuts.pop(); } }
+  return cuts;
+}
+async function reportToLetterPdf(node, lib, title, onPage) {
+  const L = LETTER, cw = L.w - 2 * L.mx, k = cw / PDF_CSS_W, pageCss = Math.floor((L.h - L.mt - L.mb) / k);
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+  const cuts = pageBreaks(node, pageCss); const imgs = [];
+  for (let i = 0; i < cuts.length; i++) {
+    onPage && onPage(i + 1, cuts.length);
+    const [y0, y1] = cuts[i]; const h = Math.max(1, y1 - y0);
+    const host = document.createElement('div'); host.className = 'rep-export'; host.style.width = PDF_CSS_W + 'px';
+    const clip = document.createElement('div'); clip.style.cssText = `width:${PDF_CSS_W}px;height:${h}px;overflow:hidden;background:#fff;position:relative`;
+    const c = node.cloneNode(true); c.style.marginTop = (-y0) + 'px'; clip.appendChild(c); host.appendChild(clip); document.body.appendChild(host);
+    try {
+      const o = { pixelRatio: 2, backgroundColor: '#ffffff', width: PDF_CSS_W, height: h, quality: .92 };
+      let url; try { if (!i) await lib.toJpeg(clip, o); url = await lib.toJpeg(clip, o); } catch { url = await lib.toJpeg(clip, { ...o, skipFonts: true }); }
+      imgs.push({ url, h: h * k });
+    } finally { host.remove(); }
+  }
+  return imagesToPdf(imgs, title);
+}
+/* Arma el PDF a mano: una imagen por página, márgenes y pie con título y número de página */
+async function imagesToPdf(imgs, title) {
+  const L = LETTER, cw = L.w - 2 * L.mx, n = imgs.length;
   const enc = new TextEncoder(); const parts = []; const offs = []; let len = 0;
   const add = x => { const u = typeof x === 'string' ? enc.encode(x) : x; parts.push(u); len += u.length; };
-  const obj = (n, body) => { offs[n] = len; add(`${n} 0 obj\n`); body(); add('\nendobj\n'); };
+  const obj = (num, body) => { offs[num] = len; add(`${num} 0 obj\n`); body(); add('\nendobj\n'); };
+  const pstr = t => '(' + [...String(t)].map(ch => { const c = ch.charCodeAt(0); if (ch === '(' || ch === ')' || ch === '\\') return '\\' + ch; if (c < 32) return ' '; if (c < 128) return ch; if (c < 256) return '\\' + c.toString(8).padStart(3, '0'); return ch === '—' || ch === '–' ? '-' : ch === '’' || ch === '‘' ? "'" : ch === '“' || ch === '”' ? '"' : '?'; }).join('') + ')';
+  const short = String(title).length > 80 ? String(title).slice(0, 78) + '…'.replace('…', '...') : String(title);
   add('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n');
-  const kids = []; for (let i = 0; i < pages; i++) kids.push(`${4 + i * 2} 0 R`);
+  /* 1 catálogo, 2 páginas, 3 fuente; por página: imagen, página, contenido */
+  const kids = imgs.map((_, i) => `${5 + i * 3} 0 R`);
   obj(1, () => add('<< /Type /Catalog /Pages 2 0 R >>'));
-  obj(2, () => add(`<< /Type /Pages /Kids [${kids.join(' ')}] /Count ${pages} >>`));
-  obj(3, () => { add(`<< /Type /XObject /Subtype /Image /Width ${img.naturalWidth} /Height ${img.naturalHeight} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpg.length} >>\nstream\n`); add(jpg); add('\nendstream'); });
-  for (let i = 0; i < pages; i++) {
-    const pn = 4 + i * 2, cn = pn + 1; const y = (PH - H + i * PH).toFixed(2);
-    const cs = `q ${W.toFixed(2)} 0 0 ${H.toFixed(2)} 0 ${y} cm /Im0 Do Q`;
-    obj(pn, () => add(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W.toFixed(2)} ${PH.toFixed(2)}] /Resources << /XObject << /Im0 3 0 R >> >> /Contents ${cn} 0 R >>`));
-    obj(cn, () => add(`<< /Length ${cs.length} >>\nstream\n${cs}\nendstream`));
+  obj(2, () => add(`<< /Type /Pages /Kids [${kids.join(' ')}] /Count ${n} >>`));
+  obj(3, () => add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>'));
+  for (let i = 0; i < n; i++) {
+    const im = imgs[i]; const io = 4 + i * 3, po = io + 1, co = io + 2;
+    const bin = atob(im.url.split(',')[1]); const jpg = Uint8Array.from(bin, ch => ch.charCodeAt(0));
+    const el = await new Promise((res, rej) => { const x = new Image(); x.onload = () => res(x); x.onerror = rej; x.src = im.url; });
+    obj(io, () => { add(`<< /Type /XObject /Subtype /Image /Width ${el.naturalWidth} /Height ${el.naturalHeight} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpg.length} >>\nstream\n`); add(jpg); add('\nendstream'); });
+    const avail = L.h - L.mt - L.mb, f = Math.min(1, avail / im.h), iw = cw * f, ih = im.h * f, ix = L.mx + (cw - iw) / 2;
+    const y = L.h - L.mt - ih; const pg = `P\\341gina ${i + 1} de ${n}`;
+    const cs = `q ${iw.toFixed(2)} 0 0 ${ih.toFixed(2)} ${ix.toFixed(2)} ${y.toFixed(2)} cm /Im${i} Do Q\n` +
+      `0.88 0.89 0.92 RG 0.6 w ${L.mx} ${L.mb - 14} m ${L.w - L.mx} ${L.mb - 14} l S\n` +
+      `BT /F1 8 Tf 0.45 0.47 0.53 rg ${L.mx} ${L.mb - 27} Td ${pstr(short)} Tj ET\n` +
+      `BT /F1 8 Tf 0.45 0.47 0.53 rg ${(L.w - L.mx - (12 + String(i + 1).length + String(n).length) * 4.1).toFixed(2)} ${L.mb - 27} Td (${pg}) Tj ET`;
+    obj(po, () => add(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${L.w} ${L.h}] /Resources << /XObject << /Im${i} ${io} 0 R >> /Font << /F1 3 0 R >> >> /Contents ${co} 0 R >>`));
+    obj(co, () => add(`<< /Length ${enc.encode(cs).length} >>\nstream\n${cs}\nendstream`));
   }
-  const n = 4 + pages * 2; const xref = len;
-  add(`xref\n0 ${n}\n0000000000 65535 f \n` + offs.slice(1, n).map(o => String(o).padStart(10, '0') + ' 00000 n \n').join(''));
-  add(`trailer\n<< /Size ${n} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`);
+  const xref = len; const count = 4 + n * 3;
+  add(`xref\n0 ${count}\n0000000000 65535 f \n`);
+  for (let i = 1; i < count; i++) add(String(offs[i]).padStart(10, '0') + ' 00000 n \n');
+  add(`trailer\n<< /Size ${count} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`);
   return new Blob(parts, { type: 'application/pdf' });
 }
 
