@@ -103,7 +103,7 @@ const KP_ICONS = ['target', 'money', 'people', 'time', 'tech', 'design', 'legal'
 const CLAUDE_MODELS = [['claude-sonnet-5-5', 'Claude Sonnet 5.5 — recomendado'], ['claude-opus-5-5', 'Claude Opus 5.5 — máximo detalle'], ['claude-haiku-5-5', 'Claude Haiku 5.5 — más rápido y económico']];
 const STT_MODELS = [['gpt-4o-transcribe-diarize', 'Con hablantes (recomendado)'], ['whisper-1', 'Whisper — con marcas de tiempo, sin hablantes'], ['gpt-4o-transcribe', 'Solo texto']];
 const MAX_UPLOAD = 25 * 1024 * 1024;
-const APP_VERSION = '3.5.6';
+const APP_VERSION = '3.5.7';
 const PART_SEC = 5 * 60; /* recordings are saved in 5-minute pieces so they can be transcribed in parallel */
 
 /* =========================================================
@@ -1331,9 +1331,14 @@ function renderMeeting(app, m) {
   $('#m-share').onclick = () => shareMeeting(m);
   $('#m-report').onclick = () => { const b = $('[data-tab="informe"]'); if (b) { b.click(); b.scrollIntoView({ block: 'nearest', inline: 'center' }); } };
   const expBtn = $('#m-exp'), expMenu = $('#m-exp-menu');
-  expBtn.onclick = e => { e.stopPropagation(); const open = expMenu.hidden; expMenu.hidden = !open; expBtn.setAttribute('aria-expanded', open); if (open) setTimeout(() => document.addEventListener('click', () => { expMenu.hidden = true; expBtn.setAttribute('aria-expanded', 'false'); }, { once: true }), 0); };
-  $$('[data-exp]', expMenu).forEach(b => b.onclick = async () => {
-    expMenu.hidden = true; const k = b.dataset.exp;
+  /* Exportar abre una hoja desde abajo con todas las opciones a la vista (sin menú que haya que desplazar) */
+  expBtn.onclick = e => {
+    e.stopPropagation(); expMenu.hidden = true;
+    sheet(`<div class="eyebrow">Exportar</div><h3>${esc(a.title || 'Reunión')}</h3><div class="exp-list">${expMenu.innerHTML}</div>`, el => {
+      $$('[data-exp]', el).forEach(b => b.onclick = () => { closeSheet(); runExp(b.dataset.exp); });
+    });
+  };
+  const runExp = async k => {
     if (k === 'md') downloadText(slug(a.title) + '.md', await fullMd(m));
     if (k === 'docx') { toast('Preparando el Word…'); try { deliverFile(await meetingDocx(m), 'Acta en Word'); } catch (e) { toast('No se pudo crear el Word: ' + (e.message || 'error'), 5000); } }
     if (k === 'ics') exportTasksICS([m]);
@@ -1341,7 +1346,7 @@ function renderMeeting(app, m) {
     if (k === 'audio') exportAudio(m);
     if (k === 'all') exportEverything(m);
     if (k === 'pdf') { const t = $('[data-tab="informe"]'); if (t) t.click(); setTimeout(async () => exportReport(m, a, await getSegments(m.id), 'pdf'), 400); }
-  });
+  };
   $('#m-proj').onclick = () => editProject(m);
   $$('.m-people [data-per]').forEach(b => b.onclick = () => go('per/' + encodeURIComponent(b.dataset.per)));
   const sc = $('#m-seal-chip'); if (sc) { sc.onclick = () => sealSheet(m); sealStatus(m).then(st => { if (st === 'changed') { sc.classList.add('bad'); sc.lastChild.textContent = 'Modificada tras el sello'; } }); }

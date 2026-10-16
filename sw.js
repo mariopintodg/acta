@@ -1,5 +1,5 @@
 /* Acta service worker: app shell offline, network-first for the app files, cache-first for fonts. API calls are never cached. */
-const VERSION = 'acta-v3.5.6';
+const VERSION = 'acta-v3.5.7';
 const SHELL = ['./', './privacidad.html', './index.html', './app.css', './app.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './favicon.png', './h2i.js'];
 
 self.addEventListener('install', e => {

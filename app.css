@@ -1125,3 +1125,11 @@ body:not(.admin) .adm-only{display:none!important}
 /* El menú Exportar se abre dentro de la tarjeta (antes quedaba cortado por los bordes en el teléfono) */
 .m-actions .menu-wrap:has(> .menu:not([hidden])){flex-basis:100%;display:flex;flex-direction:column;align-items:flex-start}
 .m-actions .menu{position:static;margin-top:8px;width:100%;max-width:440px;box-shadow:none}
+/* Hoja de Exportar: opciones grandes, una bajo otra, fáciles de tocar */
+.exp-list{display:grid;gap:6px;margin-top:14px}
+.exp-list button{display:flex;gap:14px;align-items:center;text-align:left;width:100%;border:1px solid var(--stroke-2);background:var(--glass-1,rgba(255,255,255,.03));padding:14px;border-radius:14px;cursor:pointer;color:var(--ink);font:inherit}
+.exp-list button:active{background:var(--glass-2)}
+.exp-list button svg{width:22px;height:22px;flex:none;color:var(--accent)}
+.exp-list button b{display:block;font-size:15px}
+.exp-list button small{display:block;color:var(--muted);font-size:12.5px;margin-top:2px;line-height:1.35}
+.exp-list button[data-exp="all"]{border-color:rgba(255,122,69,.45);background:rgba(255,122,69,.08)}
