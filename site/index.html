@@ -15,184 +15,266 @@
 <meta property="og:url" content="https://actasapp.com/">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preload" href="/app/fonts/bricolage.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/app/fonts/plex-sans-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/media/hero.jpg" as="image">
 <link rel="stylesheet" href="/land.css">
 <script>
-  /* Si Acta ya está instalada en este teléfono (ícono en la pantalla de inicio), abre la app directo */
+  /* Acta instalada en el teléfono: abre la app directo */
   (function () { try { if (matchMedia('(display-mode: standalone)').matches || navigator.standalone) location.replace('/app/' + location.hash); } catch (e) {} })();
+  document.documentElement.classList.add('js');
 </script>
 </head>
 <body>
 <a class="skip" href="#main">Saltar al contenido</a>
 
-<header class="nav" id="top">
+<header class="nav" id="nav">
   <div class="wrap nav-in">
     <a class="brand" href="/" aria-label="Acta, inicio">
-      <span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 10v4M9 7v10M13 4v16M17 8v8M21 11v2" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg></span>
+      <span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 10v4M9 7v10M13 4v16M17 8v8M21 11v2"/></svg></span>
       <span>Acta</span>
     </a>
     <nav class="links" aria-label="Secciones">
-      <a href="#funciones">Funciones</a>
-      <a href="#como">Cómo funciona</a>
+      <a href="#graba">Cómo funciona</a>
+      <a href="#compromisos">Compromisos</a>
+      <a href="#clase">Modo Clase</a>
       <a href="#precios">Precios</a>
-      <a href="#preguntas">Preguntas</a>
     </nav>
-    <a class="btn btn-sm" href="/app/" data-open>Abrir Acta</a>
+    <a class="btn btn-sm" href="#acceso">Pedir acceso</a>
   </div>
 </header>
 
 <main id="main">
-  <div class="returning wrap" id="returning" hidden>
-    <span><b>Ya usas Acta en este equipo.</b> Tus reuniones te están esperando.</span>
-    <a class="btn btn-sm" href="/app/">Abrir mi Acta</a>
-  </div>
 
-  <section class="hero">
+  <!-- 1 · PORTADA -->
+  <section class="hero" id="hero" aria-label="Portada">
+    <div class="hero-media" id="heroMedia">
+      <video class="bgv" autoplay muted loop playsinline preload="auto" poster="/media/hero.jpg"><source src="/media/hero.mp4" type="video/mp4"></video>
+      <div class="hero-shade"></div>
+    </div>
     <div class="wrap hero-in">
       <div class="hero-copy">
-        <p class="eyebrow">Grabadora inteligente de reuniones y clases</p>
-        <h1>Graba la reunión.<br><span class="grad">Acta hace el acta.</span></h1>
-        <p class="lead">Transcribe quién dijo qué, saca las decisiones y las tareas con responsable y plazo, y te deja el informe listo para mandar por WhatsApp, en PDF o en Word. En español de Chile.</p>
-        <div class="cta-row">
-          <a class="btn btn-lg" href="mailto:mariopintodg2023@gmail.com?subject=Quiero%20probar%20Acta&body=Hola%2C%20me%20gustar%C3%ADa%20probar%20Acta.%20Mi%20nombre%20y%20a%20qu%C3%A9%20me%20dedico%3A%20">Pedir acceso anticipado</a>
-          <a class="btn btn-ghost btn-lg" href="#como">Ver cómo funciona</a>
+        <p class="eyebrow reveal-up">Grabadora inteligente de reuniones y clases</p>
+        <h1 class="hero-title"><span class="line"><span class="w">Graba</span> <span class="w">la</span> <span class="w">reunión.</span></span><span class="line"><span class="w grad">Acta</span> <span class="w grad">hace</span> <span class="w grad">el</span> <span class="w grad">acta.</span></span></h1>
+        <p class="lead reveal-up">Quién dijo qué, las decisiones, las tareas con responsable y plazo, y un informe listo para mandar. En minutos y en español de Chile.</p>
+        <div class="cta-row reveal-up">
+          <a class="btn btn-lg" href="#acceso">Pedir acceso anticipado</a>
+          <a class="btn btn-ghost btn-lg" href="#graba"><svg class="ic16" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>Ver cómo funciona</a>
         </div>
-        <ul class="ticks">
-          <li>Funciona en iPhone, Android y computador</li>
-          <li>Acceso anticipado gratis mientras lanzamos</li>
-          <li>App Store y Google Play: muy pronto</li>
-        </ul>
       </div>
-      <div class="hero-art" aria-hidden="true">
-        <div class="glow"></div>
-        <figure class="phone tilt-l"><img src="/img/02_resumen.webp" alt="" width="300" height="525" loading="eager"></figure>
-        <figure class="phone main"><img src="/img/01_home.webp" alt="" width="300" height="525" loading="eager"></figure>
-        <div class="chip c1"><b>3 tareas</b><span>con responsable y plazo</span></div>
-        <div class="chip c2"><b>Informe listo</b><span>PDF · Word · WhatsApp</span></div>
+      <div class="hero-device" id="heroDevice">
+        <div class="device"><img src="/shots/home.webp" alt="Pantalla de inicio de Acta con el botón Grabar ahora" width="390" height="844"></div>
+        <div class="float f1"><span class="dot rec"></span><b>Grabando</b><em>00:42:16</em></div>
+        <div class="float f2"><b>3 tareas</b><span>con responsable y plazo</span></div>
       </div>
     </div>
+    <a class="scroll-cue" href="#manifiesto" aria-label="Bajar"><span></span></a>
   </section>
 
-  <section class="audience" aria-label="Para quién es">
+  <!-- 2 · MANIFIESTO -->
+  <section class="manifesto" id="manifiesto">
     <div class="wrap">
-      <p>Hecha para quienes viven en reuniones de verdad</p>
-      <ul>
-        <li>Obras y constructoras</li><li>Pymes y equipos</li><li>Consultores y asesores</li><li>Condominios y comités</li><li>Estudiantes</li><li>Corredores</li>
-      </ul>
+      <p class="big-read" id="bigRead">En cada reunión se dicen cosas que importan: acuerdos, plazos, promesas. <span class="hl">Y casi nada queda por escrito.</span> ¿Quién quedó de mandar el presupuesto? ¿Qué acordamos el martes? Con Acta, lo que se habla, queda.</p>
     </div>
   </section>
 
-  <section class="sec" id="funciones">
-    <div class="wrap">
-      <div class="sec-head">
-        <p class="eyebrow">Funciones</p>
-        <h2>Todo lo que se dijo, convertido en trabajo</h2>
-        <p>Deja el celular sobre la mesa. Cuando termines, Acta tiene listo lo que antes te tomaba una hora escribir.</p>
+  <!-- 3 · GRABA (pinned, cambia el lugar) -->
+  <section class="stage" id="graba" aria-label="Graba en cualquier lugar">
+    <div class="stage-pin">
+      <div class="stage-bg">
+        <video class="bgv scene s0 on" muted loop playsinline preload="metadata" poster="/media/obra.jpg" data-src="/media/obra.mp4"></video>
+        <video class="bgv scene s1" muted loop playsinline preload="none" poster="/media/oficina.jpg" data-src="/media/oficina.mp4"></video>
+        <video class="bgv scene s2" muted loop playsinline preload="none" poster="/media/clase.jpg" data-src="/media/clase.mp4"></video>
+        <div class="stage-shade"></div>
       </div>
-      <div class="grid">
-        <article class="card"><span class="ic o"><svg viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3zM5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span><h3>Transcribe con nombres</h3><p>Separa a cada persona que habla y anota el minuto de cada frase. Graba sin límite de tiempo, aunque dure toda la mañana.</p></article>
-        <article class="card"><span class="ic p"><svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg></span><h3>Acta, decisiones y tareas</h3><p>Resumen, acuerdos, riesgos y tareas con responsable y fecha. Las tareas pasan directo a tu calendario.</p></article>
-        <article class="card"><span class="ic b"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><h3>Sabe quién te debe qué</h3><p>Cada compromiso queda con la frase exacta en que se dijo. Recuérdaselo a la persona por WhatsApp, hasta con el audio de su propia voz.</p></article>
-        <article class="card"><span class="ic g"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h5"/></svg></span><h3>Informes que se ven profesionales</h3><p>Compacto, normal o extendido. En PDF tamaño carta, imagen o Word, con tu logo, tu color y tu firma.</p></article>
-        <article class="card"><span class="ic y"><svg viewBox="0 0 24 24"><path d="M22 10L12 5 2 10l10 5 10-5zM6 12v5c3 2 9 2 12 0v-5"/></svg></span><h3>Modo Clase</h3><p>Apuntes por tema, glosario, “lo que entra en la prueba”, tarjetas de repaso y pruebas de práctica hechas solas.</p></article>
-        <article class="card"><span class="ic r"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span><h3>Tus datos, en tu teléfono</h3><p>Las reuniones se guardan en tu equipo, con bloqueo por huella o PIN. Respaldo completo con audio en un solo archivo.</p></article>
+      <div class="wrap stage-in">
+        <div class="stage-copy">
+          <p class="eyebrow">01 · Graba</p>
+          <h2>Deja el teléfono sobre la mesa.</h2>
+          <ol class="places">
+            <li class="on"><b>En la obra</b><span>Reunión de avance con la inspección, el jefe de obra y los subcontratos.</span></li>
+            <li><b>En la oficina</b><span>Comité, clientes, proveedores. Acta separa a cada persona que habla.</span></li>
+            <li><b>En clases</b><span>Graba toda la cátedra, sin límite de tiempo, y llega preparado a la prueba.</span></li>
+          </ol>
+        </div>
+        <div class="stage-device"><div class="device"><img src="/shots/grabando.webp" alt="Acta grabando una reunión" width="390" height="844" loading="lazy"></div></div>
       </div>
+      <div class="stage-progress" aria-hidden="true"><i></i><i></i><i></i></div>
     </div>
   </section>
 
-  <section class="sec show">
-    <div class="wrap show-row">
-      <figure class="phone"><img src="/img/03_compromisos.webp" alt="Pantalla de compromisos de Acta: lo que te deben, con la frase exacta" width="300" height="525" loading="lazy"></figure>
-      <div class="show-copy">
-        <p class="eyebrow">Memoria de compromisos</p>
-        <h2>“El viernes te lo mando.” Acta no se olvida.</h2>
-        <p>Acta junta lo que cada persona prometió en todas tus reuniones. Ves qué está vencido, cuánto cumple cada uno y, antes de la próxima reunión, “Prepárame” te dice qué pedir.</p>
-        <ul class="ticks"><li>La frase exacta y el minuto en que se dijo</li><li>Recordatorio listo para WhatsApp</li><li>Ficha de cumplimiento por persona</li></ul>
-      </div>
-    </div>
-    <div class="wrap show-row rev">
-      <figure class="phone"><img src="/img/06_informe.webp" alt="Informe visual de una reunión en Acta" width="300" height="525" loading="lazy"></figure>
-      <div class="show-copy">
-        <p class="eyebrow">Informes</p>
-        <h2>Un informe que da gusto mandar</h2>
-        <p>Gráficos de quién habló, temas, decisiones y tareas en una hoja clara. Elige compacto para WhatsApp o extendido con todo el detalle, mapa mental incluido. Descarga todo de una vez en un solo archivo.</p>
-        <ul class="ticks"><li>PDF tamaño carta e imagen</li><li>Acta en Word para editar</li><li>Acta sellada con folio y huella digital</li></ul>
-      </div>
-    </div>
-    <div class="wrap show-row">
-      <figure class="phone"><img src="/img/04_estudiar.webp" alt="Modo Clase de Acta con apuntes y tarjetas de estudio" width="300" height="525" loading="lazy"></figure>
-      <div class="show-copy">
-        <p class="eyebrow">Para estudiantes</p>
-        <h2>Graba la clase y llega preparado a la prueba</h2>
-        <p>Acta ordena la clase por temas, arma el glosario y marca lo que el profe dijo que entra. Las tarjetas vuelven justo cuando las estás olvidando.</p>
-        <ul class="ticks"><li>Apuntes y glosario automáticos</li><li>Tarjetas y pruebas de práctica</li><li>Escucha tus apuntes en el camino</li></ul>
+  <!-- 4 · LA VOZ SE VUELVE TEXTO (video controlado por scroll) -->
+  <section class="voice" id="voz" aria-label="La voz se vuelve texto">
+    <div class="voice-pin">
+      <video class="voice-v" id="voiceVideo" muted playsinline preload="auto" poster="/media/onda.jpg"><source src="/media/onda.mp4" type="video/mp4"></video>
+      <div class="wrap voice-in">
+        <div class="voice-copy">
+          <p class="eyebrow">02 · Transcribe</p>
+          <h2>Tu voz se vuelve texto. <span class="muted">Con nombre y minuto.</span></h2>
+        </div>
+        <div class="tx" aria-label="Ejemplo de transcripción">
+          <div class="tx-l"><time>0:00</time><p><b class="c1">Tú</b> Retomemos lo de la semana pasada. Camila, gracias por las fotos y el logo.</p></div>
+          <div class="tx-l"><time>0:14</time><p><b class="c2">Diego</b> El presupuesto lo mando mañana, me faltó cotizar WhatsApp con el proveedor nuevo.</p></div>
+          <div class="tx-l"><time>0:35</time><p><b class="c3">Camila</b> Les cuento que los sábados ahora somos cinco, entró una colorista.</p></div>
+          <div class="tx-l"><time>1:10</time><p><b class="c2">Diego</b> Propongo una prueba con diez clientas reales antes del lanzamiento.</p></div>
+          <div class="tx-l"><time>1:25</time><p><b class="c3">Camila</b> Buenísimo, yo elijo a las clientas. Les aviso el lunes.</p></div>
+        </div>
       </div>
     </div>
   </section>
 
-  <section class="sec" id="como">
-    <div class="wrap">
-      <div class="sec-head">
-        <p class="eyebrow">Cómo funciona</p>
-        <h2>Tres pasos, cero tipeo</h2>
+  <!-- 5 · EL ACTA SE ARMA SOLA -->
+  <section class="assemble" id="acta" aria-label="El acta se arma sola">
+    <div class="assemble-pin">
+      <div class="wrap assemble-in">
+        <div class="as-copy">
+          <p class="eyebrow">03 · Ordena</p>
+          <h2>Y el acta se arma sola.</h2>
+          <p class="sub">Resumen, decisiones, tareas, riesgos y el clima de la reunión. Todo en su lugar, sin que tengas que escribir una línea.</p>
+        </div>
+        <div class="as-stage">
+          <div class="device as-dev"><img src="/shots/resumen.webp" alt="Resumen de una reunión en Acta" width="390" height="844" loading="lazy"></div>
+          <div class="piece p1"><span class="tag t-pu">Decisión</span><b>Piloto con 10 clientas reales</b><small>Propuso Diego · 1:10</small></div>
+          <div class="piece p2"><span class="tag t-gr">Tarea</span><b>Enviar presupuesto con cotización</b><small><i class="av">D</i> Diego · mañana · prioridad alta</small></div>
+          <div class="piece p3 gauge"><svg viewBox="0 0 120 70" aria-hidden="true"><path d="M10 64a50 50 0 0 1 100 0" class="g-track"/><path d="M10 64a50 50 0 0 1 100 0" class="g-val" pathLength="100"/></svg><b>74</b><small>Clima: en marcha</small></div>
+          <div class="piece p4"><span class="tag t-or">Quién habló</span><div class="bars"><span style="--w:47%"><em>Tú</em></span><span style="--w:30%"><em>Diego</em></span><span style="--w:23%"><em>Camila</em></span></div></div>
+          <div class="piece p5"><span class="tag t-re">Riesgo</span><b>El presupuesto se atrasa un día</b><small>Mitigación: fijar fecha límite</small></div>
+        </div>
       </div>
-      <ol class="steps">
-        <li><span>1</span><h3>Graba</h3><p>Toca el botón y deja el teléfono sobre la mesa. Puedes marcar momentos, sacar fotos de la pizarra y anotar.</p></li>
-        <li><span>2</span><h3>Dile qué fue</h3><p>Reunión de obra, clase, entrevista o asesoría: Acta adapta el acta a lo que grabaste.</p></li>
-        <li><span>3</span><h3>Comparte</h3><p>En minutos tienes el resumen, las tareas y el informe. Mándalo por WhatsApp, correo o descárgalo en PDF.</p></li>
-      </ol>
     </div>
   </section>
 
+  <!-- 6 · GALERÍA HORIZONTAL DE PRIMEROS PLANOS -->
+  <section class="gallery" id="pantallas" aria-label="Pantallas de Acta">
+    <div class="gallery-pin">
+      <div class="wrap g-head"><p class="eyebrow">04 · Todo a mano</p><h2>Cada reunión, vista de todas las formas.</h2></div>
+      <div class="g-track" id="gTrack">
+        <figure class="g-item"><div class="device"><img src="/shots/informe.webp" alt="Informe visual de la reunión" width="390" height="844" loading="lazy"></div><figcaption><b>Informe</b>Compacto, normal o extendido, en PDF tamaño carta.</figcaption></figure>
+        <figure class="g-item"><div class="device"><img src="/shots/transcripcion.webp" alt="Transcripción con hablantes" width="390" height="844" loading="lazy"></div><figcaption><b>Transcripción</b>Busca cualquier frase y escúchala en el minuto exacto.</figcaption></figure>
+        <figure class="g-item"><div class="device"><img src="/shots/mapa.webp" alt="Mapa mental de la reunión" width="390" height="844" loading="lazy"></div><figcaption><b>Mapa mental</b>Los temas de la reunión de un vistazo.</figcaption></figure>
+        <figure class="g-item"><div class="device"><img src="/shots/personas.webp" alt="Ficha de personas" width="390" height="844" loading="lazy"></div><figcaption><b>Personas</b>Qué ha prometido y cuánto cumple cada uno.</figcaption></figure>
+        <figure class="g-item"><div class="device"><img src="/shots/exportar.webp" alt="Opciones para exportar" width="390" height="844" loading="lazy"></div><figcaption><b>Exportar</b>Word, PDF, calendario o todo de una vez.</figcaption></figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 · COMPROMISOS -->
+  <section class="split" id="compromisos">
+    <div class="wrap split-in">
+      <div class="split-copy">
+        <p class="eyebrow">05 · Memoria de compromisos</p>
+        <h2>“El viernes te lo mando.”<br><span class="grad">Acta no se olvida.</span></h2>
+        <p class="sub">Junta lo que cada persona prometió en todas tus reuniones, con la frase exacta y su propia voz. Ves qué está vencido y recuerdas con un toque.</p>
+        <ul class="ticks"><li>La frase exacta y el minuto en que se dijo</li><li>Recordatorio listo para WhatsApp</li><li>“Prepárame” antes de la próxima reunión</li></ul>
+      </div>
+      <div class="split-art">
+        <div class="device sd"><img src="/shots/compromisos.webp" alt="Pantalla de compromisos: lo que te deben" width="390" height="844" loading="lazy"></div>
+        <div class="zoom-card"><span class="play" aria-hidden="true"></span><p>“Sí, el viernes lo envío con el detalle por etapa.”</p><time>3:24</time></div>
+        <div class="wa"><small>WhatsApp · para Diego</small><p>Hola Diego 👋 Quedaste de enviar el <b>presupuesto final con detalle por etapa</b> el viernes. ¿Cómo vamos?</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 · MODO CLASE (pasa a claro) -->
+  <section class="light" id="clase">
+    <div class="wrap split-in rev">
+      <div class="split-copy">
+        <p class="eyebrow">06 · Modo Clase</p>
+        <h2>Graba la clase.<br>Llega preparado a la prueba.</h2>
+        <p class="sub">Apuntes ordenados por tema, glosario y “lo que entra en la prueba”. Tarjetas que vuelven justo cuando las estás olvidando.</p>
+        <div class="flash" aria-label="Tarjeta de estudio de ejemplo">
+          <div class="flash-in"><div class="face front"><small>Pregunta</small><b>¿Qué es el radio hidráulico?</b></div><div class="face back"><small>Respuesta</small><b>Área mojada dividida por el perímetro mojado.</b></div></div>
+        </div>
+      </div>
+      <div class="split-art">
+        <div class="vframe"><video class="bgv" muted loop playsinline preload="none" poster="/media/clase.jpg" data-src="/media/clase.mp4"></video></div>
+        <div class="device sd small"><img src="/shots/estudiar.webp" alt="Modo Clase en Acta" width="390" height="844" loading="lazy"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 · TODO DE UNA VEZ -->
+  <section class="export" id="exportar">
+    <div class="export-media"><video class="bgv" muted loop playsinline preload="none" poster="/media/mesa.jpg" data-src="/media/mesa.mp4"></video><div class="ex-shade"></div></div>
+    <div class="wrap ex-in">
+      <div class="ex-copy">
+        <p class="eyebrow">07 · Comparte</p>
+        <h2>Todo listo para mandar.<br><span class="muted">De una sola vez.</span></h2>
+        <p class="sub">Informe en PDF tamaño carta, acta en Word, resumen, transcripción, mapa mental y el audio original, en un solo archivo. Con tu logo, tu color y tu firma.</p>
+      </div>
+      <div class="files" aria-hidden="true">
+        <div class="file f-pdf"><i>PDF</i><b>Informe</b></div>
+        <div class="file f-doc"><i>DOC</i><b>Acta en Word</b></div>
+        <div class="file f-map"><i>PDF</i><b>Mapa mental</b></div>
+        <div class="file f-tx"><i>PDF</i><b>Transcripción</b></div>
+        <div class="file f-aud"><i>M4A</i><b>Audio</b></div>
+        <div class="file f-cal"><i>ICS</i><b>Tareas</b></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 · CONFIANZA -->
+  <section class="trust">
+    <div class="wrap trust-grid">
+      <div><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><b>Tus datos en tu teléfono</b><span>Bloqueo con huella o PIN y respaldo completo con audio.</span></div>
+      <div><svg viewBox="0 0 24 24"><path d="M2 12h3l3-8 4 16 3-8h7"/></svg><b>Sin límite de tiempo</b><span>Graba la reunión entera; queda lista en minutos.</span></div>
+      <div><svg viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg><b>Graba sin señal</b><span>El acta se crea sola cuando vuelve la conexión.</span></div>
+      <div><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><b>Acta sellada</b><span>Folio y huella digital que detecta cualquier cambio.</span></div>
+    </div>
+  </section>
+
+  <!-- 11 · PRECIOS -->
   <section class="sec" id="precios">
     <div class="wrap">
-      <div class="sec-head">
-        <p class="eyebrow">Precios</p>
-        <h2>Precios de lanzamiento</h2>
-        <p>Los planes se activan con el lanzamiento en App Store y Google Play. Mientras tanto, Acta está en acceso anticipado: pídelo y te activamos la cuenta sin costo.</p>
-      </div>
+      <div class="sec-head"><p class="eyebrow">Precios</p><h2>Precios de lanzamiento</h2><p>Los planes se activan con el lanzamiento en App Store y Google Play. Mientras tanto, Acta está en acceso anticipado y la activamos sin costo.</p></div>
       <div class="plans">
-        <article class="plan"><h3>Gratis</h3><p class="price">$0</p><p class="per">para probar</p><ul><li>1 hora de grabación</li><li>Actas, tareas e informe</li><li>Exporta en PDF</li></ul><a class="btn btn-ghost" href="mailto:mariopintodg2023@gmail.com?subject=Quiero%20probar%20Acta&body=Hola%2C%20me%20gustar%C3%ADa%20probar%20Acta.%20Mi%20nombre%20y%20a%20qu%C3%A9%20me%20dedico%3A%20">Pedir acceso</a></article>
-        <article class="plan"><h3>Personal</h3><p class="price">$3.990</p><p class="per">al mes · IVA incluido</p><ul><li>5 horas al mes</li><li>Todo lo del plan Gratis</li><li>Modo Clase y tarjetas</li><li>Ideal para estudiantes</li></ul><span class="soon">Muy pronto</span></article>
-        <article class="plan hot"><span class="tag">Recomendado</span><h3>Pro</h3><p class="price">$9.990</p><p class="per">al mes · IVA incluido</p><ul><li>12 horas al mes</li><li>Informe extendido</li><li>Tu logo, color y firma</li><li>Memoria de compromisos</li></ul><span class="soon">Muy pronto</span></article>
+        <article class="plan"><h3>Gratis</h3><p class="price">$0</p><p class="per">para probar</p><ul><li>1 hora de grabación</li><li>Actas, tareas e informe</li><li>Exporta en PDF</li></ul><a class="btn btn-ghost" href="#acceso">Pedir acceso</a></article>
+        <article class="plan"><h3>Personal</h3><p class="price">$3.990</p><p class="per">al mes · IVA incluido</p><ul><li>5 horas al mes</li><li>Modo Clase y tarjetas</li><li>Ideal para estudiantes</li></ul><span class="soon">Muy pronto</span></article>
+        <article class="plan hot"><span class="ptag">Recomendado</span><h3>Pro</h3><p class="price">$9.990</p><p class="per">al mes · IVA incluido</p><ul><li>12 horas al mes</li><li>Informe extendido</li><li>Tu logo, color y firma</li><li>Memoria de compromisos</li></ul><span class="soon">Muy pronto</span></article>
       </div>
     </div>
   </section>
 
+  <!-- 12 · PREGUNTAS -->
   <section class="sec" id="preguntas">
     <div class="wrap narrow">
-      <div class="sec-head">
-        <p class="eyebrow">Preguntas frecuentes</p>
-        <h2>Lo que nos preguntan</h2>
-      </div>
-      <details><summary>¿Necesito descargar algo?</summary><p>No. Acta se abre en el navegador de tu teléfono o computador, en actasapp.com/app. En el iPhone, toca Compartir › “Agregar a pantalla de inicio” y queda como una app más. Muy pronto también estará en App Store y Google Play.</p></details>
-      <details><summary>¿Dónde quedan mis grabaciones?</summary><p>En tu propio teléfono o computador. Para crear el acta, el audio se envía de forma cifrada a los servicios de inteligencia artificial que la procesan, y no se usa para entrenar ni se comparte. Puedes borrar todo cuando quieras.</p></details>
-      <details><summary>¿Cuánto puede durar una grabación?</summary><p>No hay límite: Acta guarda la grabación en partes y las procesa en paralelo, así que una reunión larga también queda lista en pocos minutos.</p></details>
+      <div class="sec-head"><p class="eyebrow">Preguntas frecuentes</p><h2>Lo que nos preguntan</h2></div>
+      <details><summary>¿Necesito descargar algo?</summary><p>No. Acta se abre en el navegador, en actasapp.com/app, y en el iPhone se agrega a la pantalla de inicio como una app más. Muy pronto también estará en App Store y Google Play.</p></details>
+      <details><summary>¿Dónde quedan mis grabaciones?</summary><p>En tu propio teléfono o computador. Para crear el acta, el audio viaja cifrado a los servicios de inteligencia artificial que lo procesan; no se usa para entrenarlos ni se comparte. Puedes borrar todo cuando quieras.</p></details>
+      <details><summary>¿Cuánto puede durar una grabación?</summary><p>No hay límite. Acta guarda la grabación en partes y las procesa en paralelo, así que una reunión larga también queda lista en minutos.</p></details>
       <details><summary>¿Funciona sin internet?</summary><p>Sí, puedes grabar sin señal. El acta se crea sola cuando el teléfono vuelve a tener conexión.</p></details>
       <details><summary>¿Tengo que avisar que estoy grabando?</summary><p>Sí, es lo correcto y en muchos casos lo exige la ley. Acta trae un aviso listo para que lo digas al empezar.</p></details>
       <details><summary>¿Sirve para reuniones online?</summary><p>Sí, aunque está pensada sobre todo para reuniones presenciales: obras, oficinas, asambleas y clases, donde no hay un Zoom que grabe por ti.</p></details>
     </div>
   </section>
 
-  <section class="final">
+  <!-- 13 · CIERRE -->
+  <section class="final" id="acceso">
+    <video class="bgv" muted loop playsinline preload="none" poster="/media/cierre.jpg" data-src="/media/cierre.mp4"></video>
+    <div class="final-shade"></div>
     <div class="wrap final-in">
-      <h2>Tu próxima reunión ya puede tener acta</h2>
+      <h2>Tu próxima reunión<br><span class="grad">ya puede tener acta.</span></h2>
       <p>Pide tu acceso anticipado y pruébala gratis en tu teléfono.</p>
-      <div class="cta-row center"><a class="btn btn-lg" href="mailto:mariopintodg2023@gmail.com?subject=Quiero%20probar%20Acta&body=Hola%2C%20me%20gustar%C3%ADa%20probar%20Acta.%20Mi%20nombre%20y%20a%20qu%C3%A9%20me%20dedico%3A%20">Pedir acceso anticipado</a><a class="btn btn-ghost btn-lg" href="/app/">Ya tengo cuenta</a></div>
+      <div class="cta-row center">
+        <a class="btn btn-lg" href="mailto:mariopintodg2023@gmail.com?subject=Quiero%20probar%20Acta&body=Hola%2C%20me%20gustar%C3%ADa%20probar%20Acta.%20Mi%20nombre%20y%20a%20qu%C3%A9%20me%20dedico%3A%20">Pedir acceso anticipado</a>
+        <a class="btn btn-ghost btn-lg" href="/app/">Ya tengo cuenta</a>
+      </div>
+      <p class="stores">App Store y Google Play · muy pronto</p>
     </div>
   </section>
 </main>
 
 <footer class="foot">
   <div class="wrap foot-in">
-    <a class="brand" href="/"><span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 10v4M9 7v10M13 4v16M17 8v8M21 11v2" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg></span><span>Acta</span></a>
+    <a class="brand" href="/"><span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 10v4M9 7v10M13 4v16M17 8v8M21 11v2"/></svg></span><span>Acta</span></a>
     <nav aria-label="Pie de página"><a href="/app/">Abrir la app</a><a href="/privacidad.html">Privacidad</a><a href="mailto:mariopintodg2023@gmail.com">Contacto</a></nav>
     <p>© 2026 Acta · Hecha en Chile</p>
   </div>
 </footer>
 
-<script>
-  /* Si ya hay reuniones o claves guardadas en este equipo, ofrece volver directo a la app */
-  try { if (localStorage.getItem('acta:settings')) document.getElementById('returning').hidden = false; } catch (e) {}
-</script>
+<div class="returning" id="returning" hidden><span><b>Ya usas Acta en este equipo.</b></span><a class="btn btn-sm" href="/app/">Abrir mi Acta</a></div>
+
+<script src="/vendor/gsap.min.js" defer></script>
+<script src="/vendor/ScrollTrigger.min.js" defer></script>
+<script src="/land.js" defer></script>
 </body>
 </html>
