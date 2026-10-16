@@ -103,7 +103,7 @@ const KP_ICONS = ['target', 'money', 'people', 'time', 'tech', 'design', 'legal'
 const CLAUDE_MODELS = [['claude-sonnet-5-5', 'Claude Sonnet 5.5 — recomendado'], ['claude-opus-5-5', 'Claude Opus 5.5 — máximo detalle'], ['claude-haiku-5-5', 'Claude Haiku 5.5 — más rápido y económico']];
 const STT_MODELS = [['gpt-4o-transcribe-diarize', 'Con hablantes (recomendado)'], ['whisper-1', 'Whisper — con marcas de tiempo, sin hablantes'], ['gpt-4o-transcribe', 'Solo texto']];
 const MAX_UPLOAD = 25 * 1024 * 1024;
-const APP_VERSION = '3.5.7';
+const APP_VERSION = '3.5.9';
 const PART_SEC = 5 * 60; /* recordings are saved in 5-minute pieces so they can be transcribed in parallel */
 
 /* =========================================================
@@ -3154,9 +3154,27 @@ Reglas: no inventes nada; usa solo lo dicho. Los tiempos en segundos. Cita quié
   return x;
 }
 
-function loadH2I() {
-  if (window.htmlToImage) return Promise.resolve(window.htmlToImage);
-  return new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'h2i.js'; s.onload = () => res(window.htmlToImage); s.onerror = () => rej(new Error('No se pudo cargar el generador de imágenes. Revisa tu conexión.')); document.head.appendChild(s); });
+/* Las fuentes van incrustadas en cada imagen/PDF desde los archivos propios de la app.
+   Así el texto exportado mide exactamente lo mismo que en pantalla: sin letras cortadas ni textos encimados. */
+const FONT_FILES = [['Bricolage Grotesque', '200 800', 'fonts/bricolage.woff2'], ['IBM Plex Sans', '400', 'fonts/plex-sans-400.woff2'], ['IBM Plex Sans', '500', 'fonts/plex-sans-500.woff2'], ['IBM Plex Sans', '600', 'fonts/plex-sans-600.woff2'], ['IBM Plex Sans', '700', 'fonts/plex-sans-700.woff2'], ['IBM Plex Mono', '400', 'fonts/plex-mono-400.woff2'], ['IBM Plex Mono', '500', 'fonts/plex-mono-500.woff2']];
+let fontCSSP = null;
+function fontEmbedCSS() {
+  if (!fontCSSP) fontCSSP = Promise.all(FONT_FILES.map(async ([fam, w, url]) => {
+    const b = await fetch(url).then(r => { if (!r.ok) throw new Error(); return r.blob(); });
+    const data = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(b); });
+    return `@font-face{font-family:"${fam}";font-style:normal;font-weight:${w};src:url(${data}) format("woff2")}`;
+  })).then(x => x.join('\n')).catch(() => { fontCSSP = null; return ''; });
+  return fontCSSP;
+}
+let h2iLib = null;
+async function loadH2I() {
+  if (h2iLib) return h2iLib;
+  const raw = window.htmlToImage || await new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'h2i.js'; s.onload = () => res(window.htmlToImage); s.onerror = () => rej(new Error('No se pudo cargar el generador de imágenes. Revisa tu conexión.')); document.head.appendChild(s); });
+  const css = await fontEmbedCSS();
+  try { await document.fonts?.ready; await Promise.all(['400 14px "IBM Plex Sans"', '600 14px "IBM Plex Sans"', '700 14px "IBM Plex Sans"', '700 20px "Bricolage Grotesque"', '400 12px "IBM Plex Mono"'].map(f => document.fonts.load(f))); } catch {}
+  const wrap = fn => (node, o = {}) => fn(node, css && !o.skipFonts ? { ...o, fontEmbedCSS: css } : o);
+  h2iLib = { toBlob: wrap(raw.toBlob), toJpeg: wrap(raw.toJpeg), toPng: wrap(raw.toPng), toCanvas: wrap(raw.toCanvas) };
+  return h2iLib;
 }
 async function exportReport(m, a, segs, kind = 'png') {
   const btn = $(kind === 'pdf' ? '#rp-pdf' : '#rp-png'); const label = btn?.lastChild?.textContent; if (btn) { btn.disabled = true; btn.lastChild.textContent = 'Generando…'; }
@@ -3184,6 +3202,19 @@ async function exportReport(m, a, segs, kind = 'png') {
   finally { wrap.remove(); if (btn) { btn.disabled = false; btn.lastChild.textContent = label; } }
 }
 
+/* Documentos en PDF (resumen, brief, transcripción) con el mismo encabezado y diseño que los informes */
+function docArticle(m, a, label, body) {
+  return `<article class="rep doc-rep"${Settings.v.brandColor ? ` style="--brand:${esc(Settings.v.brandColor)}"` : ''}>${repHead(m, a, label)}<div class="rp-body doc-body">${body}</div>${repFoot(m, a)}</article>`;
+}
+function transcriptDocHTML(m, segs) {
+  return `<div class="doc-tx">${segs.map(x => `<div class="tx-line"><span class="t">${fmtT(x.t)}</span><p>${x.s ? `<b>${esc(spkName(m, x.s))}:</b> ` : ''}${esc(x.text)}</p></div>`).join('')}</div>`;
+}
+async function htmlPdfBlob(html, title, onPage) {
+  const wrap = document.createElement('div'); wrap.className = 'rep-export'; wrap.style.width = PDF_CSS_W + 'px';
+  wrap.innerHTML = html; document.body.appendChild(wrap);
+  try { const lib = await loadH2I(); return await reportToLetterPdf(wrap.firstElementChild, lib, title || 'Acta', onPage); }
+  finally { wrap.remove(); }
+}
 async function reportPdfBlob(m, a, segs, mode, onPage) {
   const wrap = document.createElement('div'); wrap.className = 'rep-export'; wrap.style.width = PDF_CSS_W + 'px';
   wrap.innerHTML = reportByMode(m, a, segs, mode); document.body.appendChild(wrap);
@@ -3206,13 +3237,15 @@ async function exportEverything(m) {
       say('1/5 · Informe en PDF…'); files.push([`${base}/01-informe.pdf`, new Uint8Array(await (await reportPdfBlob(m, a, segs, 'normal')).arrayBuffer())]);
       if (a.extended) { say('1/5 · Informe extendido en PDF…'); files.push([`${base}/02-informe-extendido.pdf`, new Uint8Array(await (await reportPdfBlob(m, a, segs, 'extendido')).arrayBuffer())]); }
       say('2/5 · Acta en Word…'); files.push([`${base}/03-acta.docx`, new Uint8Array(await (await meetingDocx(m)).arrayBuffer())]);
-      say('3/5 · Resumen y brief…');
-      files.push([`${base}/04-resumen.md`, await fullMd(m, { transcript: false, brief: false })]);
-      if (a.brief) files.push([`${base}/05-brief.md`, a.brief]);
+      say('3/5 · Resumen y brief en PDF…');
+      const sumMd = (await fullMd(m, { transcript: false, brief: false })).split('\n'); const from = sumMd.findIndex(l => /^## /.test(l));
+      const pdfOf = async (label, body) => new Uint8Array(await (await htmlPdfBlob(docArticle(m, a, label, body), a.title)).arrayBuffer());
+      files.push([`${base}/04-resumen.pdf`, await pdfOf('Resumen completo', `<div class="doc-md">${md(sumMd.slice(from < 0 ? 0 : from).join('\n').replace(/^- \[ \] /gm, '- ☐ ').replace(/^- \[x\] /gm, '- ☑ '))}</div>`)]);
+      if (a.brief) files.push([`${base}/05-brief.pdf`, await pdfOf('Brief', `<div class="doc-md">${md(String(a.brief).replace(/^# .*\n?/, ''))}</div>`)]);
       const evs = []; (a.actions || []).forEach(t => { if (t.done) return; const d = taskDate(t, m); if (d) evs.push(taskEvent(m, t, d)); });
       if (evs.length) files.push([`${base}/07-tareas-calendario.ics`, buildICS(evs)]);
     }
-    if (segs.length) files.push([`${base}/06-transcripcion.txt`, transcriptTxt(m, segs)]);
+    if (segs.length) { say('3/5 · Transcripción en PDF…'); files.push([`${base}/06-transcripcion.pdf`, new Uint8Array(await (await htmlPdfBlob(docArticle(m, a.title ? a : { ...a, title: m.titleHint || 'Reunión' }, 'Transcripción', transcriptDocHTML(m, segs)), a.title || m.titleHint)).arrayBuffer())]); }
     say('4/5 · Audio y fotos…');
     const parts = m.audioParts || [];
     for (const [i, p] of parts.entries()) { const b = await DB.get('audio', p.key); if (!b) continue; const path = `${base}/audio/${base}${parts.length > 1 ? '-parte-' + (i + 1) : ''}.${extFor(b.type)}`; files.push([path, new Uint8Array(await b.arrayBuffer())]); map[p.key] = path; }
@@ -3220,7 +3253,7 @@ async function exportEverything(m) {
     say('5/5 · Empaquetando…');
     const t = segs.length ? { [m.id]: segs } : {};
     files.push(['respaldo.json', JSON.stringify({ app: 'acta', version: 2, exportedAt: new Date().toISOString(), meetings: [m], transcripts: t, files: map })]);
-    files.push([`${base}/LEEME.txt`, `${a.title || 'Reunión'}\n\n01-informe.pdf: informe visual, tamaño carta\n02-informe-extendido.pdf: informe con todo el detalle (si se creó)\n03-acta.docx: acta completa para editar en Word\n04-resumen.md: resumen, decisiones, tareas, ideas y riesgos\n05-brief.md: brief del proyecto (si existe)\n06-transcripcion.txt: transcripción con hablantes y minuto\n07-tareas-calendario.ics: tareas con fecha para el calendario\naudio/ y fotos/: la grabación original y las fotos\n\nPara volver a cargar esta reunión en Acta: Ajustes > Importar respaldo y elige este .zip tal como está.\n`]);
+    files.push([`${base}/LEEME.txt`, `${a.title || 'Reunión'}\n\n01-informe.pdf: informe visual, tamaño carta\n02-informe-extendido.pdf: informe con todo el detalle (si se creó)\n03-acta.docx: acta completa para editar en Word\n04-resumen.pdf: resumen, decisiones, tareas, ideas y riesgos\n05-brief.pdf: brief del proyecto (si existe)\n06-transcripcion.pdf: transcripción con hablantes y minuto\n07-tareas-calendario.ics: tareas con fecha para el calendario\naudio/ y fotos/: la grabación original y las fotos\n\nPara volver a cargar esta reunión en Acta: Ajustes > Importar respaldo y elige este .zip tal como está.\n`]);
     const zip = new File([zipStore(files)], `${base}-todo.zip`, { type: 'application/zip' });
     deliverFile(zip, 'Todo de la reunión');
   } catch (e) { toast('No se pudo armar el paquete: ' + (e.message || 'error'), 6000); }

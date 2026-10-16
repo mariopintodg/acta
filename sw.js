@@ -1,6 +1,6 @@
 /* Acta service worker: app shell offline, network-first for the app files, cache-first for fonts. API calls are never cached. */
-const VERSION = 'acta-v3.5.7';
-const SHELL = ['./', './privacidad.html', './index.html', './app.css', './app.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './favicon.png', './h2i.js'];
+const VERSION = 'acta-v3.5.9';
+const SHELL = ['./', './privacidad.html', './index.html', './app.css', './app.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './favicon.png', './h2i.js', './fonts/bricolage.woff2', './fonts/plex-sans-400.woff2', './fonts/plex-sans-500.woff2', './fonts/plex-sans-600.woff2', './fonts/plex-sans-700.woff2', './fonts/plex-mono-400.woff2', './fonts/plex-mono-500.woff2'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
