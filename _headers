@@ -4,3 +4,8 @@
 /.well-known/assetlinks.json
   Content-Type: application/json
   Access-Control-Allow-Origin: *
+
+/land.css
+  Cache-Control: public, max-age=0, must-revalidate
+/land.js
+  Cache-Control: public, max-age=0, must-revalidate
