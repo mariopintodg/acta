@@ -229,11 +229,59 @@ tr.tot-row td{background:var(--surface-2);border-top:2px solid var(--line)}
 @media (max-width:860px){.grid2{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.prob{grid-template-columns:1fr}}
 @media (max-width:420px){.kpi .v{font-size:21px}.brand i{display:none}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* v0.4 Inicio didáctico */
+.ic{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.hero{display:flex;gap:14px;align-items:center;background:var(--stripe);color:#E7ECEF;border-radius:var(--r);padding:16px 18px;margin-top:16px}
+.hero h2{font-size:26px;color:#fff}.hero p{margin:4px 0 0;color:#B9C5CE;font-size:14.5px}
+.hero .hero-ic{width:54px;height:54px;border-radius:14px;background:#F0793A;color:#15212C;display:grid;place-items:center;flex:none}.hero .hero-ic .ic{width:32px;height:32px;stroke-width:2}
+.ic-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+.ic-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;min-width:0;display:flex;flex-direction:column}
+.ic-h{display:flex;gap:8px;align-items:center;font-family:var(--f-display);font-size:17px;font-weight:600;color:var(--accent-ink);margin-bottom:6px}
+.ic-big{font-family:var(--f-display);font-size:30px;font-weight:600;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ic-mid{font-family:var(--f-display);font-size:22px;font-weight:600}
+.ic-s{font-size:13.5px;color:var(--muted);margin-top:4px}.ic-s b{color:var(--ink)}.ic-s.center{text-align:center}
+.ic-leg{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;color:var(--muted);margin-top:6px}.ic-leg i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px}
+.ic-fechas{display:flex;align-items:center;gap:10px;margin-top:6px}.ic-fechas span{display:flex;flex-direction:column}.ic-fechas small{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}.ic-fechas .ic-arr{font-size:22px;color:var(--accent)}
+.ic-sema{display:flex;gap:12px;align-items:center}
+.gauge{width:100%;max-width:200px;margin:0 auto;display:block}.g-track{fill:none;stroke:var(--grid);stroke-width:14;stroke-linecap:round}.g-val{fill:none;stroke-width:14;stroke-linecap:round}.g-val.good{stroke:var(--good)}.g-val.warn{stroke:var(--warn)}.g-val.bad{stroke:var(--bad)}.g-num{font-family:var(--f-display);font-size:28px;font-weight:600;fill:var(--ink)}
+.pasos{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;counter-reset:p}
+.paso{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px;position:relative;cursor:pointer;text-align:left;font:inherit;color:inherit}
+.paso:hover{border-color:var(--accent)}
+.paso b{display:flex;gap:8px;align-items:center;font-family:var(--f-display);font-size:16px}.paso b::before{counter-increment:p;content:counter(p);width:24px;height:24px;border-radius:50%;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;font-size:13px;flex:none}
+.paso span{display:block;font-size:13px;color:var(--muted);margin-top:4px}
+.paso small{display:block;font-size:12px;color:var(--accent-ink);font-weight:600;margin-top:6px}
+.ph-n{stroke:none}.ph-nt{fill:#fff;font-family:var(--f-display);font-size:15px;font-weight:600}.ph-l{fill:var(--ink);font-family:var(--f-body);font-size:14px;font-weight:600}.ph-s{fill:var(--muted);font-family:var(--f-body);font-size:12px}
+.ph0{fill:#2F6FB0}.ph1{fill:#8A5A2B}.ph2{fill:#2B7A4B}.ph3{fill:#E25F17}.ph4{fill:#6B4FA0}
+.domino{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.ficha{border:2px solid var(--crit);background:var(--crit-soft);border-radius:10px;padding:6px 10px;display:flex;flex-direction:column;min-width:0;max-width:180px}
+.ficha b{font-family:var(--f-mono);font-size:12px;color:var(--crit)}.ficha span{font-size:13px;font-weight:600;line-height:1.25}.ficha small{font-size:12px;color:var(--muted)}
+.dom-arr{font-size:24px;color:var(--crit);font-weight:700}
+.sim{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:16px}
+.sim-ctrl{display:flex;flex-direction:column;gap:12px}
+.sim-ctrl label{font-weight:600;font-size:14px;display:flex;justify-content:space-between;gap:8px}.sim-ctrl label output{font-family:var(--f-mono);color:var(--accent-ink)}
+.sim-ctrl input[type=range]{width:100%;accent-color:var(--accent)}
+.sim-ctrl .field{flex:none}.g-ax.ph-in{fill:#fff;font-weight:600}
+.sim-ctrl .hint{font-size:12.5px;color:var(--muted);margin-top:-6px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}.chips button{border:1px solid var(--line);background:var(--surface-2);border-radius:999px;padding:5px 11px;font-size:13px;font-weight:600;cursor:pointer}.chips button:hover{border-color:var(--accent);color:var(--accent-ink)}
+.sim-msg{border-left:4px solid var(--blue);background:var(--blue-soft);padding:10px 12px;border-radius:6px;font-size:14.5px;margin-bottom:10px}.sim-msg.mal{border-color:var(--bad);background:var(--bad-soft)}.sim-msg.bien{border-color:var(--good);background:var(--good-soft)}
+.sim-plan{fill:var(--blue)}.sim-mal{fill:var(--bad)}.sim-bien{fill:var(--good)}.sim-v{fill:var(--ink);font-family:var(--f-mono);font-size:13px;font-weight:600}
+.sim-num{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:10px}.sim-num div{border:1px solid var(--line);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column}.sim-num small{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}.sim-num b{font-family:var(--f-display);font-size:20px}.sim-num span{font-size:12px;color:var(--muted)}
+.explica{display:flex;gap:12px;align-items:flex-start;background:var(--warn-soft);border:1px solid color-mix(in srgb,var(--warn) 45%,transparent);border-radius:var(--r);padding:12px 14px;font-size:14px}
+.explica .ic{color:var(--warn);width:26px;height:26px}.explica p{margin:0}.explica p+p{margin-top:4px}
+.mat-h{display:flex;gap:8px;align-items:center;margin-top:8px}
+.dls{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.dl{display:flex;gap:10px;align-items:flex-start;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:12px;cursor:pointer;font:inherit;color:inherit}
+.dl:hover{border-color:var(--accent)}.dl .ic{color:var(--accent)}.dl b{display:block}.dl span{font-size:12.5px;color:var(--muted)}
+.dl.main{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}.dl.main .ic,.dl.main span{color:var(--on-accent)}
+.sim-ctrl select,.sim-ctrl input{width:100%;min-width:0;max-width:100%}
+@media (max-width:980px){.pasos{grid-template-columns:repeat(2,minmax(0,1fr))}.sim{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:520px){.pasos{grid-template-columns:1fr}.hero h2{font-size:21px}.ic-big{font-size:26px}}
 </style>
 
 <header class="top">
   <div class="wrap">
-    <div class="brand"><b>Ruta<span>·</span>Maestra</b><span class="proto">Prototipo v0.3</span><i>Presupuesto y programa de obra para pymes</i></div>
+    <div class="brand"><b>Ruta<span>·</span>Maestra</b><span class="proto">Prototipo v0.4</span><i>Presupuesto y programa de obra para pymes</i></div>
     <a class="volver" id="volverActa" href="/app/" hidden>← Acta</a>
     <div class="obra-actual"><span class="nm" id="obraNombreTop"></span><span class="chip save" id="saveChip"><span class="dot"></span><span id="saveTxt">Cargando…</span></span></div>
   </div>
@@ -241,9 +289,11 @@ tr.tot-row td{background:var(--surface-2);border-top:2px solid var(--line)}
 <div class="hazard" aria-hidden="true"></div>
 <nav class="tabs" aria-label="Secciones">
   <div class="wrap" role="tablist">
+    <button class="tab" role="tab" data-tab="inicio" aria-selected="true">Inicio</button>
     <button class="tab" role="tab" data-tab="acta" aria-selected="false">Desde Acta</button>
-    <button class="tab" role="tab" data-tab="obra" aria-selected="true">Obra</button>
+    <button class="tab" role="tab" data-tab="obra" aria-selected="false">Obra</button>
     <button class="tab" role="tab" data-tab="presupuesto" aria-selected="false">Presupuesto</button>
+    <button class="tab" role="tab" data-tab="materiales" aria-selected="false">Materiales y descargas</button>
     <button class="tab" role="tab" data-tab="programa" aria-selected="false">Programa</button>
     <button class="tab" role="tab" data-tab="red" aria-selected="false">Red y ruta crítica</button>
     <button class="tab" role="tab" data-tab="pert" aria-selected="false">PERT</button>
@@ -259,6 +309,41 @@ tr.tot-row td{background:var(--surface-2);border-top:2px solid var(--line)}
     <p><b>Obra de ejemplo.</b> Los precios y rendimientos son de ejemplo, no referencias de mercado: ajústalos a tu realidad. Los cambios no se guardan hasta que la conviertas en tuya.</p>
     <button class="btn primary sm" id="btnAdoptar">Guardar como mi obra</button>
   </div>
+
+  <!-- INICIO -->
+  <section id="t-inicio" data-panel="inicio">
+    <div class="stack">
+      <div class="hero"><div class="hero-ic"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17h16M5 17v-2a7 7 0 0 1 14 0v2M10 8V5.5h4V8"/><path d="M3 17.5h18v1.5H3z"/></svg></div><div><h2>Tu obra de un vistazo</h2><p>Cinco preguntas, cinco respuestas. Abajo puedes jugar con "¿Y si se atrasa?" para ver qué pasa con los días y la plata.</p></div></div>
+      <div class="ic-grid" id="inicioCards"></div>
+      <h2>Cómo se arma tu obra, paso a paso</h2>
+      <div class="pasos">
+        <button class="paso" data-ir="acta"><b>Escuchar</b><span>Acta graba la reunión con el cliente y anota qué quiere, dónde y para cuándo.</span><small>Desde Acta →</small></button>
+        <button class="paso" data-ir="presupuesto"><b>Calcular</b><span>Cada trabajo se divide en materiales, gente y máquinas. Así sale el precio.</span><small>Presupuesto →</small></button>
+        <button class="paso" data-ir="programa"><b>Ordenar</b><span>Se ve qué va primero y qué después, como armar un Lego: sin base no hay techo.</span><small>Programa →</small></button>
+        <button class="paso" data-ir="red"><b>Encontrar la fila crítica</b><span>Los trabajos que, si se atrasan, atrasan toda la obra.</span><small>Red →</small></button>
+        <button class="paso" data-ir="caja"><b>Cuidar la plata</b><span>Cuándo pagas y cuándo te pagan, para que nunca quedes sin caja.</span><small>Caja →</small></button>
+      </div>
+      <div class="card stack"><h3>Las etapas de tu obra en el tiempo</h3><p class="small muted" style="margin:0">Cada barra es una etapa. La línea naranja es el día en que debes entregar.</p><div class="svgbox" id="inicioEtapas"></div></div>
+      <div class="card stack"><h3>La fila que no puede atrasarse</h3><p class="small muted" style="margin:0">Piensa en una fila de dominós: si uno se cae tarde, todos los que vienen detrás también.</p><div id="inicioFila"></div></div>
+      <div class="card stack">
+        <h2>¿Y si…? Simulador de atrasos</h2>
+        <p class="small muted" style="margin:0">Elige un trabajo y mueve las barras. No cambia tu obra: es solo para ver qué pasaría.</p>
+        <div class="chips" id="simChips"><button data-sim="lluvia">Llueve 3 días en la excavación</button><button data-sim="material">Llega tarde un material 5 días</button><button data-sim="gente">Meto 30% más de gente</button><button data-sim="holgura">Atraso algo que tiene margen</button></div>
+        <div class="sim">
+          <div class="sim-ctrl">
+            <div class="field"><label for="simPartida">¿Qué trabajo?</label><select id="simPartida"></select></div>
+            <div><label for="simAtraso">Se atrasa <output id="simAtrasoV">0 días</output></label><input type="range" id="simAtraso" min="0" max="20" step="1" value="0"></div>
+            <div><label for="simAcel">Le pongo más gente <output id="simAcelV">igual</output></label><input type="range" id="simAcel" min="0" max="50" step="5" value="0"></div>
+            <div class="hint">Más gente hace el trabajo más rápido, pero cuesta más.</div>
+            <div><label for="simLluvia">Días que se para toda la obra <output id="simLluviaV">0 días</output></label><input type="range" id="simLluvia" min="0" max="15" step="1" value="0"></div>
+            <div class="hint">Lluvia fuerte, feriados largos, paro.</div>
+            <div class="field"><label for="simMulta">Multa por día de atraso (por mil del contrato)</label><input type="number" id="simMulta" min="0" step="0.5" value="1"></div>
+          </div>
+          <div id="simOut" aria-live="polite"></div>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <!-- DESDE ACTA -->
   <section id="t-acta" data-panel="acta" hidden>
@@ -341,10 +426,30 @@ tr.tot-row td{background:var(--surface-2);border-top:2px solid var(--line)}
     </div>
   </section>
 
+  <!-- MATERIALES -->
+  <section id="t-materiales" data-panel="materiales" hidden>
+    <div class="stack">
+      <h2>Todo lo que entra a la obra</h2>
+      <div class="explica"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/></svg><div><p><b>¿De dónde sale esta lista?</b> De sumar los materiales, la gente y las máquinas de cada trabajo del presupuesto. Si cambias una cantidad o un precio, la lista cambia sola.</p><p>"Tenerlo en obra el" es el día en que empieza el primer trabajo que lo necesita: cómpralo unos días antes.</p></div></div>
+      <div class="card stack"><h3>Descargar</h3>
+        <div class="dls" id="descargas">
+          <button class="dl main" data-dl="informe"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><div><b>Informe completo</b><span>Resumen, programa, ruta crítica, presupuesto con APU y compras. Se abre en el navegador para imprimir o guardar en PDF.</span></div></button>
+          <button class="dl" data-dl="compras"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><div><b>Lista de compras</b><span>Materiales, cantidades, precios y fecha (Excel/CSV)</span></div></button>
+          <button class="dl" data-dl="apu"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><div><b>Presupuesto con APU</b><span>Cada partida con sus insumos (Excel/CSV)</span></div></button>
+          <button class="dl" data-dl="recursos"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><div><b>Mano de obra y equipos</b><span>Días-hombre, horas máquina y costos (Excel/CSV)</span></div></button>
+          <button class="dl" data-dl="programa"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg><div><b>Programa y ruta crítica</b><span>Fechas, holguras y PERT (Excel/CSV)</span></div></button>
+        </div>
+      </div>
+      <div class="ic-grid" id="matResumen"></div>
+      <div class="stack" id="matTablas"></div>
+    </div>
+  </section>
+
   <!-- PROGRAMA -->
   <section id="t-programa" data-panel="programa" hidden>
     <div class="stack">
       <h2>Carta Gantt con ruta crítica</h2>
+      <div class="explica"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/></svg><div><p><b>¿Qué es esto?</b> Un calendario de la obra. Cada barra es un trabajo: empieza donde parte la barra y termina donde acaba. Las <b style="color:var(--crit)">rojas</b> no pueden atrasarse; las <b style="color:var(--blue)">azules</b> tienen días de margen (la parte gris).</p></div></div>
       <div class="prob" id="prob"></div>
       <div class="card"><div class="legend" style="margin-bottom:10px"><span><i style="background:var(--crit)"></i>Ruta crítica (holgura 0)</span><span><i style="background:var(--blue)"></i>Con holgura</span><span><i style="background:var(--grid)"></i>Holgura disponible</span><span><i style="background:var(--accent)"></i>Plazo contractual</span></div><div class="svgbox" id="gantt"></div></div>
       <div class="grid2">
@@ -361,6 +466,7 @@ tr.tot-row td{background:var(--surface-2);border-top:2px solid var(--line)}
   <section id="t-red" data-panel="red" hidden>
     <div class="stack">
       <h2>Red de actividades y ruta crítica</h2>
+      <div class="explica"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/></svg><div><p><b>¿Qué es esto?</b> Un mapa de qué va antes de qué. Cada caja es un trabajo y cada flecha dice "este no puede empezar hasta que termine aquel". El camino <b style="color:var(--crit)">rojo</b> es el más largo: ese manda cuánto dura la obra.</p></div></div>
       <div class="cinta" id="cinta" aria-label="Ruta crítica"></div>
       <div class="grid-red">
         <div class="card"><div class="legend" style="margin-bottom:8px"><span><i style="background:var(--crit)"></i>Ruta crítica</span><span><i style="background:var(--muted)"></i>Con holgura</span><span>Desliza para ver toda la red · toca un nodo para ver su cálculo</span></div><div class="redbox" id="red"></div></div>
@@ -386,6 +492,7 @@ tr.tot-row td{background:var(--surface-2);border-top:2px solid var(--line)}
   <section id="t-pert" data-panel="pert" hidden>
     <div class="stack">
       <h2>PERT: ¿con qué probabilidad termino a tiempo?</h2>
+      <div class="explica"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/></svg><div><p><b>¿Qué es esto?</b> Para cada trabajo pensamos tres casos: si todo sale bien, lo normal y si todo sale mal. Con eso jugamos la obra 1.500 veces, como tirar dados, y contamos en cuántas terminas a tiempo.</p></div></div>
       <div class="kpi4" id="pertKpi"></div>
       <div class="card"><h3>Distribución de la duración del proyecto</h3><div class="legend" style="margin:6px 0 8px"><span><i style="background:var(--blue)"></i>Escenarios que cumplen el plazo</span><span><i style="background:var(--crit);opacity:.6"></i>Escenarios atrasados</span><span><i style="background:var(--ink)"></i>Curva normal PERT</span><span><i style="background:var(--accent)"></i>Plazo contractual</span></div><div class="svgbox" id="pertChart"></div><p class="small muted" style="margin:6px 0 0">Barras: 1.500 simulaciones con duraciones entre O y P de cada partida. Curva: aproximación normal con Te y σ de la ruta crítica. La simulación suele dar más días que la fórmula PERT porque considera que otras rutas también pueden volverse críticas.</p></div>
       <h3>Duraciones por partida</h3>
@@ -397,6 +504,7 @@ tr.tot-row td{background:var(--surface-2);border-top:2px solid var(--line)}
   <section id="t-caja" data-panel="caja" hidden>
     <div class="stack">
       <h2>Semáforo de caja</h2>
+      <div class="explica"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/></svg><div><p><b>¿Qué es esto?</b> La plata que entra (estados de pago) y la que sale (materiales, sueldos). Si la línea baja de cero, en esa fecha te falta plata y tienes que conseguirla antes. Verde: tranquilo. Amarillo: justo. Rojo: hoyo.</p></div></div>
       <div id="sema"></div>
       <div class="grid2">
         <div class="card stack">
@@ -932,7 +1040,7 @@ function enlazarActa() {
     const o = RA.resultado.obra; o.id = uid();
     if (RA.resultado.ejemplo) { o.acta = ACTA_EJEMPLO; o.caja.capital = 14000000; o.caja.anticipo = 10; }
     S.obras.unshift(o); S.actualId = o.id; RA.resultado = null; RA.nodo = null; guardar(o, true);
-    renderTodo(); irA("red"); toast("Obra creada desde el acta");
+    renderTodo(); irA("inicio"); window.scrollTo(0, 0); toast("Obra creada desde el acta");
   });
 }
 
@@ -1081,6 +1189,267 @@ function renderCurvaS() {
   $("#sAcum").innerHTML = chartLineas({ series: [{ pts, cls: "l-blue", puntos: true }], xMax: sem, yMin: 0, yMax: 100, yFmt: a => fmtN(a, 0) + "%", xLbl: "semana" });
 }
 
+/* ===== v0.4: Inicio didáctico, simulador "¿Y si…?", materiales y descargas ===== */
+const SIM = { pid: null, atraso: 0, acelera: 0, lluvia: 0, multa: 1 };
+const ETAPAS = { "1": "Preparar el terreno", "2": "Tierra y obra gruesa", "3": "Instalaciones", "4": "Terminaciones y cierre", "5": "Entrega" };
+const IC = {
+  plata: '<circle cx="12" cy="12" r="9"/><path d="M14.8 9.2c-.5-.9-1.6-1.4-2.8-1.4-1.6 0-2.8.8-2.8 2s1.2 1.7 2.8 2 2.8.8 2.8 2-1.2 2-2.8 2c-1.3 0-2.4-.6-2.9-1.5M12 6v1.8M12 16.2V18"/>',
+  calendario: '<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4M7.5 14h3M13.5 14h3M7.5 17h3"/>',
+  meta: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/>',
+  caja: '<rect x="3" y="7" width="18" height="12" rx="2"/><path d="M3 11h18M7 15h3"/><path d="M7 7V5h10v2"/>',
+  compras: '<path d="M3 5h2l2.2 10.2a1.5 1.5 0 0 0 1.5 1.2h8.6a1.5 1.5 0 0 0 1.5-1.1L20.5 8H6.2"/><circle cx="9.5" cy="20" r="1.3"/><circle cx="17" cy="20" r="1.3"/>',
+  casco: '<path d="M4 17h16M5 17v-2a7 7 0 0 1 14 0v2M10 8V5.5h4V8"/><path d="M3 17.5h18v1.5H3z"/>',
+  maquina: '<path d="M3 17h10v-5H7l-2 3H3zM13 12l3-6 4 3-2 2"/><circle cx="6" cy="18.5" r="1.5"/><circle cx="11" cy="18.5" r="1.5"/>',
+  ampolleta: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/>',
+  descarga: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>'
+};
+const ico = (k, cls = "") => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${IC[k]}</svg>`;
+const fCorta = d => d.toLocaleDateString("es-CL", { weekday: "short", day: "numeric", month: "short" });
+
+/* ---------- Inicio: tu obra de un vistazo ---------- */
+function etapas(o, prog) {
+  const g = {};
+  for (const p of o.partidas) {
+    const k = String(p.codigo).trim().split(/[.\s-]/)[0] || "1", r = prog.r[p.id];
+    const e = g[k] || (g[k] = { k, nombre: ETAPAS[k] || `Etapa ${k}`, ini: Infinity, fin: 0, n: 0, costo: 0, crit: false });
+    e.ini = Math.min(e.ini, r.es); e.fin = Math.max(e.fin, r.ef); e.n++; e.costo += costoDirecto(p); e.crit = e.crit || r.critica;
+  }
+  return Object.values(g).sort((a, b) => a.ini - b.ini || a.k.localeCompare(b.k));
+}
+function gauge(p) {
+  const nivel = p >= .8 ? "good" : p >= .5 ? "warn" : "bad", a = Math.PI * (1 - p), x = 80 + 62 * Math.cos(a), y = 82 - 62 * Math.sin(a);
+  return `<svg viewBox="0 0 160 96" class="gauge" role="img" aria-label="${Math.round(p * 100)}% de probabilidad">
+    <path d="M18 82 A62 62 0 0 1 142 82" class="g-track"/>
+    ${p > 0.005 ? `<path d="M18 82 A62 62 0 0 1 ${x.toFixed(1)} ${y.toFixed(1)}" class="g-val ${nivel}"/>` : ""}
+    <text x="80" y="76" text-anchor="middle" class="g-num">${Math.round(p * 100)}%</text></svg>`;
+}
+function renderInicio() {
+  const { o, t, prog, mc, sema, flujo } = calc, meta = num(o.plazoMeta), prob = mc.probMeta(meta);
+  const d = desglose(o), tot = Object.values(d).reduce((a, b) => a + b, 0) || 1;
+  const mats = consolidar(o, prog).filter(x => x.tipo === "Material"), compraTot = mats.reduce((s, x) => s + x.total, 0);
+  const ini = new Date(o.inicio + "T12:00:00"), fin = fechaMas(o.inicio, prog.fin), lim = fechaMas(o.inicio, meta);
+  const holg = meta - prog.fin;
+  const palabra = prob >= .8 ? "Muy probable" : prob >= .5 ? "Justo: ojo con los atrasos" : "Difícil: hay que apurar";
+  const col = { "Material": "var(--blue)", "Mano de obra": "var(--accent)", "Equipo": "var(--good)" };
+  $("#inicioCards").innerHTML = `
+    <div class="ic-card"><div class="ic-h">${ico("plata")}<span>¿Cuánto cuesta?</span></div>
+      <div class="ic-big num">${clp(t.total)}</div><div class="ic-s">con IVA · sin IVA ${clp(t.neto)}</div>
+      <div class="split" style="margin-top:10px">${Object.entries(d).filter(([, v]) => v > 0).map(([k, v]) => `<span style="flex:${v / tot};background:${col[k]}" title="${k}"></span>`).join("")}</div>
+      <div class="ic-leg">${Object.entries(d).map(([k, v]) => `<span><i style="background:${col[k]}"></i>${k} ${Math.round(v / tot * 100)}%</span>`).join("")}</div></div>
+    <div class="ic-card"><div class="ic-h">${ico("calendario")}<span>¿Cuánto demora?</span></div>
+      <div class="ic-big">${Math.ceil(prog.fin)} días</div>
+      <div class="ic-fechas"><span><small>Empiezas</small><b>${fCorta(ini)}</b></span><span class="ic-arr">→</span><span><small>Terminas</small><b>${fCorta(fin)}</b></span></div>
+      <div class="ic-s">${holg >= 0 ? `Te sobran <b>${fmtN(holg)} días</b> antes del plazo (${fCorta(lim)}).` : `Te pasas <b>${fmtN(-holg)} días</b> del plazo (${fCorta(lim)}).`}</div></div>
+    <div class="ic-card"><div class="ic-h">${ico("meta")}<span>¿Llegas a tiempo?</span></div>
+      ${gauge(prob)}<div class="ic-s center"><b>${palabra}</b><br>Simulamos la obra 1.500 veces: en ${Math.round(prob * 100)} de cada 100 terminas dentro de ${meta} días.</div></div>
+    <div class="ic-card"><div class="ic-h">${ico("caja")}<span>¿Te alcanza la plata?</span></div>
+      <div class="ic-sema"><div class="lights" aria-hidden="true"><i class="r ${sema.nivel === "rojo" ? "on" : ""}"></i><i class="a ${sema.nivel === "amarillo" ? "on" : ""}"></i><i class="v ${sema.nivel === "verde" ? "on" : ""}"></i></div>
+      <div><div class="ic-mid">${sema.texto}</div><div class="ic-s">${sema.nivel === "rojo" ? `Te faltan <b>${clp(-flujo.min)}</b> cerca del ${fCorta(fechaMas(o.inicio, flujo.diaMin))}.` : sema.nivel === "amarillo" ? `Quedas justo: mínimo ${clp(flujo.min)}.` : `Siempre te queda plata: mínimo ${clp(flujo.min)}.`}</div></div></div></div>
+    <div class="ic-card"><div class="ic-h">${ico("compras")}<span>¿Qué hay que comprar?</span></div>
+      <div class="ic-big">${mats.length} materiales</div><div class="ic-s">por ${clp(compraTot)} netos.${mats[0] ? ` Lo primero: <b>${esc(mats[0].desc)}</b>, para el ${fCorta(fechaMas(o.inicio, mats[0].desde))}.` : ""}</div>
+      <button class="btn sm" data-ir="materiales" style="margin-top:8px">Ver lista de compras</button></div>`;
+  // Etapas
+  const es = etapas(o, prog), finX = Math.max(prog.fin, meta) * 1.03 || 1, W = 1000, L = 250, R = 20, rh = 46, T = 30, H = T + es.length * rh + 10;
+  const x = v => L + v / finX * (W - L - R), paso = pasoEje(finX);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Etapas de la obra en el tiempo" style="min-width:640px">`;
+  for (let v = 0; v <= finX; v += paso) s += `<line x1="${x(v)}" x2="${x(v)}" y1="${T - 8}" y2="${H - 6}" class="g-grid"/><text x="${x(v)}" y="${T - 14}" text-anchor="middle" class="g-ax">${v === 0 ? "día 0" : v}</text>`;
+  es.forEach((e, i) => {
+    const y = T + i * rh;
+    s += `<circle cx="22" cy="${y + rh / 2}" r="14" class="ph-n ph${i % 5}"/><text x="22" y="${y + rh / 2 + 5}" text-anchor="middle" class="ph-nt">${i + 1}</text>`;
+    s += `<text x="46" y="${y + rh / 2 - 3}" class="ph-l">${esc(e.nombre)}</text><text x="46" y="${y + rh / 2 + 14}" class="ph-s">${e.n} ${e.n === 1 ? "trabajo" : "trabajos"} · ${clp(e.costo)}</text>`;
+    s += `<rect x="${x(e.ini)}" y="${y + 9}" width="${Math.max(6, x(e.fin) - x(e.ini))}" height="${rh - 18}" rx="8" class="ph-bar ph${i % 5}"><title>${esc(e.nombre)}: día ${fmtN(e.ini)} a ${fmtN(e.fin)}</title></rect>`;
+    const lbl = `${fCorta(fechaMas(o.inicio, e.ini))} – ${fCorta(fechaMas(o.inicio, e.fin))}`, ancho = x(e.fin) - x(e.ini);
+    if (ancho > 200) s += `<text x="${x(e.ini) + 10}" y="${y + rh / 2 + 4}" class="g-ax ph-in">${lbl}</text>`;
+    else if (x(e.fin) + 190 < W) s += `<text x="${x(e.fin) + 6}" y="${y + rh / 2 + 4}" class="g-ax">${lbl}</text>`;
+    else s += `<text x="${x(e.ini) - 6}" y="${y + rh / 2 + 4}" text-anchor="end" class="g-ax">${lbl}</text>`;
+  });
+  s += `<line x1="${x(meta)}" x2="${x(meta)}" y1="${T - 8}" y2="${H - 6}" class="g-meta"/><text x="${x(meta) - 4}" y="${H - 8}" text-anchor="end" class="g-ax meta">Plazo ${meta} d</text>`;
+  $("#inicioEtapas").innerHTML = s + "</svg>";
+  // Ruta crítica explicada
+  const crit = o.partidas.filter(p => prog.r[p.id].critica).sort((a, b) => prog.r[a.id].es - prog.r[b.id].es);
+  const libres = o.partidas.filter(p => !prog.r[p.id].critica).sort((a, b) => prog.r[b.id].holgura - prog.r[a.id].holgura);
+  $("#inicioFila").innerHTML = `<div class="domino">${crit.map((p, i) => `<div class="ficha" style="--i:${i}"><b>${esc(p.codigo)}</b><span>${esc(p.nombre)}</span><small>${fmtN(prog.dur[p.id])} días</small></div>`).join('<span class="dom-arr" aria-hidden="true">›</span>')}</div>
+    <p class="ic-s" style="margin:10px 0 0">Si <b>cualquiera</b> de estos ${crit.length} trabajos se atrasa 1 día, <b>toda la obra</b> se atrasa 1 día.${libres.length ? ` Estos otros tienen margen: ${libres.map(p => `<b>${esc(p.codigo)}</b> puede esperar ${fmtN(prog.r[p.id].holgura)} días`).join(", ")}.` : ""}</p>`;
+  renderSim();
+}
+
+/* ---------- Simulador "¿Y si…?" ---------- */
+function simDefault(o, prog) {
+  if (SIM.pid && o.partidas.some(p => p.id === SIM.pid)) return;
+  const crit = o.partidas.filter(p => prog.r[p.id].critica);
+  SIM.pid = (crit.sort((a, b) => prog.dur[b.id] - prog.dur[a.id])[0] || o.partidas[0] || {}).id || null;
+}
+function simular(o) {
+  const c = plano(o), p = c.partidas.find(x => x.id === SIM.pid);
+  if (p) {
+    if (SIM.atraso > 0) (c.eventos = c.eventos || []).push({ id: "sim", partidaId: p.id, dias: SIM.atraso, causa: "sim", fecha: c.inicio });
+    if (SIM.acelera > 0) for (const k of ["o", "m", "p"]) p[k] = num(p[k]) * (1 - SIM.acelera / 100);
+  }
+  limpiarDependencias(c.partidas);
+  const prog = programa(c, true), mc = montecarlo(c, 1500);
+  return { prog, fin: prog.fin + SIM.lluvia, prob: mc.probMeta(num(o.plazoMeta) - SIM.lluvia) };
+}
+function renderSim() {
+  const { o, t, prog } = calc; if (!o.partidas.length) { $("#simOut").innerHTML = ""; return; }
+  simDefault(o, prog);
+  const sel = $("#simPartida");
+  if (document.activeElement !== sel) sel.innerHTML = o.partidas.map(p => `<option value="${p.id}"${p.id === SIM.pid ? " selected" : ""}>${esc(p.codigo + " " + p.nombre)}${prog.r[p.id].critica ? " · crítica" : ""}</option>`).join("");
+  $("#simAtraso").value = SIM.atraso; $("#simAtrasoV").textContent = SIM.atraso + (SIM.atraso === 1 ? " día" : " días");
+  $("#simAcel").value = SIM.acelera; $("#simAcelV").textContent = SIM.acelera ? `${SIM.acelera}% más rápido` : "igual";
+  $("#simLluvia").value = SIM.lluvia; $("#simLluviaV").textContent = SIM.lluvia + (SIM.lluvia === 1 ? " día" : " días");
+  if (document.activeElement !== $("#simMulta")) $("#simMulta").value = SIM.multa;
+  const r = simular(o), meta = num(o.plazoMeta), base = prog.fin, d = r.fin - base, p = o.partidas.find(x => x.id === SIM.pid), q = prog.r[SIM.pid];
+  const ggDia = t.gg / Math.max(1, base), extraGG = Math.max(0, d) * ggDia, ahorroGG = Math.max(0, -d) * ggDia;
+  const pasa = Math.max(0, r.fin - meta), multa = pasa * (num(SIM.multa) / 1000) * t.neto;
+  const moP = p ? (p.insumos || []).filter(i => i.tipo === "Mano de obra").reduce((s, i) => s + num(i.cant) * num(i.pu), 0) * num(p.cantidad) : 0;
+  const costoAcel = SIM.acelera ? moP * (SIM.acelera / (100 - SIM.acelera)) : 0;
+  const W = 1000, L = 120, R = 200, finX = Math.max(base, r.fin, meta) * 1.03 || 1, x = v => L + v / finX * (W - L - R);
+  const barra = (y, v, lbl, cls) => `<text x="${L - 10}" y="${y + 22}" text-anchor="end" class="ph-l">${lbl}</text><rect x="${L}" y="${y}" width="${Math.max(4, x(v) - L)}" height="34" rx="8" class="${cls}"/><text x="${x(v) + 8}" y="${y + 23}" class="sim-v">${fmtN(v)} días · ${fCorta(fechaMas(o.inicio, v))}</text>`;
+  let s = `<svg viewBox="0 0 ${W} 120" role="img" aria-label="Comparación de término de obra" style="min-width:560px">${barra(10, base, "Plan", "sim-plan")}${barra(62, r.fin, "¿Y si…?", d > 0.05 ? "sim-mal" : d < -0.05 ? "sim-bien" : "sim-plan")}<line x1="${x(meta)}" x2="${x(meta)}" y1="4" y2="104" class="g-meta"/><text x="${x(meta)}" y="118" text-anchor="middle" class="g-ax meta">Plazo ${meta}</text></svg>`;
+  let msg;
+  if (Math.abs(d) < 0.05) msg = SIM.atraso && q && q.holgura >= SIM.atraso ? `<b>No pasa nada con el final.</b> ${esc(p.codigo)} tiene ${fmtN(q.holgura)} días de margen, así que ${SIM.atraso} días de atraso se los come el margen.` : `<b>La obra termina igual.</b> Mueve los controles para ver qué pasa.`;
+  else if (d > 0) msg = `<b>La obra se atrasa ${fmtN(d)} días.</b>${q && !q.critica && SIM.atraso ? ` ${esc(p.codigo)} tenía ${fmtN(q.holgura)} días de margen: solo se nota lo que pasa de eso.` : ""}`;
+  else msg = `<b>La obra termina ${fmtN(-d)} días antes.</b>${q && !q.critica ? ` Ojo: ${esc(p.codigo)} no está en la fila crítica, por eso apurarla ayuda poco.` : ""}`;
+  $("#simOut").innerHTML = `<div class="sim-msg ${d > 0.05 ? "mal" : d < -0.05 ? "bien" : ""}">${msg}</div><div class="svgbox">${s}</div>
+    <div class="sim-num">
+      <div><small>Término</small><b>${fCorta(fechaMas(o.inicio, r.fin))}</b><span>${d > 0.05 ? "+" : ""}${fmtN(d)} días</span></div>
+      <div><small>¿Llegas a tiempo?</small><b>${Math.round(r.prob * 100)}%</b><span>antes ${Math.round(calc.mc.probMeta(meta) * 100)}%</span></div>
+      <div><small>Gastos generales</small><b>${d > 0.05 ? "+" + clp(extraGG) : d < -0.05 ? "−" + clp(ahorroGG) : clp(0)}</b><span>${clp(ggDia)} por día de obra</span></div>
+      <div><small>Multa por atraso</small><b>${pasa > 0 ? clp(multa) : clp(0)}</b><span>${pasa > 0 ? `${fmtN(pasa)} días fuera de plazo` : "dentro del plazo"}</span></div>
+      ${SIM.acelera ? `<div><small>Gente extra en ${esc(p.codigo)}</small><b>+${clp(costoAcel)}</b><span>mano de obra adicional estimada</span></div>` : ""}
+    </div>`;
+}
+function enlazarSim() {
+  const upd = () => { renderSim(); };
+  $("#simPartida").onchange = e => { SIM.pid = e.target.value; upd(); };
+  $("#simAtraso").oninput = e => { SIM.atraso = +e.target.value; upd(); };
+  $("#simAcel").oninput = e => { SIM.acelera = +e.target.value; upd(); };
+  $("#simLluvia").oninput = e => { SIM.lluvia = +e.target.value; upd(); };
+  $("#simMulta").onchange = e => { SIM.multa = Math.max(0, num(e.target.value, 1)); upd(); };
+  $("#simChips").addEventListener("click", e => {
+    const b = e.target.closest("[data-sim]"); if (!b) return;
+    const { o, prog } = calc, ps = o.partidas, by = re => ps.find(p => re.test(p.nombre.toLowerCase()));
+    const crit = ps.filter(p => prog.r[p.id].critica), larga = [...crit].sort((a, b) => prog.dur[b.id] - prog.dur[a.id])[0] || ps[0];
+    Object.assign(SIM, { atraso: 0, acelera: 0, lluvia: 0 });
+    if (b.dataset.sim === "lluvia") { SIM.pid = (by(/excav|zanja|movimiento|fundaci/) || larga).id; SIM.lluvia = 3; }
+    if (b.dataset.sim === "material") { const mat = p => (p.insumos || []).filter(i => i.tipo === "Material").reduce((s, i) => s + num(i.pu) * num(i.cant), 0) * num(p.cantidad);
+      const m = [...crit].filter(p => !/faena|instalaci[oó]n de faenas/i.test(p.nombre)).sort((a, b) => mat(b) - mat(a))[0] || larga; SIM.pid = m.id; SIM.atraso = 5; }
+    if (b.dataset.sim === "gente") { SIM.pid = larga.id; SIM.acelera = 30; }
+    if (b.dataset.sim === "holgura") { const l = ps.filter(p => !prog.r[p.id].critica).sort((a, b) => prog.r[b.id].holgura - prog.r[a.id].holgura)[0]; if (l) { SIM.pid = l.id; SIM.atraso = Math.max(1, Math.floor(prog.r[l.id].holgura)); } else { SIM.pid = larga.id; SIM.atraso = 2; } }
+    upd();
+  });
+  document.addEventListener("click", e => { const b = e.target.closest("[data-ir]"); if (b) { irA(b.dataset.ir); window.scrollTo(0, 0); } });
+}
+
+/* ---------- Materiales consolidados ---------- */
+function consolidar(o, prog) {
+  const m = {};
+  for (const p of o.partidas) for (const i of p.insumos || []) {
+    const tipo = ["Material", "Mano de obra", "Equipo"].includes(i.tipo) ? i.tipo : "Material";
+    const k = tipo + "|" + String(i.desc).trim().toLowerCase() + "|" + String(i.unidad).trim().toLowerCase();
+    const q = num(i.cant) * num(p.cantidad), r = prog.r[p.id] || { es: 0 };
+    const it = m[k] || (m[k] = { tipo, desc: String(i.desc).trim(), unidad: i.unidad, cant: 0, total: 0, partidas: [], desde: Infinity });
+    it.cant += q; it.total += q * num(i.pu); if (!it.partidas.includes(p.codigo)) it.partidas.push(p.codigo); it.desde = Math.min(it.desde, r.es);
+  }
+  return Object.values(m).map(x => ({ ...x, pu: x.cant > 0 ? x.total / x.cant : 0, desde: Number.isFinite(x.desde) ? x.desde : 0 })).sort((a, b) => a.desde - b.desde || b.total - a.total);
+}
+function redondeo(q, u) { const uu = String(u).toLowerCase(); return /m3|m2|kg|h|día|dia|gl|viaje/.test(uu) ? Math.ceil(q * 10) / 10 : Math.ceil(q); }
+function renderMateriales() {
+  const { o, prog } = calc, todos = consolidar(o, prog);
+  const grupos = [["Material", "Materiales: lista de compras", "compras"], ["Mano de obra", "Mano de obra", "casco"], ["Equipo", "Equipos y maquinaria", "maquina"]];
+  const res = grupos.map(([k]) => todos.filter(x => x.tipo === k)).map(a => ({ n: a.length, total: a.reduce((s, x) => s + x.total, 0) }));
+  $("#matResumen").innerHTML = grupos.map(([k, t, ic], i) => `<div class="ic-card"><div class="ic-h">${ico(ic)}<span>${k === "Material" ? "Materiales" : k === "Equipo" ? "Equipos" : k}</span></div><div class="ic-big num">${clp(res[i].total)}</div><div class="ic-s">${res[i].n} ${res[i].n === 1 ? "ítem" : "ítems"} · netos</div></div>`).join("");
+  $("#matTablas").innerHTML = grupos.map(([k, titulo, ic]) => {
+    const a = todos.filter(x => x.tipo === k); if (!a.length) return "";
+    const tot = a.reduce((s, x) => s + x.total, 0);
+    return `<h3 class="mat-h">${ico(ic)}${titulo}</h3><div class="tw"><table><thead><tr><th>${k === "Material" ? "Material" : k === "Equipo" ? "Equipo" : "Cuadrilla"}</th><th class="n">Cantidad total</th><th>Unidad</th>${k === "Material" ? `<th class="n">Comprar</th>` : ""}<th class="n">Precio unit.</th><th class="n">Total</th><th>Se usa en</th><th>${k === "Material" ? "Tenerlo en obra el" : "Se necesita desde"}</th></tr></thead><tbody>
+      ${a.map(x => `<tr><td>${esc(x.desc)}</td><td class="n num">${fmtN(x.cant, 2)}</td><td>${esc(x.unidad)}</td>${k === "Material" ? `<td class="n num"><b>${fmtN(redondeo(x.cant, x.unidad), 1)}</b></td>` : ""}<td class="n num">${clp(x.pu)}</td><td class="n num"><b>${clp(x.total)}</b></td><td class="cod">${x.partidas.join(", ")}</td><td>${fCorta(fechaMas(o.inicio, x.desde))} <span class="muted small">(día ${fmtN(x.desde)})</span></td></tr>`).join("")}
+      <tr class="tot-row"><td colspan="${k === "Material" ? 5 : 4}"><b>Total ${titulo.split(":")[0].toLowerCase()}</b></td><td class="n num"><b>${clp(tot)}</b></td><td colspan="2"></td></tr></tbody></table></div>`;
+  }).join("") || `<div class="empty">Sin insumos. Agrega insumos en los APU del presupuesto.</div>`;
+}
+
+/* ---------- Descargas ---------- */
+async function bajar(nombre, data, mime) {
+  if (!S.downloads) { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([data], { type: mime + ";charset=utf-8" })); a.download = nombre; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); toast("Descargado: " + nombre); return; }
+  try { await S.downloads.save({ filename: nombre, data }); } catch (e) { if (e?.code !== "declined") toast("No se pudo descargar el archivo."); }
+}
+const nArch = (o, s) => (String(o.nombre).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "-").slice(0, 60) || "obra") + "-" + s;
+function csvDe(rows) {
+  const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  return "﻿" + rows.map(r => r.map(c => typeof c === "number" ? String(Math.round(c * 100) / 100).replace(".", ",") : q(c)).join(";")).join("\r\n");
+}
+function csvCompras() {
+  const { o, prog } = calc, a = consolidar(o, prog).filter(x => x.tipo === "Material");
+  const rows = [["Lista de compras", o.nombre], ["Mandante", o.mandante || ""], ["Inicio de obra", o.inicio], [], ["Material", "Cantidad total", "Unidad", "Comprar (redondeado)", "Precio unitario neto", "Total neto", "Partidas", "Tenerlo en obra el", "Día de obra"]];
+  for (const x of a) rows.push([x.desc, x.cant, x.unidad, redondeo(x.cant, x.unidad), x.pu, x.total, x.partidas.join(", "), fmtFecha(fechaMas(o.inicio, x.desde)), x.desde]);
+  rows.push([], ["Total materiales", "", "", "", "", a.reduce((s, x) => s + x.total, 0)]);
+  return csvDe(rows);
+}
+function csvRecursos() {
+  const { o, prog } = calc, a = consolidar(o, prog).filter(x => x.tipo !== "Material");
+  const rows = [["Mano de obra y equipos", o.nombre], [], ["Tipo", "Recurso", "Cantidad total", "Unidad", "Precio unitario neto", "Total neto", "Partidas", "Desde (fecha)"]];
+  for (const x of a) rows.push([x.tipo, x.desc, x.cant, x.unidad, x.pu, x.total, x.partidas.join(", "), fmtFecha(fechaMas(o.inicio, x.desde))]);
+  return csvDe(rows);
+}
+function csvApu() {
+  const { o, t } = calc, rows = [["Presupuesto detallado con análisis de precios unitarios", o.nombre], ["Mandante", o.mandante || ""], ["Región", o.region], [], ["Código", "Partida / insumo", "Tipo", "Unidad", "Cantidad", "Precio unitario", "Total"]];
+  for (const p of o.partidas) {
+    rows.push([p.codigo, p.nombre, "PARTIDA", p.unidad, num(p.cantidad), precioUnitario(p), costoDirecto(p)]);
+    for (const i of p.insumos || []) rows.push(["", "   " + i.desc, i.tipo, i.unidad + " por " + p.unidad, num(i.cant), num(i.pu), num(i.cant) * num(i.pu)]);
+  }
+  rows.push([], ["", "Costo directo", "", "", "", "", t.cd], ["", `Gastos generales ${o.gg}%`, "", "", "", "", t.gg], ["", `Utilidades ${o.util}%`, "", "", "", "", t.ut], ["", "Total neto", "", "", "", "", t.neto], ["", "IVA 19%", "", "", "", "", t.iva], ["", "TOTAL", "", "", "", "", t.total]);
+  return csvDe(rows);
+}
+function csvPrograma() {
+  const { o, prog } = calc, cod = Object.fromEntries(o.partidas.map(p => [p.id, p.codigo]));
+  const rows = [["Programa de obra (CPM + PERT)", o.nombre], ["Inicio", o.inicio], ["Término esperado (días)", prog.fin], ["Plazo contractual (días)", num(o.plazoMeta)], [], ["Código", "Partida", "Depende de", "Optimista", "Probable", "Pesimista", "Duración esperada", "Inicio temprano (ES)", "Término temprano (EF)", "Inicio tardío (LS)", "Término tardío (LF)", "Holgura", "Ruta crítica", "Fecha inicio", "Fecha término"]];
+  for (const p of [...o.partidas].sort((a, b) => prog.r[a.id].es - prog.r[b.id].es)) {
+    const r = prog.r[p.id], q = prog.pert[p.id];
+    rows.push([p.codigo, p.nombre, p.deps.map(d => cod[d]).join(", "), q.o, q.m, q.p, prog.dur[p.id], r.es, r.ef, r.ls, r.lf, r.holgura, r.critica ? "Sí" : "No", fmtFecha(fechaMas(o.inicio, r.es)), fmtFecha(fechaMas(o.inicio, r.ef))]);
+  }
+  return csvDe(rows);
+}
+function informeHTML() {
+  const { o, t, prog, mc, sema, flujo } = calc, meta = num(o.plazoMeta), todos = consolidar(o, prog), f = o.ficha || {};
+  const tabla = (head, rows) => `<table><thead><tr>${head.map(h => `<th>${h}</th>`).join("")}</tr></thead><tbody>${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+  const crit = o.partidas.filter(p => prog.r[p.id].critica).sort((a, b) => prog.r[a.id].es - prog.r[b.id].es);
+  const grupo = k => todos.filter(x => x.tipo === k).map(x => [esc(x.desc), fmtN(x.cant, 2) + " " + esc(x.unidad), clp(x.pu), "<b>" + clp(x.total) + "</b>", x.partidas.join(", "), fmtFecha(fechaMas(o.inicio, x.desde))]);
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Informe de obra · ${esc(o.nombre)}</title><style>
+  @page{size:A4;margin:16mm}body{font:12px/1.45 "Segoe UI",Arial,sans-serif;color:#15212C;margin:0 auto;max-width:900px;padding:24px}
+  h1{font-size:24px;margin:0 0 4px}h2{font-size:16px;margin:26px 0 8px;padding-bottom:4px;border-bottom:2px solid #E25F17}h3{font-size:13px;margin:16px 0 6px}
+  table{width:100%;border-collapse:collapse;margin:6px 0 10px;font-size:11px}th{background:#EEF1F0;text-align:left;padding:5px 6px;border-bottom:1px solid #C9CFCC}td{padding:4px 6px;border-bottom:1px solid #E3E6E4;vertical-align:top}
+  .kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.kpi div{border:1px solid #D3D8D5;border-radius:8px;padding:8px}.kpi b{display:block;font-size:17px}
+  .chain{display:flex;flex-wrap:wrap;gap:4px;align-items:center}.chain span{border:1.5px solid #C9372C;color:#C9372C;border-radius:99px;padding:1px 8px;font-weight:600}
+  .muted{color:#56626D}.apu td{color:#56626D}.part td{font-weight:600;background:#F7F8F7}.nota{background:#FFF4E5;border:1px solid #E8B86A;padding:8px;border-radius:6px}
+  @media print{.noprint{display:none}h2{break-after:avoid}tr{break-inside:avoid}}</style></head><body>
+  <p class="noprint nota">Para guardarlo en PDF o imprimirlo: Ctrl + P (en el celular: Compartir → Imprimir).</p>
+  <h1>${esc(o.nombre)}</h1><div class="muted">${esc(o.mandante || "Sin mandante")} · ${esc(f.ubicacion ? f.ubicacion + ", " : "")}${esc(o.region)} · Informe generado con Ruta Maestra el ${fmtFecha(new Date())}</div>
+  ${o.ejemplo || /ejemplo/i.test(o.nombre) || o.origen === "kit" ? `<p class="nota">Precios y rendimientos de ejemplo: revisar antes de ofertar.</p>` : ""}
+  <h2>Resumen</h2><div class="kpi"><div>Presupuesto con IVA<b>${clp(t.total)}</b><span class="muted">Neto ${clp(t.neto)}</span></div><div>Duración esperada<b>${fmtN(prog.fin)} días</b><span class="muted">${fmtFecha(new Date(o.inicio + "T12:00:00"))} a ${fmtFecha(fechaMas(o.inicio, prog.fin))}</span></div><div>Cumplir ${meta} días<b>${Math.round(mc.probMeta(meta) * 100)}%</b><span class="muted">simulación de 1.500 escenarios</span></div><div>Caja<b>${esc(sema.texto)}</b><span class="muted">saldo mínimo ${clp(flujo.min)}</span></div></div>
+  ${f.alcance && f.alcance.length ? `<h3>Alcance</h3><ul>${f.alcance.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}${f.riesgos && f.riesgos.length ? `<h3>Riesgos</h3><ul>${f.riesgos.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+  <h2>Ruta crítica</h2><div class="chain"><span>Inicio</span>${crit.map(p => `→ <span>${esc(p.codigo)} · ${fmtN(prog.dur[p.id])} d</span>`).join(" ")} → <span>Fin · ${fmtN(prog.fin)} días</span></div>
+  <h2>Programa</h2>${tabla(["Código", "Partida", "O-M-P (días)", "Duración", "Inicio", "Término", "Holgura", "Crítica"], [...o.partidas].sort((a, b) => prog.r[a.id].es - prog.r[b.id].es).map(p => { const r = prog.r[p.id], q = prog.pert[p.id]; return [esc(p.codigo), esc(p.nombre), `${fmtN(q.o)}-${fmtN(q.m)}-${fmtN(q.p)}`, fmtN(prog.dur[p.id]), fmtFecha(fechaMas(o.inicio, r.es)), fmtFecha(fechaMas(o.inicio, r.ef)), fmtN(r.holgura), r.critica ? "Sí" : ""]; }))}
+  <h2>Presupuesto con análisis de precios unitarios</h2><table><thead><tr><th>Código</th><th>Partida / insumo</th><th>Unidad</th><th>Cantidad</th><th>P. unitario</th><th>Total</th></tr></thead><tbody>
+  ${o.partidas.map(p => `<tr class="part"><td>${esc(p.codigo)}</td><td>${esc(p.nombre)}</td><td>${esc(p.unidad)}</td><td>${fmtN(p.cantidad, 2)}</td><td>${clp(precioUnitario(p))}</td><td>${clp(costoDirecto(p))}</td></tr>` + (p.insumos || []).map(i => `<tr class="apu"><td></td><td>· ${esc(i.desc)} (${esc(i.tipo)})</td><td>${esc(i.unidad)}/${esc(p.unidad)}</td><td>${fmtN(i.cant, 3)}</td><td>${clp(i.pu)}</td><td>${clp(num(i.cant) * num(i.pu))}</td></tr>`).join("")).join("")}
+  <tr><td></td><td>Costo directo</td><td></td><td></td><td></td><td><b>${clp(t.cd)}</b></td></tr><tr><td></td><td>Gastos generales ${fmtN(o.gg)}%</td><td></td><td></td><td></td><td>${clp(t.gg)}</td></tr><tr><td></td><td>Utilidades ${fmtN(o.util)}%</td><td></td><td></td><td></td><td>${clp(t.ut)}</td></tr><tr><td></td><td>IVA 19%</td><td></td><td></td><td></td><td>${clp(t.iva)}</td></tr><tr><td></td><td><b>TOTAL</b></td><td></td><td></td><td></td><td><b>${clp(t.total)}</b></td></tr></tbody></table>
+  <h2>Lista de compras</h2>${tabla(["Material", "Cantidad", "P. unitario", "Total", "Partidas", "En obra el"], grupo("Material"))}
+  <h3>Mano de obra</h3>${tabla(["Cuadrilla", "Cantidad", "P. unitario", "Total", "Partidas", "Desde"], grupo("Mano de obra"))}
+  <h3>Equipos</h3>${tabla(["Equipo", "Cantidad", "P. unitario", "Total", "Partidas", "Desde"], grupo("Equipo"))}
+  <h2>Estados de pago proyectados</h2>${tabla(["N°", "Corte", "Monto del período", "Líquido", "Pago esperado"], flujo.eps.map(e => ["EP " + e.n, fmtFecha(fechaMas(o.inicio, e.corte)), clp(e.monto), clp(e.liquido), fmtFecha(fechaMas(o.inicio, e.diaPago))]))}
+  </body></html>`;
+}
+function enlazarDescargas() {
+  $("#descargas").addEventListener("click", e => {
+    const b = e.target.closest("[data-dl]"); if (!b) return;
+    const o = actual(), k = b.dataset.dl;
+    if (k === "compras") bajar(nArch(o, "lista-de-compras.csv"), csvCompras(), "text/csv");
+    if (k === "recursos") bajar(nArch(o, "mano-de-obra-y-equipos.csv"), csvRecursos(), "text/csv");
+    if (k === "apu") bajar(nArch(o, "presupuesto-con-APU.csv"), csvApu(), "text/csv");
+    if (k === "programa") bajar(nArch(o, "programa-ruta-critica.csv"), csvPrograma(), "text/csv");
+    if (k === "informe") bajar(nArch(o, "informe-completo.html"), informeHTML(), "text/html");
+  });
+}
+
 /* ===== Interfaz ===== */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -1195,7 +1564,7 @@ function cambio(fn, opts = {}) { const o = actual(); fn(o); guardar(o); renderTo
 /* ---------- Render general ---------- */
 function renderTodo() {
   calcular();
-  renderTop(); renderKpis(); renderActa(); renderObra(); renderPresupuesto(); renderPrograma(); renderCurvaS(); renderRed(); renderPert(); renderCaja(); renderAvance(); renderObras();
+  renderTop(); renderKpis(); renderInicio(); renderMateriales(); renderActa(); renderObra(); renderPresupuesto(); renderPrograma(); renderCurvaS(); renderRed(); renderPert(); renderCaja(); renderAvance(); renderObras();
 }
 function renderTop() {
   const o = actual();
@@ -1516,6 +1885,7 @@ function irA(tab) {
   S.tab = tab;
   document.querySelectorAll(".tab").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
   document.querySelectorAll("[data-panel]").forEach(p => p.hidden = p.dataset.panel !== tab);
+  const k = document.getElementById("kpis"); if (k) k.hidden = tab === "inicio";
   try { localStorage.setItem("rm.tab", tab); } catch {}
 }
 async function descargarCSV() {
@@ -1535,7 +1905,7 @@ async function descargarCSV() {
 
 /* ---------- Eventos ---------- */
 function enlazar() {
-  enlazarActa(); enlazarRed();
+  enlazarActa(); enlazarRed(); enlazarSim(); enlazarDescargas();
   llenarRegiones($("#descRegion"), "Metropolitana");
   $("#kits").innerHTML = Object.entries(KITS).map(([k, v]) => `<button class="kit" data-kit="${k}"><b>${esc(v.titulo)}</b><span>${esc(v.sub)}</span></button>`).join("");
   $("#btnIA").hidden = true; $("#btnCSV").hidden = !SOLO; $("#volverActa").hidden = !SOLO;
@@ -1628,8 +1998,8 @@ function enlazar() {
 usarEjemplo();
 enlazar();
 renderTodo();
-let tabIni = "obra"; try { tabIni = localStorage.getItem("rm.tab") || "obra"; } catch {}
-irA(document.querySelector(`[data-tab="${tabIni}"]`) ? tabIni : "obra");
+const tabIni = "inicio";
+irA(document.querySelector(`[data-tab="${tabIni}"]`) ? tabIni : "inicio");
 renderIAEstado();
 iniciarAlmacen();
 
