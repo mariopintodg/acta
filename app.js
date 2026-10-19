@@ -103,7 +103,7 @@ const KP_ICONS = ['target', 'money', 'people', 'time', 'tech', 'design', 'legal'
 const CLAUDE_MODELS = [['claude-sonnet-5-5', 'Claude Sonnet 5.5 — recomendado'], ['claude-opus-5-5', 'Claude Opus 5.5 — máximo detalle'], ['claude-haiku-5-5', 'Claude Haiku 5.5 — más rápido y económico']];
 const STT_MODELS = [['gpt-4o-transcribe-diarize', 'Con hablantes (recomendado)'], ['whisper-1', 'Whisper — con marcas de tiempo, sin hablantes'], ['gpt-4o-transcribe', 'Solo texto']];
 const MAX_UPLOAD = 25 * 1024 * 1024;
-const APP_VERSION = '3.8.0';
+const APP_VERSION = '3.9.0';
 const PART_SEC = 5 * 60; /* recordings are saved in 5-minute pieces so they can be transcribed in parallel */
 
 /* =========================================================
@@ -1425,7 +1425,8 @@ async function renderTab(m) {
     $('#b-share').onclick = () => shareText(a.title + ' — brief', a.brief || '');
     if (a.obraPlan) {
       const op = a.obraPlan, f = op.ficha || {}, plazo = +f.plazoDias || op.plazoSugerido || 0;
-      body.insertAdjacentHTML('afterbegin', `<div class="rm-plan"><div class="rm-plan-h"><span class="rm-badge">Ruta Maestra</span><b>Plan de obra listo</b></div><p>${esc(f.obra || op.nombre || a.title)} · ${op.partidas.length} partidas${plazo ? ` · plazo ${plazo} días` : ''}. Descárgalo y súbelo en Ruta Maestra, pestaña Desde Acta, para ver presupuesto, red con ruta crítica, PERT y curva S.</p><div class="tools-row"><button class="btn primary sm" id="rm-dl">${icon('download', 2)}Descargar para Ruta Maestra</button><button class="btn sm" id="rm-copy">${icon('copy')}Copiar plan</button></div></div>`);
+      body.insertAdjacentHTML('afterbegin', `<div class="rm-plan"><div class="rm-plan-h"><span class="rm-badge">Ruta Maestra</span><b>Plan de obra listo</b></div><p>${esc(f.obra || op.nombre || a.title)} · ${op.partidas.length} partidas${plazo ? ` · plazo ${plazo} días` : ''}. Ábrelo en Ruta Maestra para ver presupuesto, red con ruta crítica, PERT, curva S y caja.</p><div class="tools-row"><button class="btn primary sm" id="rm-open">${icon('link', 2)}Abrir en Ruta Maestra</button><button class="btn sm" id="rm-dl">${icon('download')}Descargar plan</button><button class="btn sm" id="rm-copy">${icon('copy')}Copiar plan</button></div></div>`);
+      $('#rm-open').onclick = () => abrirRutaMaestra(m, a);
       $('#rm-dl').onclick = () => downloadText(slug(f.obra || a.title) + '-ruta-maestra.json', rutaMaestraJSON(m, a), 'application/json');
       $('#rm-copy').onclick = () => copyText(rutaMaestraJSON(m, a), 'Plan copiado: pégalo en Ruta Maestra');
     }
@@ -3491,6 +3492,18 @@ async function fullMd(m, { transcript = true, brief = true, mindmap = true } = {
 function rutaMaestraJSON(m, a) {
   const op = a.obraPlan || {};
   return JSON.stringify({ formato: 'ruta-maestra/obra@1', origen: 'Acta', reunion: { titulo: a.title, fecha: m.date, participantes: a.participants || [] }, ficha: op.ficha || {}, nombre: op.nombre || a.title, plazoSugerido: op.plazoSugerido || 0, partidas: op.partidas || [], riesgos: (a.risks || []).map(r => r.text), tareas: (a.actions || []).map(t => ({ tarea: t.task, responsable: t.owner, plazo: t.dueDate || t.due || '' })), brief: a.brief || '' }, null, 2);
+}
+/* Abre Ruta Maestra (actasapp.com/obra) con el plan: en el mismo sitio lo deja en el almacenamiento compartido; desde la app nativa u otro sitio lo lleva en el enlace */
+const RM_URL = 'https://actasapp.com/obra/';
+function abrirRutaMaestra(m, a) {
+  const json = rutaMaestraJSON(m, a);
+  if (location.origin === 'https://actasapp.com' || location.hostname.endsWith('.acta-app.pages.dev')) {
+    try { localStorage.setItem('rm.inbox', json); location.assign('/obra/#desde-acta'); return; } catch {}
+  }
+  const bytes = new TextEncoder().encode(json); let bin = '';
+  for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
+  const url = RM_URL + '#plan=' + btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const w = window.open(url, '_blank', 'noopener'); if (!w) location.href = url;
 }
 function downloadText(name, text, type = 'text/markdown') { deliverFile(new File([text], name, { type: type + ';charset=utf-8' }), name); }
 function _oldDownloadText(name, text, type = 'text/markdown') {
