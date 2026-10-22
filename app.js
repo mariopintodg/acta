@@ -103,7 +103,7 @@ const KP_ICONS = ['target', 'money', 'people', 'time', 'tech', 'design', 'legal'
 const CLAUDE_MODELS = [['claude-sonnet-5-5', 'Claude Sonnet 5.5 — recomendado'], ['claude-opus-5-5', 'Claude Opus 5.5 — máximo detalle'], ['claude-haiku-5-5', 'Claude Haiku 5.5 — más rápido y económico']];
 const STT_MODELS = [['gpt-4o-transcribe-diarize', 'Con hablantes (recomendado)'], ['whisper-1', 'Whisper — con marcas de tiempo, sin hablantes'], ['gpt-4o-transcribe', 'Solo texto']];
 const MAX_UPLOAD = 25 * 1024 * 1024;
-const APP_VERSION = '4.0.1';
+const APP_VERSION = '4.0.2';
 const PART_SEC = 5 * 60; /* recordings are saved in 5-minute pieces so they can be transcribed in parallel */
 
 /* =========================================================
@@ -383,6 +383,17 @@ const ANALYSIS_SCHEMA = {
     quotes: { type: 'array', items: { type: 'object', properties: { text: { type: 'string' }, who: { type: 'string' }, t: { type: 'number' } }, required: ['text', 'who'] } },
     mindmap: { type: 'object', properties: { center: { type: 'string' }, branches: { type: 'array', items: { type: 'object', properties: { label: { type: 'string' }, children: { type: 'array', items: { type: 'string' } } }, required: ['label', 'children'] } } }, required: ['center', 'branches'] },
     nextSteps: { type: 'array', items: { type: 'string' } },
+    obraPlan: { type: 'object', description: 'SOLO en reuniones de obra o construcción donde se define una obra a ejecutar (con un cliente, mandante o ITO). Es el plan de obra que se envía a Ruta Maestra para calcular presupuesto, ruta crítica, PERT y curva S. En otras reuniones omítelo.', properties: {
+      ficha: { type: 'object', properties: { obra: { type: 'string' }, mandante: { type: 'string' }, ubicacion: { type: 'string' }, region: { type: 'string', description: 'Región de Chile tal como se escribe (por ejemplo Metropolitana, O\'Higgins, Maule), o vacío' }, inicio: { type: 'string', description: 'AAAA-MM-DD si se dijo la fecha de inicio o entrega de terreno; si no, vacío' }, plazoDias: { type: 'number', description: 'Plazo en días corridos si se dijo; si no, 0' }, presupuestoReferencial: { type: 'string', description: 'Monto tal como se dijo, o vacío' }, alcance: { type: 'array', items: { type: 'string' }, description: 'Obras a ejecutar con sus cantidades' }, restricciones: { type: 'array', items: { type: 'string' }, description: 'Decisiones y condiciones de ejecución' }, riesgos: { type: 'array', items: { type: 'string' } }, pendientes: { type: 'array', items: { type: 'string' }, description: 'Lo que falta confirmar' }, pago: { type: 'object', properties: { frecEP: { type: 'number', description: 'Días entre estados de pago (30 si no se dijo)' }, diasPago: { type: 'number', description: 'Días que demora el pago (30 si no se dijo)' }, retencion: { type: 'number', description: '% de retención (5 si no se dijo)' } } } }, required: ['obra', 'alcance'] },
+      nombre: { type: 'string', description: 'Nombre corto de la obra' },
+      plazoSugerido: { type: 'number', description: 'Días corridos sugeridos si el acta no dice el plazo' },
+      partidas: { type: 'array', description: '6 a 16 partidas dentro del alcance, más instalación de faenas y aseo final', items: { type: 'object', properties: {
+        codigo: { type: 'string', description: '1.x obras previas, 2.x movimiento de tierras u obra gruesa, 3.x instalaciones, 4.x terminaciones, 5.x entrega' }, nombre: { type: 'string' }, unidad: { type: 'string', description: 'm, m2, m3, kg, un, gl o día' }, cantidad: { type: 'number', description: 'Calculada desde lo conversado (excavación = largo × ancho × profundidad); si falta un dato, valor típico' },
+        insumos: { type: 'array', description: 'APU con 1 a 4 insumos', items: { type: 'object', properties: { tipo: { type: 'string', enum: ['Material', 'Mano de obra', 'Equipo'] }, desc: { type: 'string' }, unidad: { type: 'string' }, cant: { type: 'number', description: 'Cantidad del insumo por UNA unidad de la partida' }, pu: { type: 'number', description: 'Precio unitario de referencia en pesos chilenos, neto (mano de obra con leyes sociales)' } }, required: ['tipo', 'desc', 'unidad', 'cant', 'pu'] } },
+        o: { type: 'number', description: 'Duración optimista en días corridos' }, m: { type: 'number', description: 'Duración más probable' }, p: { type: 'number', description: 'Duración pesimista, considerando los riesgos conversados' },
+        depende: { type: 'array', items: { type: 'string' }, description: 'Códigos de partidas que deben terminar antes; respeta la secuencia acordada; sin ciclos' }
+      }, required: ['codigo', 'nombre', 'unidad', 'cantidad', 'insumos', 'o', 'm', 'p', 'depende'] } }
+    }, required: ['ficha', 'partidas'] },
     brief: { type: 'string', description: 'Documento Markdown (# título, ## secciones, listas con -) que sirva de materia prima para arrancar o continuar el proyecto: Contexto, Objetivo, Alcance, Requisitos y detalles, Decisiones tomadas, Pendientes y preguntas, Plan inicial. Concreto, sin relleno.' }
   },
   required: ['title', 'tldr', 'mood', 'tags', 'speakers', 'participants', 'keyPoints', 'topics', 'decisions', 'actions', 'ideas', 'risks', 'questions', 'numbers', 'quotes', 'mindmap', 'nextSteps', 'brief', 'followUp']
@@ -415,6 +426,7 @@ Reglas:
 ${template === 'auto' ? `- Tipo elegido: "Que Acta lo decida". Si es una clase, charla o capacitación, completa study (obligatorio en ese caso). Si es de un rubro, llena ficha con sus campos: ${Object.entries(TEMPLATES).filter(([, t]) => t.ficha).map(([k, t]) => `${k}: ${t.ficha.join(', ')}`).join(' | ')}. Si no aplica, ficha vacía.` : ''}
 - study: ${template === 'auto' ? 'solo si es una clase (ver arriba).' : template === 'clase' ? 'OBLIGATORIO: completa apuntes, entra en la prueba, glosario, tarjetas y prueba de práctica, todo basado en lo que se enseñó.' : 'omítelo.'}
 ${Settings.v.about ? `- Sobre quien graba (úsalo para el tono, el enfoque y los nombres): ${Settings.v.about}` : ''}
+- obraPlan: ${template === 'obra' ? 'si en la reunión se define una obra a ejecutar (alcance, cantidades o plazo), complétalo: es el plan que se envía a Ruta Maestra. Si es solo seguimiento de una obra en curso sin nuevas obras que programar, omítelo.' : template === 'auto' ? 'solo si es una reunión de obra o construcción donde se define una obra a ejecutar; si no, omítelo.' : 'omítelo.'} En obraPlan la ficha usa solo lo que se dijo (no inventes nombres ni montos); las partidas, cantidades, precios de referencia y duraciones sí son tu propuesta técnica, con o ≤ m ≤ p.
 - ficha: ${template === 'auto' ? 'ver arriba.' : tpl.ficha ? `completa estos campos en este orden: ${tpl.ficha.join(' · ')}.` : 'devuelve un arreglo vacío.'}
 ${vocab.length ? `- Vocabulario del usuario (así se escriben estos nombres, marcas y términos): ${vocab.join(', ')}. Escríbelos así en el acta y agrega a corrections cada palabra que la transcripción escribió mal (solo si estás seguro).` : '- corrections: solo nombres propios claramente mal escritos; si no hay, arreglo vacío.'}
 ${prevCtx ? '- Esta reunión continúa un proyecto con reuniones anteriores (ver abajo). Llena continuity y, para cada tarea pendiente entregada, previousTasks con su ref y su estado según lo conversado hoy. No repitas en actions una tarea anterior salvo que se haya reasignado o cambiado.' : '- previousTasks: arreglo vacío. continuity: vacío.'}`;
@@ -470,7 +482,8 @@ function normalize(a, dur, titleHint) {
     numbers: arr(a.numbers).slice(0, 8).map(x => ({ value: String(x.value ?? ''), label: x.label || '' })).filter(x => x.value),
     quotes: arr(a.quotes).slice(0, 6).map(x => ({ text: x.text || '', who: x.who || '', t: x.t != null ? +x.t : null })).filter(x => x.text),
     mindmap: a.mindmap && a.mindmap.center ? { center: a.mindmap.center, branches: arr(a.mindmap.branches).slice(0, 7).map(b => ({ label: b.label || '', children: arr(b.children).slice(0, 5).map(String) })) } : null,
-    nextSteps: arr(a.nextSteps).map(String), brief: a.brief || ''
+    nextSteps: arr(a.nextSteps).map(String), brief: a.brief || '',
+    obraPlan: a.obraPlan && typeof a.obraPlan === 'object' && Array.isArray(a.obraPlan.partidas) && a.obraPlan.partidas.length ? { ficha: a.obraPlan.ficha && typeof a.obraPlan.ficha === 'object' ? a.obraPlan.ficha : {}, nombre: String(a.obraPlan.nombre || ''), plazoSugerido: +a.obraPlan.plazoSugerido || 0, partidas: a.obraPlan.partidas.slice(0, 40) } : null
   };
   out.topics.sort((x, y) => x.start - y.start);
   out.topics.forEach((t, i) => { const nx = out.topics[i + 1]; if (!t.end || t.end <= t.start) t.end = nx ? nx.start : dur; if (nx && t.end > nx.start) t.end = nx.start; if (dur && t.end > dur) t.end = dur; });
@@ -1411,6 +1424,13 @@ async function renderTab(m) {
     $('#b-copy').onclick = () => copyText(a.brief || '', 'Brief copiado');
     $('#b-dl').onclick = () => downloadText(slug(a.title) + '-brief.md', a.brief || '');
     $('#b-share').onclick = () => shareText(a.title + ' — brief', a.brief || '');
+    if (a.obraPlan) {
+      const op = a.obraPlan, f = op.ficha || {}, plazo = +f.plazoDias || op.plazoSugerido || 0;
+      body.insertAdjacentHTML('afterbegin', `<div class="rm-plan"><div class="rm-plan-h"><span class="rm-badge">Ruta Maestra</span><b>Plan de obra listo</b></div><p>${esc(f.obra || op.nombre || a.title)} · ${op.partidas.length} partidas${plazo ? ` · plazo ${plazo} días` : ''}. Ábrelo en Ruta Maestra para ver presupuesto, red con ruta crítica, PERT, curva S y caja.</p><div class="tools-row"><button class="btn primary sm" id="rm-open">${icon('link', 2)}Abrir en Ruta Maestra</button><button class="btn sm" id="rm-dl">${icon('download')}Descargar plan</button><button class="btn sm" id="rm-copy">${icon('copy')}Copiar plan</button></div></div>`);
+      $('#rm-open').onclick = () => abrirRutaMaestra(m, a);
+      $('#rm-dl').onclick = () => downloadText(slug(f.obra || a.title) + '-ruta-maestra.json', rutaMaestraJSON(m, a), 'application/json');
+      $('#rm-copy').onclick = () => copyText(rutaMaestraJSON(m, a), 'Plan copiado: pégalo en Ruta Maestra');
+    }
     return;
   }
   if (tab === 'transcripcion') return renderTranscript(body, m, a, segs);
@@ -2771,6 +2791,7 @@ async function renderSettings(app) {
         ${persisted ? '' : `<button class="btn sm" id="s-persist">${icon('lock')}Proteger mis datos</button>`}
         <button class="btn sm" id="s-export">${icon('download')}Exportar respaldo</button>
         <span class="btn sm filebtn">${icon('upload')}Importar respaldo<input type="file" id="s-import" accept="application/json,.json,application/zip,.zip"></span>
+        <button class="btn sm" id="s-obra-demo">${icon('spark')}Cargar ejemplo de obra</button>
       </div>
       <p class="muted" style="font-size:12.5px">El respaldo completo trae actas, transcripciones, tareas, audio y fotos en un solo archivo. ${Settings.v.lastBackup ? 'Último respaldo: ' + esc(new Date(Settings.v.lastBackup).toLocaleDateString('es-CL', { day: 'numeric', month: 'long' })) + '.' : 'Aún no has hecho un respaldo.'}</p>
       <div style="margin-top:14px" id="wipe-slot"><button class="btn sm ghost danger" id="s-wipe">${icon('trash')}Borrar todo</button></div>
@@ -2783,6 +2804,7 @@ async function renderSettings(app) {
   </div>`;
   const keyIn = (id, k) => { const el = $(id); el.addEventListener('input', e => Settings.set({ [k]: e.target.value.trim() })); el.addEventListener('change', e => { Settings.set({ [k]: e.target.value.trim() }); keepStorage(); toast('Clave guardada en este teléfono'); }); };
   keyIn('#k-anthropic', 'anthropicKey'); keyIn('#k-openai', 'openaiKey');
+  $('#s-obra-demo').onclick = async () => { const id = await loadObraDemo(); toast('Ejemplo de obra listo: toca Abrir en Ruta Maestra'); go('m/' + id + '/brief'); };
   $('#t-anthropic').onclick = async () => {
     Settings.set({ anthropicKey: $('#k-anthropic').value.trim() }); keepStorage(); const r = $('#r-anthropic'); r.textContent = 'Probando…';
     try { await claude({ messages: [{ role: 'user', content: 'Responde solo: ok' }], max_tokens: 5, kind: 'prueba' }); r.innerHTML = `<span class="ok-badge">${icon('check', 2.4, 14)}Conectado con ${esc(Settings.v.claudeModel)}</span>`; }
@@ -3286,6 +3308,7 @@ async function exportEverything(m) {
         files.push([`${base}/05-apuntes.pdf`, await pdfOf('Apuntes de clase', `<div class="doc-md">${html}</div>`)]); }
       const evs = []; (a.actions || []).forEach(t => { if (t.done) return; const d = taskDate(t, m); if (d) evs.push(taskEvent(m, t, d)); });
       if (evs.length) files.push([`${base}/07-tareas-calendario.ics`, buildICS(evs)]);
+      if (a.obraPlan) files.push([`${base}/09-plan-ruta-maestra.json`, rutaMaestraJSON(m, a)]);
     }
     if (segs.length) { await say('Transcripción en PDF', 64); files.push([`${base}/06-transcripcion.pdf`, new Uint8Array(await (await htmlPdfBlob(docArticle(m, a.title ? a : { ...a, title: m.titleHint || 'Reunión' }, 'Transcripción', transcriptDocHTML(m, segs)), a.title || m.titleHint, pg)).arrayBuffer())]); }
     await say('Audio y fotos', 80);
@@ -3295,7 +3318,7 @@ async function exportEverything(m) {
     await say('Empaquetando', 93);
     const t = segs.length ? { [m.id]: segs } : {};
     files.push(['respaldo.json', JSON.stringify({ app: 'acta', version: 2, exportedAt: new Date().toISOString(), meetings: [m], transcripts: t, files: map })]);
-    files.push([`${base}/LEEME.txt`, `${a.title || 'Reunión'}\n\n01-informe.pdf: informe visual, tamaño carta\n02-informe-extendido.pdf: informe con todo el detalle (si se creó)\n03-acta.docx: acta completa para editar en Word\n04-resumen.pdf: resumen, decisiones, tareas, ideas y riesgos\n05-brief.pdf: brief del proyecto (si existe)\n05-apuntes.pdf: apuntes, glosario y tarjetas (en clases)\n06-transcripcion.pdf: transcripción con hablantes y minuto\n07-tareas-calendario.ics: tareas con fecha para el calendario\n08-mapa-mental.pdf: el mapa mental dibujado, en hoja horizontal\naudio/ y fotos/: la grabación original y las fotos\n\nPara volver a cargar esta reunión en Acta: Ajustes > Importar respaldo y elige este .zip tal como está.\n`]);
+    files.push([`${base}/LEEME.txt`, `${a.title || 'Reunión'}\n\n01-informe.pdf: informe visual, tamaño carta\n02-informe-extendido.pdf: informe con todo el detalle (si se creó)\n03-acta.docx: acta completa para editar en Word\n04-resumen.pdf: resumen, decisiones, tareas, ideas y riesgos\n05-brief.pdf: brief del proyecto (si existe)\n05-apuntes.pdf: apuntes, glosario y tarjetas (en clases)\n06-transcripcion.pdf: transcripción con hablantes y minuto\n07-tareas-calendario.ics: tareas con fecha para el calendario\n08-mapa-mental.pdf: el mapa mental dibujado, en hoja horizontal\n${a.obraPlan ? '09-plan-ruta-maestra.json: plan de obra para subir en Ruta Maestra (presupuesto, ruta crítica, PERT y curva S)\n' : ''}audio/ y fotos/: la grabación original y las fotos\n\nPara volver a cargar esta reunión en Acta: Ajustes > Importar respaldo y elige este .zip tal como está.\n`]);
     const zip = new File([zipStore(files)], `${base}-todo.zip`, { type: 'application/zip' });
     await say('¡Listo!', 100); Busy.hide();
     deliverFile(zip, 'Todo de la reunión');
@@ -3489,6 +3512,23 @@ async function fullMd(m, { transcript = true, brief = true, mindmap = true } = {
   if (segs.length && transcript) { L.push('---', '', '## Transcripción', ''); segs.forEach(x => L.push(`\`${fmtT(x.t)}\` ${x.s ? `**${spkName(m, x.s)}:** ` : ''}${x.text}  `)); }
   return L.join('\n');
 }
+/* Plan de obra para Ruta Maestra (formato ruta-maestra/obra@1) */
+function rutaMaestraJSON(m, a) {
+  const op = a.obraPlan || {};
+  return JSON.stringify({ formato: 'ruta-maestra/obra@1', origen: 'Acta', reunion: { titulo: a.title, fecha: m.date, participantes: a.participants || [] }, ficha: op.ficha || {}, nombre: op.nombre || a.title, plazoSugerido: op.plazoSugerido || 0, partidas: op.partidas || [], riesgos: (a.risks || []).map(r => r.text), tareas: (a.actions || []).map(t => ({ tarea: t.task, responsable: t.owner, plazo: t.dueDate || t.due || '' })), brief: a.brief || '' }, null, 2);
+}
+/* Abre Ruta Maestra (actasapp.com/obra) con el plan: en el mismo sitio lo deja en el almacenamiento compartido; desde la app nativa u otro sitio lo lleva en el enlace */
+const RM_URL = 'https://actasapp.com/obra/';
+function abrirRutaMaestra(m, a) {
+  const json = rutaMaestraJSON(m, a);
+  if (location.origin === 'https://actasapp.com' || location.hostname.endsWith('.acta-app.pages.dev')) {
+    try { localStorage.setItem('rm.inbox', json); location.assign('/obra/#desde-acta'); return; } catch {}
+  }
+  const bytes = new TextEncoder().encode(json); let bin = '';
+  for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));
+  const url = RM_URL + '#plan=' + btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const w = window.open(url, '_blank', 'noopener'); if (!w) location.href = url;
+}
 function downloadText(name, text, type = 'text/markdown') { deliverFile(new File([text], name, { type: type + ';charset=utf-8' }), name); }
 function _oldDownloadText(name, text, type = 'text/markdown') {
   const blob = new Blob([text], { type: type + ';charset=utf-8' });
@@ -3542,6 +3582,36 @@ const EXAMPLE_TX = `[0:00] Tú: Partamos. La idea es definir la primera versión
 [5:12] Diego: Y una idea: podríamos mostrar los horarios con poca demanda con un pequeño descuento para llenar los huecos.
 [5:30] Camila: ¡Eso me encanta! Los martes en la mañana están vacíos.
 [5:45] Tú: Lo dejamos como idea para evaluar. Cerremos: lanzamiento meta el 15 de noviembre.`;
+/* Reunión de ejemplo de obra (visita a terreno) con plan para Ruta Maestra; se puede cargar aunque ya existan reuniones */
+async function loadObraDemo() {
+  const prev = S.meetings.find(x => x.analysis && x.analysis.title === 'Visita a terreno: red APR Las Palmas');
+  if (prev) return prev.id;
+  const d2 = today();
+  const id4 = 'ejemplo-' + uid();
+  const tx4 = `[0:00] Tú: Gracias por recibirnos. Partamos por el alcance: son las 12 viviendas nuevas del sector Las Palmas, ¿cierto?\n[0:11] Presidenta: Sí, hoy se abastecen con camión aljibe. Necesitamos que tengan agua antes del verano.\n[0:24] ITO: La extensión es de unos 500 metros de matriz PVC de 110, clase 10, en zanja de 60 por 1,20.\n[0:41] Tú: Más los 12 arranques con medidor, la prueba hidráulica y la desinfección.\n[0:52] ITO: Exacto. Y ojo que cerca del kilómetro 0,3 hay una matriz antigua que no sale en los planos.\n[1:08] Tú: Lo anoto como riesgo. ¿Plazo?\n[1:12] Presidenta: 50 días corridos desde la entrega de terreno. Sería el 2 de noviembre.\n[1:25] Tesorero: El presupuesto referencial que tenemos es de unos 22 millones con IVA. Pagamos por estado de pago mensual, a unos 45 días, con retención del 5%.\n[1:46] Tú: Propongo trabajar por tramos de 100 metros para no dejar zanjas abiertas el fin de semana.\n[1:58] ITO: De acuerdo. Y los arranques se instalan después de la prueba hidráulica de la matriz.\n[2:10] Tú: Perfecto. Me queda pendiente que confirme la cota de empalme.\n[2:18] ITO: Se la mando esta semana.\n[2:24] Presidenta: Yo le envío el listado de los 12 beneficiarios.`;
+  const segs4 = parseTranscript(tx4).segments;
+  const a4 = { title: 'Visita a terreno: red APR Las Palmas', tldr: 'Se definió la extensión de 500 m de matriz PVC 110 mm y 12 arranques para el sector Las Palmas, con plazo de 50 días desde el 2 de noviembre. Se trabajará por tramos de 100 m y los arranques irán después de la prueba hidráulica. El plan de obra quedó listo para Ruta Maestra.',
+    mood: { label: 'Colaborativa', score: 78, note: 'Alcance claro y buena disposición del comité y del ITO.' }, tags: ['ejemplo', 'obra', 'agua potable', 'APR'], participants: ['Tú', 'Presidenta', 'Tesorero', 'ITO'], speakers: [],
+    keyPoints: [{ title: '500 m de matriz', detail: 'PVC 110 mm C-10 en zanja de 0,6 × 1,2 m.', icon: 'target' }, { title: '50 días corridos', detail: 'Desde la entrega de terreno el 2 de noviembre.', icon: 'time' }, { title: '~$22 millones', detail: 'Presupuesto referencial con IVA; EP mensual a 45 días.', icon: 'money' }, { title: 'Matriz no catastrada', detail: 'Cerca del km 0,3: riesgo para la excavación.', icon: 'risk' }],
+    topics: [{ name: 'Alcance', start: 0, end: 52, summary: 'Matriz, arranques, prueba y desinfección.' }, { name: 'Plazo y pago', start: 52, end: 106, summary: '50 días, EP mensual y retención.' }, { name: 'Ejecución', start: 106, end: 145, summary: 'Tramos y secuencia.' }],
+    decisions: [{ text: 'Trabajar por tramos de 100 m', why: 'No dejar zanjas abiertas el fin de semana' }, { text: 'Arranques después de la prueba hidráulica', why: 'Probar la matriz antes de conectar' }],
+    actions: [{ id: uid(), task: 'Confirmar la cota de empalme', owner: 'ITO', due: 'esta semana', priority: 'alta', done: false, t: 138, quote: 'Se la mando esta semana.' }, { id: uid(), task: 'Enviar listado de los 12 beneficiarios', owner: 'Presidenta', due: '', priority: 'media', done: false, t: 144, quote: 'Yo le envío el listado.' }],
+    ideas: [], risks: [{ text: 'Matriz antigua no catastrada cerca del km 0,3', severity: 'alta' }, { text: 'Lluvias en noviembre pueden atrasar la excavación', severity: 'media' }],
+    questions: [{ text: '¿Cuál es la cota de empalme con la red existente?' }],
+    numbers: [{ value: '500 m', label: 'de matriz PVC 110' }, { value: '12', label: 'arranques' }, { value: '50 días', label: 'de plazo' }, { value: '$22 M', label: 'referencial con IVA' }, { value: '5%', label: 'retención' }],
+    quotes: [{ text: 'Necesitamos que tengan agua antes del verano.', who: 'Presidenta', t: 11 }],
+    mindmap: { center: 'Red APR Las Palmas', branches: [{ label: 'Alcance', children: ['500 m PVC 110', '12 arranques', 'Prueba y desinfección'] }, { label: 'Plazo y pago', children: ['50 días', 'EP mensual a 45 días', 'Retención 5%'] }, { label: 'Riesgos', children: ['Matriz no catastrada', 'Lluvias'] }] },
+    nextSteps: ['Recibir cota de empalme', 'Abrir el plan en Ruta Maestra', 'Preparar la oferta'],
+    brief: '# Brief: Extensión de red APR sector Las Palmas\n\n## Contexto\nEl Comité de Agua Potable Rural Las Palmas necesita conectar 12 viviendas nuevas que hoy se abastecen con camión aljibe.\n\n## Alcance\n- 500 m de matriz PVC hidráulico 110 mm C-10 en zanja de 0,6 × 1,2 m\n- 12 arranques domiciliarios con medidor\n- Prueba hidráulica y desinfección\n- Reposición de terreno y retiro de excedentes\n\n## Plazos y dinero\n- 50 días corridos desde la entrega de terreno (2 de noviembre)\n- Presupuesto referencial: cerca de $22 millones con IVA\n- Estados de pago mensuales a unos 45 días, retención 5%\n\n## Decisiones\n- Trabajo por tramos de 100 m\n- Arranques después de la prueba hidráulica\n\n## Pendientes\n- ITO confirma la cota de empalme\n- Comité envía listado de beneficiarios',
+    ficha: [{ label: 'Obra o proyecto', value: 'Extensión red APR sector Las Palmas' }, { label: 'Avance informado', value: 'No se mencionó' }, { label: 'Partidas atrasadas', value: 'No se mencionó' }, { label: 'Materiales por pedir', value: 'Tubería PVC 110 mm C-10, arranques con medidor' }, { label: 'Estado de pago', value: 'Mensual, a unos 45 días, retención 5%' }, { label: 'Seguridad', value: 'No se mencionó' }, { label: 'Próxima visita', value: 'No se mencionó' }],
+    followUp: { whatsapp: 'Hola, les dejo lo acordado en la visita:\n\n• Extensión de 500 m de matriz PVC 110 y 12 arranques\n• Plazo 50 días desde el 2 de noviembre\n• Trabajo por tramos de 100 m\n\nPendientes: cota de empalme (ITO) y listado de beneficiarios (comité).', emailSubject: 'Acuerdos visita a terreno: red APR Las Palmas', emailBody: 'Adjunto los acuerdos de la visita a terreno.' },
+    corrections: [], previousTasks: [], continuity: '', detected: 'obra',
+    obraPlan: { ficha: { obra: 'Extensión red APR sector Las Palmas', mandante: 'Comité de Agua Potable Rural Las Palmas', ubicacion: 'Sector Las Palmas', region: "O'Higgins", inicio: '', plazoDias: 50, presupuestoReferencial: 'Cerca de $22 millones con IVA', alcance: ['500 m de matriz PVC 110 mm C-10 en zanja de 0,6 × 1,2 m', '12 arranques domiciliarios con medidor', 'Prueba hidráulica y desinfección', 'Reposición de terreno y retiro de excedentes'], restricciones: ['Trabajo por tramos de 100 m', 'Arranques después de la prueba hidráulica'], riesgos: ['Matriz antigua no catastrada cerca del km 0,3', 'Lluvias en noviembre'], pendientes: ['ITO confirma cota de empalme', 'Comité envía listado de beneficiarios'], pago: { frecEP: 30, diasPago: 45, retencion: 5 } }, nombre: 'Extensión red APR Las Palmas', plazoSugerido: 50,
+      partidas: [{"codigo":"1.1","nombre":"Instalación de faenas","unidad":"gl","cantidad":1,"insumos":[{"tipo":"Material","desc":"Bodega, cierre y letrero de obra","unidad":"gl","cant":1,"pu":850000},{"tipo":"Mano de obra","desc":"Cuadrilla de instalación","unidad":"día","cant":4,"pu":55000}],"o":2,"m":3,"p":5,"depende":[]},{"codigo":"1.2","nombre":"Trazado y niveles","unidad":"m","cantidad":500,"insumos":[{"tipo":"Mano de obra","desc":"Topógrafo y alarife","unidad":"m","cant":1,"pu":900},{"tipo":"Material","desc":"Estacas, lienza y pintura","unidad":"m","cant":1,"pu":150}],"o":2,"m":3,"p":4,"depende":["1.1"]},{"codigo":"2.1","nombre":"Excavación de zanja 0,6 × 1,2 m","unidad":"m3","cantidad":360,"insumos":[{"tipo":"Equipo","desc":"Retroexcavadora con operador","unidad":"h","cant":0.12,"pu":38000},{"tipo":"Mano de obra","desc":"Ayudante perfilado de zanja","unidad":"día","cant":0.05,"pu":45000}],"o":8,"m":10,"p":15,"depende":["1.2"]},{"codigo":"2.2","nombre":"Cama de apoyo de arena","unidad":"m3","cantidad":30,"insumos":[{"tipo":"Material","desc":"Arena","unidad":"m3","cant":1.1,"pu":28000},{"tipo":"Mano de obra","desc":"Ayudante","unidad":"día","cant":0.25,"pu":45000}],"o":3,"m":4,"p":6,"depende":["2.1"]},{"codigo":"3.1","nombre":"Suministro e instalación tubería PVC 110 mm C-10","unidad":"m","cantidad":500,"insumos":[{"tipo":"Material","desc":"Tubo PVC hidráulico 110 mm C-10","unidad":"m","cant":1.02,"pu":6500},{"tipo":"Material","desc":"Fittings y anillos","unidad":"m","cant":1,"pu":600},{"tipo":"Mano de obra","desc":"Maestro instalador y ayudante","unidad":"día","cant":0.02,"pu":110000}],"o":6,"m":8,"p":12,"depende":["2.2"]},{"codigo":"3.2","nombre":"Arranques domiciliarios","unidad":"un","cantidad":12,"insumos":[{"tipo":"Material","desc":"Collarín, llave de paso y medidor","unidad":"un","cant":1,"pu":95000},{"tipo":"Mano de obra","desc":"Maestro gasfíter","unidad":"día","cant":0.5,"pu":70000}],"o":3,"m":4,"p":6,"depende":["3.1"]},{"codigo":"3.3","nombre":"Prueba hidráulica","unidad":"gl","cantidad":1,"insumos":[{"tipo":"Equipo","desc":"Bomba de prueba y manómetro","unidad":"día","cant":2,"pu":45000},{"tipo":"Mano de obra","desc":"Maestro y ayudante","unidad":"día","cant":2,"pu":110000}],"o":1,"m":2,"p":4,"depende":["3.1"]},{"codigo":"2.3","nombre":"Relleno compactado por capas","unidad":"m3","cantidad":300,"insumos":[{"tipo":"Material","desc":"Material de relleno seleccionado","unidad":"m3","cant":0.3,"pu":15000},{"tipo":"Equipo","desc":"Placa compactadora","unidad":"h","cant":0.4,"pu":6000},{"tipo":"Mano de obra","desc":"Ayudante","unidad":"día","cant":0.06,"pu":45000}],"o":6,"m":8,"p":12,"depende":["3.3"]},{"codigo":"3.4","nombre":"Desinfección y lavado de la red","unidad":"gl","cantidad":1,"insumos":[{"tipo":"Material","desc":"Hipoclorito y análisis de laboratorio","unidad":"gl","cant":1,"pu":180000},{"tipo":"Mano de obra","desc":"Maestro y ayudante","unidad":"día","cant":1,"pu":110000}],"o":1,"m":1,"p":2,"depende":["3.2","3.3"]},{"codigo":"4.1","nombre":"Aseo y retiro de excedentes","unidad":"gl","cantidad":1,"insumos":[{"tipo":"Equipo","desc":"Camión tolva","unidad":"viaje","cant":8,"pu":65000},{"tipo":"Mano de obra","desc":"Ayudante","unidad":"día","cant":2,"pu":45000}],"o":2,"m":3,"p":4,"depende":["2.3","3.4"]}] } };
+  await DB.put('transcripts', { segments: segs4 }, id4);
+  await saveMeeting({ id: id4, createdAt: Date.now() - 5 * 3600000, date: d2, durationSec: 145, participants: ['Tú', 'Presidenta', 'Tesorero', 'ITO'], template: 'obra', project: 'APR Las Palmas', context: 'Visita a terreno con el comité y el ITO.', notes: '', notesLog: [], marks: [], photos: [], audioParts: [], speakers: {}, status: 'ready', words: wordCount(segs4), analysis: a4 });
+  return id4;
+}
 async function loadDemo() {
   const id = 'ejemplo-' + uid(); const segs = parseTranscript(EXAMPLE_TX).segments;
   const analysis = {
@@ -3600,6 +3670,7 @@ async function loadDemo() {
       quiz: [{ q: 'En Manning, la velocidad es proporcional a R elevado a:', options: ['1/2', '2/3', '3/2', '1'], answer: 1, why: 'V = (1/n)·R^(2/3)·S^(1/2).' }, { q: 'El radio hidráulico es:', options: ['Perímetro / área', 'Área / perímetro mojado', 'Ancho / profundidad', 'Caudal / área'], answer: 1, why: 'R = A/P.' }, { q: 'Un canal de tierra comparado con uno de hormigón liso tiene:', options: ['Menor n', 'Igual n', 'Mayor n', 'n = 0'], answer: 2, why: 'Más rugosidad, mayor n.' }, { q: 'Si aumenta n, la velocidad:', options: ['Aumenta', 'Disminuye', 'No cambia', 'Se duplica'], answer: 1, why: 'n está en el denominador.' }] } };
   await DB.put('transcripts', { segments: segs3 }, id3);
   await saveMeeting({ id: id3, createdAt: Date.now() - 2 * 86400000, date: ago(2), durationSec: 130, participants: ['Profesora', 'Tú'], template: 'clase', project: 'Hidráulica', context: '', notes: '', notesLog: [], marks: [{ t: 48, label: 'Entra en la prueba' }], photos: [], audioParts: [], speakers: {}, status: 'ready', words: wordCount(segs3), analysis: a3 });
+  await loadObraDemo();
   go('m/' + id2);
 }
 
