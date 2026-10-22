@@ -420,8 +420,8 @@ main{max-width:1180px;margin:0 auto;padding-inline:20px;padding-block:26px 90px}
 .num span{font-size:13px;color:var(--muted)}
 .quotes{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
 .quote{margin:0;padding:18px 18px 16px;border-radius:var(--r-md);background:var(--glass);border:1px solid var(--stroke);position:relative}
-.quote::before{content:"“";position:absolute;top:-6px;left:12px;font-family:var(--f-display);font-size:64px;line-height:1;background:var(--g-text);-webkit-background-clip:text;background-clip:text;color:transparent}
-.quote p{font-family:var(--f-display);font-size:17px;line-height:1.4;font-weight:500;margin-top:14px}
+.quote::before{content:"“";position:absolute;top:2px;left:14px;font-family:var(--f-display);font-size:64px;line-height:1;background:var(--g-text);-webkit-background-clip:text;background-clip:text;color:transparent}
+.quote p{font-family:var(--f-display);font-size:17px;line-height:1.4;font-weight:500;margin-top:30px}
 .quote small{display:block;margin-top:8px;color:var(--muted);font-size:12.5px}
 .tlink{background:none;border:0;padding:0;color:var(--accent);cursor:pointer;font-family:var(--f-mono);font-size:12px}
 .steps{display:grid;gap:8px;counter-reset:st}
@@ -1177,3 +1177,12 @@ body:not(.admin) .adm-only{display:none!important}
 .mmp-svg svg{display:block;width:100%;height:auto}
 .mm-tools{display:flex;gap:8px;margin-top:12px}
 .doc-note{font-size:12.5px;color:var(--p-faint);margin-top:14px}
+
+/* Revisión 4.0.1 */
+.m-people .pw{font-weight:inherit;display:inline}
+.ask-in{align-items:stretch}.ask-in .btn{height:auto;min-height:50px}
+.notes sup,.rp-prose sup,.doc-md sup{font-size:.72em;line-height:0}
+blockquote{margin:8px 0;padding:6px 0 6px 14px;border-left:3px solid var(--brand,#FF6A3D);font-style:italic}
+.rep blockquote,.doc-rep blockquote{color:#3B4152}
+.sec.g2{align-items:start}
+.tr-tools .search{min-width:180px;flex:1}

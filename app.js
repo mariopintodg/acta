@@ -13,7 +13,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const fmtT = sec => { if (sec == null || isNaN(sec)) return ''; sec = Math.max(0, Math.round(sec)); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(s).padStart(2, '0'); };
 const fmtClock = ms => { const s = Math.floor(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), ss = s % 60; return (h ? String(h).padStart(2, '0') + ':' : '') + String(m).padStart(2, '0') + ':' + String(ss).padStart(2, '0'); };
 const fmtDate = d => { try { return new Date(d + (String(d).length === 10 ? 'T12:00:00' : '')).toLocaleDateString('es-CL', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }); } catch { return d; } };
-const fmtBytes = b => b > 1e9 ? (b / 1e9).toFixed(1) + ' GB' : b > 1e6 ? (b / 1e6).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1e3)) + ' KB';
+const fmtBytes = b => b > 1e9 ? (b / 1e9).toFixed(1).replace('.', ',') + ' GB' : b > 1e6 ? (b / 1e6).toFixed(1).replace('.', ',') + ' MB' : Math.max(1, Math.round(b / 1e3)) + ' KB';
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 const nf = n => Number(n || 0).toLocaleString('es-CL');
@@ -103,7 +103,7 @@ const KP_ICONS = ['target', 'money', 'people', 'time', 'tech', 'design', 'legal'
 const CLAUDE_MODELS = [['claude-sonnet-5-5', 'Claude Sonnet 5.5 — recomendado'], ['claude-opus-5-5', 'Claude Opus 5.5 — máximo detalle'], ['claude-haiku-5-5', 'Claude Haiku 5.5 — más rápido y económico']];
 const STT_MODELS = [['gpt-4o-transcribe-diarize', 'Con hablantes (recomendado)'], ['whisper-1', 'Whisper — con marcas de tiempo, sin hablantes'], ['gpt-4o-transcribe', 'Solo texto']];
 const MAX_UPLOAD = 25 * 1024 * 1024;
-const APP_VERSION = '4.0.0';
+const APP_VERSION = '4.0.1';
 const PART_SEC = 5 * 60; /* recordings are saved in 5-minute pieces so they can be transcribed in parallel */
 
 /* =========================================================
@@ -865,7 +865,7 @@ function budgetHTML() {
     <span class="bi">${icon('money', 2)}</span>
     <div class="bud"><div class="top"><span>Claude · actas</span><b data-left="anthropic">${money(la)}</b></div><div class="bar-meter"><i style="width:${Math.min(100, la / ba * 100)}%;background:${col(la, ba)}"></i></div></div>
     <div class="bud"><div class="top"><span>OpenAI · transcripción</span><b data-left="openai">${money(lo)}</b></div><div class="bar-meter"><i style="width:${Math.min(100, lo / bo * 100)}%;background:${col(lo, bo)}"></i></div></div>
-    <div class="est">Alcanza para <b>≈ ${hours >= 10 ? Math.floor(hours) : hours.toFixed(1)} h</b> de grabación <br>y <b>≈ ${Math.floor(actas)} actas</b></div>
+    <div class="est">Alcanza para <b>≈ ${hours >= 10 ? Math.floor(hours) : hours.toFixed(1).replace('.', ',')} h</b> de grabación <br>y <b>≈ ${Math.floor(actas)} actas</b></div>
   </button>`;
 }
 function renderLibrary(app) {
@@ -899,7 +899,7 @@ function renderLibrary(app) {
     </div>
     <div class="hh-stats">
       <div class="hstat">${ringSVG(Math.min(1, thisMonth.length / 20), '#FF7A45')}<div><b>${thisMonth.length}</b><span>Reuniones este mes</span></div></div>
-      <div class="hstat">${ringSVG(Math.min(1, hours / 20), '#5AD8FF')}<div><b>${hours >= 10 ? Math.round(hours) : hours.toFixed(1)}<small style="font-size:14px;color:var(--muted)"> h</small></b><span>Conversación analizada</span></div></div>
+      <div class="hstat">${ringSVG(Math.min(1, hours / 20), '#5AD8FF')}<div><b>${hours >= 10 ? Math.round(hours) : hours.toFixed(1).replace('.', ',')}<small style="font-size:14px;color:var(--muted)"> h</small></b><span>Conversación analizada</span></div></div>
       <div class="hstat">${ringSVG(allActs.length ? doneN / allActs.length : 0, '#33E3B4')}<div><b>${pending}</b><span>Tareas pendientes</span></div></div>
       <div class="hstat">${ringSVG(Math.min(1, decisions / 30), '#A47BFF')}<div><b>${decisions}</b><span>Decisiones registradas</span></div></div>
     </div>
@@ -1296,7 +1296,7 @@ function renderMeeting(app, m) {
     <div class="m-meta">
       <span>${icon('cal')}${esc(fmtDate(m.date))}</span>
       ${m.durationSec ? `<span class="mono">${icon('time')}${esc(fmtT(m.durationSec))}${m.estimatedTimes ? ' aprox.' : ''}</span>` : ''}
-      ${people.length ? `<span class="m-people">${icon('users')}${people.map(n => isMe(n) || isNobody(n) ? esc(n) : `<button class="tlink pl" data-per="${esc(personKey(n))}">${esc(n)}</button>`).join(', ')}</span>` : ''}
+      ${people.length ? `<span class="m-people">${icon('users')}${people.map((n, i) => `<b class="pw">${isMe(n) || isNobody(n) ? esc(n) : `<button class="tlink pl" data-per="${esc(personKey(n))}">${esc(n)}</button>`}${i < people.length - 1 ? ',' : ''}</b>`).join('')}</span>` : ''}
       <span class="chip">${esc(tplName(m))}</span>
       ${m.seal ? `<button class="chip seal" id="m-seal-chip">${icon('lock', 2)}Acta ${folioTxt(m.seal.folio)}</button>` : ''}
       <span id="proj-slot">${m.project ? `<button class="chip proj" id="m-proj-open" data-proj="${esc(m.project)}">${icon('folder', 2)}${esc(m.project)}</button><button class="chip ghosty" id="m-proj" aria-label="Cambiar proyecto">${icon('edit', 2)}</button>` : `<button class="chip ghosty" id="m-proj">${icon('folder', 2)}Asignar proyecto</button>`}</span>
@@ -1399,12 +1399,13 @@ function renderProcessing(app, m) {
 
 async function renderTab(m) {
   const body = $('#tab-body'); const a = m.analysis || {};
+  { const nav = $('.tabs'), sel = nav && $('.tabs [aria-selected="true"]'); if (nav && sel) nav.scrollLeft = Math.max(0, sel.offsetLeft - (nav.clientWidth - sel.offsetWidth) / 2); }
   const segs = await getSegments(m.id); S._segCache = S._segCache || {}; S._segCache[m.id] = segs; m._labels = speakerLabels(segs);
   if (!$('#tab-body')) return;
   const tab = S.route.tab || 'resumen';
   if (tab === 'resumen') return renderSummary(body, m, a, segs);
   if (tab === 'informe') return renderReport(body, m, a, segs);
-  if (tab === 'mapa') { body.innerHTML = `<div class="mm-wrap">${mindmapSVG(a.mindmap)}</div>${a.mindmap?.branches?.length ? `<div class="mm-tools"><button class="btn primary sm" id="mm-pdf">${icon('doc', 2)}Descargar mapa en PDF</button></div>` : ''}<p class="mm-note">En el celular, desliza hacia el lado para recorrer el mapa.</p>`; const b = $('#mm-pdf'); if (b) b.onclick = () => exportMindmap(m); return; }
+  if (tab === 'mapa') { requestAnimationFrame(() => { const w = $('.mm-wrap'); if (w && w.scrollWidth > w.clientWidth) w.scrollLeft = (w.scrollWidth - w.clientWidth) / 2; }); body.innerHTML = `<div class="mm-wrap">${mindmapSVG(a.mindmap)}</div>${a.mindmap?.branches?.length ? `<div class="mm-tools"><button class="btn primary sm" id="mm-pdf">${icon('doc', 2)}Descargar mapa en PDF</button></div>` : ''}<p class="mm-note">En el celular, desliza hacia el lado para recorrer el mapa.</p>`; const b = $('#mm-pdf'); if (b) b.onclick = () => exportMindmap(m); return; }
   if (tab === 'brief') {
     body.innerHTML = `<div class="tools-row"><button class="btn sm" id="b-copy">${icon('copy')}Copiar brief</button><button class="btn sm" id="b-dl">${icon('download')}Descargar .md</button><button class="btn sm" id="b-share">${icon('share')}Compartir</button></div><article class="brief">${md(a.brief || '_Sin brief para esta reunión._')}</article>`;
     $('#b-copy').onclick = () => copyText(a.brief || '', 'Brief copiado');
@@ -1473,7 +1474,7 @@ function renderSummary(body, m, a, segs) {
 }
 function taskHTML(t, ref, extra = '') {
   const [mid] = ref.split('|'); const m = meetingById(mid); const d = m ? taskDate(t, m) : '';
-  return `<div class="task ${t.done ? 'done' : ''}"><input type="checkbox" data-task="${esc(ref)}" ${t.done ? 'checked' : ''} aria-label="Marcar como hecha"><div><div class="tx">${esc(t.task)}</div><div class="sub"><span>${icon('users')} ${esc(t.owner)}</span>${t.due || d ? `<span>${icon('cal')} ${esc(t.due || '')}${d ? ` <em class="mono">${esc(shortDate(d))}</em>` : ''}</span>` : ''}${t.closedBy ? `<span class="closed">${icon('check', 2.4)} cerrada en otra reunión</span>` : ''}${extra}</div></div><div class="task-side"><span class="prio ${t.priority}">${t.priority}</span>${t.done ? '' : `<button class="calbtn" data-cal="${esc(ref)}" aria-label="Agregar al calendario">${icon('cal', 2)}</button>`}</div></div>`;
+  return `<div class="task ${t.done ? 'done' : ''}"><input type="checkbox" data-task="${esc(ref)}" ${t.done ? 'checked' : ''} aria-label="Marcar como hecha"><div><div class="tx">${esc(t.task)}</div><div class="sub"><span>${icon('users')} ${esc(t.owner)}</span>${t.due || d ? `<span>${icon('cal')} ${d && dueRedundant(t.due) ? '' : esc(t.due || '')}${d ? ` <em class="mono">${esc(shortDate(d))}</em>` : ''}</span>` : ''}${t.closedBy ? `<span class="closed">${icon('check', 2.4)} cerrada en otra reunión</span>` : ''}${extra}</div></div><div class="task-side"><span class="prio ${t.priority}">${t.priority}</span>${t.done ? '' : `<button class="calbtn" data-cal="${esc(ref)}" aria-label="Agregar al calendario">${icon('cal', 2)}</button>`}</div></div>`;
 }
 function bindTasks(root) {
   $$('[data-cal]', root).forEach(b => b.onclick = e => { e.preventDefault(); const [id, i] = b.dataset.cal.split('|'); const m = meetingById(id); const t = m?.analysis?.actions?.[+i]; if (t) calendarSheet(m, t); });
@@ -1512,13 +1513,20 @@ function mindmapSVG(mm, k = 1) {  /* k > 1: letras más grandes para imprimir */
     b.children.forEach((c, j) => {
       const a2 = ang + (k === 1 ? 0 : (-spread / 2 + spread * j / (k - 1)));
       const lx = cx + Math.cos(a2) * R2 * 1.32, ly = cy + Math.sin(a2) * R2 * .84;
-      out += `<path d="M${bx} ${by} Q ${(bx + lx) / 2} ${by}, ${lx} ${ly}" fill="none" stroke="${col}" stroke-width="1.5" opacity=".45"/>`;
-      nodes.push({ x: lx, y: ly, text: c, col, leaf: true, right: Math.cos(a2) >= -0.05 });
+      nodes.push({ x: lx, y: ly, text: c, col, leaf: true, right: Math.cos(a2) >= -0.05, bx, by });
     });
     nodes.push({ x: bx, y: by, text: b.label, col, leaf: false });
   });
   const txt = (lines, x, y, size, weight, fill, fam = 'IBM Plex Sans, system-ui, sans-serif') => `<text x="${x}" y="${y - (lines.length - 1) * size * .6}" text-anchor="middle" font-family="${fam}" font-size="${size}" font-weight="${weight}" fill="${fill}">${lines.map((l, i) => `<tspan x="${x}" dy="${i ? size * 1.2 : 0}">${esc(l)}</tspan>`).join('')}</text>`;
-  nodes.filter(x => x.leaf).forEach(nd => { const lines = wrapLabel(nd.text, 20); const tw = Math.max(...lines.map(l => l.length)) * 7.4 * k + 20; const th = lines.length * 16 * k + 12; let x0 = nd.right ? nd.x : nd.x - tw; x0 = Math.max(6, Math.min(W - tw - 6, x0)); out += `<rect x="${x0}" y="${nd.y - th / 2}" width="${tw}" height="${th}" rx="8" fill="var(--surface)" stroke="${nd.col}" stroke-opacity=".55"/>` + txt(lines, x0 + tw / 2, nd.y + 4.5 * k, 13 * k, k > 1 ? 500 : 400, 'var(--ink)'); });
+  /* Recuadros de las hojas: se calculan primero y se separan si se montan entre sí */
+  const leaves = nodes.filter(x => x.leaf); leaves.forEach(nd => { nd.lines = wrapLabel(nd.text, 20); nd.tw = Math.max(...nd.lines.map(l => l.length)) * 7.4 * k + 20; nd.th = nd.lines.length * 16 * k + 12; nd.x0 = Math.max(6, Math.min(W - nd.tw - 6, nd.right ? nd.x : nd.x - nd.tw)); });
+  for (let it = 0; it < 80; it++) { let moved = false;
+    for (let a1 = 0; a1 < leaves.length; a1++) for (let b1 = a1 + 1; b1 < leaves.length; b1++) { const p = leaves[a1], q = leaves[b1];
+      const ox = Math.min(p.x0 + p.tw, q.x0 + q.tw) - Math.max(p.x0, q.x0), oy = Math.min(p.y + p.th / 2, q.y + q.th / 2) - Math.max(p.y - p.th / 2, q.y - q.th / 2);
+      if (ox > -6 && oy > -6) { const d = (oy + 6) / 2 + .5, up = p.y <= q.y ? p : q, dn = up === p ? q : p; up.y -= d; dn.y += d; moved = true; } }
+    leaves.forEach(nd => { nd.y = Math.max(nd.th / 2 + 6, Math.min(H - nd.th / 2 - 6, nd.y)); }); if (!moved) break; }
+  leaves.forEach(nd => { const lx = nd.right ? nd.x0 : nd.x0 + nd.tw; out += `<path d="M${nd.bx} ${nd.by} Q ${(nd.bx + lx) / 2} ${nd.by}, ${lx} ${nd.y}" fill="none" stroke="${nd.col}" stroke-width="1.5" opacity=".45"/>`; });
+  leaves.forEach(nd => { const lines = nd.lines, tw = nd.tw, th = nd.th, x0 = nd.x0; out += `<rect x="${x0}" y="${nd.y - th / 2}" width="${tw}" height="${th}" rx="8" fill="var(--surface)" stroke="${nd.col}" stroke-opacity=".55"/>` + txt(lines, x0 + tw / 2, nd.y + 4.5 * k, 13 * k, k > 1 ? 500 : 400, 'var(--ink)'); });
   nodes.filter(x => !x.leaf).forEach(nd => { const lines = wrapLabel(nd.text, 16); const tw = Math.max(...lines.map(l => l.length)) * 8.6 * k + 28; const th = lines.length * 18 * k + 16; out += `<rect x="${nd.x - tw / 2}" y="${nd.y - th / 2}" width="${tw}" height="${th}" rx="10" fill="${nd.col}"/>` + txt(lines, nd.x, nd.y + 5 * k, 14.5 * k, 600, k > 1 ? '#10121A' : 'var(--bg)'); });
   const cl = wrapLabel(mm.center, 16); const cw = Math.max(...cl.map(l => l.length)) * 11 * k + 44, ch = cl.length * 24 * k + 26;
   out += `<rect x="${cx - cw / 2}" y="${cy - ch / 2}" width="${cw}" height="${ch}" rx="14" fill="var(--ink)"/>` + txt(cl, cx, cy + 7 * k, 20 * k, 700, 'var(--bg)', 'Bricolage Grotesque, system-ui, sans-serif');
@@ -1628,7 +1636,7 @@ function studyTabHTML(m, a) {
   return `<div class="study">
     <div class="study-hero"><div><div class="eyebrow">Modo clase</div><h2>${esc(a.title)}</h2><p class="muted">${cards.length} tarjetas · ${(st.quiz || []).length} preguntas de práctica${best != null ? ` · tu mejor puntaje ${best}%` : ''}</p></div>
       <div class="study-cta"><button class="btn primary" id="st-rep" ${cards.length ? '' : 'disabled'}>${icon('refresh', 2)}Repasar tarjetas${due ? ` · ${due}` : ''}</button><button class="btn" id="st-quiz" ${(st.quiz || []).length ? '' : 'disabled'}>${icon('check', 2.2)}Prueba de práctica</button><button class="btn" id="st-say">${icon('play', 2)}Escuchar apuntes</button></div></div>
-    ${(st.exam || []).length ? `<div class="sec"><div class="sec-h"><h2>${icon('flag', 2, 18)} Entra en la prueba</h2><span class="count">Lo que el profesor recalcó</span></div><div class="box exam">${st.exam.map(x => `<div class="li"><span class="mk" style="background:var(--risk)"></span><div>${esc(x.text)}${x.t != null ? ` <button class="tlink" data-jump="${x.t}">${fmtT(x.t)}</button>` : ''}</div></div>`).join('')}</div></div>` : ''}
+    ${(st.exam || []).length ? `<div class="sec"><div class="sec-h"><h2>${icon('flag', 2, 18)} Entra en la prueba</h2><span class="count">Lo que se recalcó en clase</span></div><div class="box exam">${st.exam.map(x => `<div class="li"><span class="mk" style="background:var(--risk)"></span><div>${esc(x.text)}${x.t != null ? ` <button class="tlink" data-jump="${x.t}">${fmtT(x.t)}</button>` : ''}</div></div>`).join('')}</div></div>` : ''}
     ${st.notes ? `<div class="sec"><div class="sec-h"><h2>Apuntes</h2><span class="count"><button class="btn sm ghost" id="st-copy">${icon('copy')}Copiar</button></span></div><article class="brief notes">${md(st.notes)}</article></div>` : ''}
     ${(st.glossary || []).length ? `<div class="sec"><div class="sec-h"><h2>Glosario</h2><span class="count">${st.glossary.length} conceptos</span></div><div class="gloss">${st.glossary.map(g => `<div class="gl"><b>${esc(g.term)}</b><span>${esc(g.def)}</span></div>`).join('')}</div></div>` : ''}
   </div>`;
@@ -1777,6 +1785,8 @@ function parseDue(text, base) {
   for (let i = 0; i < 7; i++) if (new RegExp('\\b' + DOW[i] + '\\b').test(s)) { let diff = (i - b.getDay() + 7) % 7 || 7; if (/proximo|siguiente|que viene/.test(s) && diff < 7 && /semana/.test(s)) diff += 7; return add(diff); }
   return '';
 }
+/* Si el plazo dicho ya es solo un día o una fecha, basta con mostrar la fecha calculada */
+const dueRedundant = due => !due || /^(el\s+)?(hoy|mañana|pasado mañana|lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo)(\s+\d{1,2})?(\s+de\s+\w+)?$/i.test(String(due).trim()) || /^\d{1,2}(\s+de)?\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)$/i.test(String(due).trim());
 const taskDate = (t, m) => t.dueDate || parseDue(t.due, m.date);
 
 function continuityHTML(m, a) {
@@ -2072,7 +2082,7 @@ function weekData(off = 0) {
 function weekLabel(r) { const f = d => d.toLocaleDateString('es-CL', { day: 'numeric', month: 'short' }); return `${f(r.s)} – ${f(r.e)}`; }
 function weekCardHTML() {
   const w = weekData(0); const pend = w.acts.filter(x => !x.t.done).length;
-  return `<button class="weekcard rise" data-nav="week"><span class="wk-ic">${icon('week', 2)}</span><span class="wk-tx"><b>Tu semana</b><span>${w.ms.length} ${w.ms.length === 1 ? 'reunión' : 'reuniones'} · ${w.decisions.length} decisiones · ${pend} tareas abiertas${w.due.length ? ` · <em>${w.due.length} con plazo vencido o esta semana</em>` : ''}</span></span><span class="wk-go">Ver resumen ${icon('back', 2)}</span></button>`;
+  return `<button class="weekcard rise" data-nav="week"><span class="wk-ic">${icon('week', 2)}</span><span class="wk-tx"><b>Tu semana</b><span>${w.ms.length} ${w.ms.length === 1 ? 'reunión' : 'reuniones'} · ${w.decisions.length} ${w.decisions.length === 1 ? 'decisión' : 'decisiones'} · ${pend} ${pend === 1 ? 'tarea abierta' : 'tareas abiertas'}${w.due.length ? ` · <em>${w.due.length} con plazo vencido o esta semana</em>` : ''}</span></span><span class="wk-go">Ver resumen ${icon('back', 2)}</span></button>`;
 }
 function weekText(w) {
   const L = [`Resumen de mi semana (${weekLabel(w.r)})`, `${w.ms.length} reuniones · ${(w.secs / 3600).toFixed(1).replace('.', ',')} h · ${w.decisions.length} decisiones · ${w.acts.length} tareas nuevas (${w.acts.filter(x => x.t.done).length} hechas)`, ''];
@@ -2092,7 +2102,7 @@ function renderWeek(app) {
     <div class="wb-head"><div><div class="eyebrow">Acta · resumen semanal</div><h2>${esc(weekLabel(w.r))}</h2></div><span class="brand-mark sm"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2"/></svg></span></div>
     <div class="stats s4">
       <div class="stat"><span class="si" style="background:var(--accent-soft);color:var(--ember)">${icon('mic', 2)}</span><b>${w.ms.length}</b><span>Reuniones</span></div>
-      <div class="stat"><span class="si" style="background:var(--q-soft);color:var(--q)">${icon('time', 2)}</span><b>${(w.secs / 3600).toFixed(1).replace('.', ',')}<small style="font-size:15px;color:var(--muted)"> h</small></b><span>Conversadas</span></div>
+      <div class="stat"><span class="si" style="background:var(--q-soft);color:var(--q)">${icon('time', 2)}</span><b>${w.secs < 3600 ? Math.round(w.secs / 60) : (w.secs / 3600).toFixed(1).replace('.', ',')}<small style="font-size:15px;color:var(--muted)"> ${w.secs < 3600 ? 'min' : 'h'}</small></b><span>Conversadas</span></div>
       <div class="stat"><span class="si" style="background:var(--dec-soft);color:var(--dec)">${icon('flag', 2)}</span><b>${w.decisions.length}</b><span>Decisiones</span></div>
       <div class="stat"><span class="si" style="background:var(--act-soft);color:var(--act)">${icon('check', 2.4)}</span><b>${done}<span style="font-size:17px;color:var(--muted)">/${w.acts.length}</span></b><span>Tareas hechas</span></div>
     </div>
@@ -2163,7 +2173,7 @@ function renderProject(app, name) {
   </header></section>
   <div class="stats s4">
     <div class="stat"><span class="si" style="background:var(--accent-soft);color:var(--ember)">${icon('mic', 2)}</span><b>${st.ms.length}</b><span>Reuniones</span></div>
-    <div class="stat"><span class="si" style="background:var(--q-soft);color:var(--q)">${icon('time', 2)}</span><b>${(st.secs / 3600).toFixed(1).replace('.', ',')}<small style="font-size:15px;color:var(--muted)"> h</small></b><span>Conversadas</span></div>
+    <div class="stat"><span class="si" style="background:var(--q-soft);color:var(--q)">${icon('time', 2)}</span><b>${st.secs < 3600 ? Math.round(st.secs / 60) : (st.secs / 3600).toFixed(1).replace('.', ',')}<small style="font-size:15px;color:var(--muted)"> ${st.secs < 3600 ? 'min' : 'h'}</small></b><span>Conversadas</span></div>
     <div class="stat"><span class="si" style="background:var(--dec-soft);color:var(--dec)">${icon('flag', 2)}</span><b>${st.decisions.length}</b><span>Decisiones</span></div>
     <div class="stat"><span class="si" style="background:var(--act-soft);color:var(--act)">${icon('check', 2.4)}</span><b>${doneN}<span style="font-size:17px;color:var(--muted)">/${st.acts.length}</span></b><span>Tareas hechas</span></div>
   </div>
@@ -2209,14 +2219,14 @@ async function meetingDocx(m) {
   const a = m.analysis || {}; const segs = await getSegments(m.id);
   const x = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
   const run = (t, o = {}) => `<w:r><w:rPr>${o.b ? '<w:b/>' : ''}${o.i ? '<w:i/>' : ''}${o.c ? `<w:color w:val="${o.c}"/>` : ''}${o.sz ? `<w:sz w:val="${o.sz}"/>` : ''}</w:rPr><w:t xml:space="preserve">${x(t)}</w:t></w:r>`;
-  const rich = t => String(t).split(/(\*\*[^*]+\*\*)/).map(s => /^\*\*.+\*\*$/.test(s) ? run(s.slice(2, -2), { b: true }) : run(s)).join('');
+  const rich = t => String(t).replace(/^\s*>\s?/, '').replace(/\^\(([^)]{1,14})\)/g, '^$1').split(/(\*\*[^*]+\*\*|(?<![*\w])\*(?![\s*])[^*\n]+?\*(?![*\w]))/).map(s => /^\*\*.+\*\*$/.test(s) ? run(s.slice(2, -2), { b: true }) : /^\*[^*].*\*$/.test(s) ? run(s.slice(1, -1), { i: true }) : run(s)).join('');
   const P = (content, style, extra = '') => `<w:p><w:pPr>${style ? `<w:pStyle w:val="${style}"/>` : ''}${extra}</w:pPr>${content}</w:p>`;
   const para = (t, style) => P(rich(t), style);
   const bullet = (t, sub) => P(run('•  ', { c: 'E2553A' }) + rich(t) + (sub ? run('  — ' + sub, { c: '6B7280' }) : ''), 'Lista');
   const H1 = t => para(t, 'Heading1'), H2 = t => para(t, 'Heading2');
   const cell = (t, o = {}) => `<w:tc><w:tcPr>${o.w ? `<w:tcW w:w="${o.w}" w:type="dxa"/>` : ''}${o.fill ? `<w:shd w:val="clear" w:color="auto" w:fill="${o.fill}"/>` : ''}</w:tcPr><w:p><w:pPr><w:spacing w:before="40" w:after="40"/></w:pPr>${run(t, { b: o.b, c: o.c, sz: 20 })}</w:p></w:tc>`;
   const table = (head, rows, widths) => `<w:tbl><w:tblPr><w:tblStyle w:val="Tabla"/><w:tblW w:w="5000" w:type="pct"/><w:tblBorders><w:top w:val="single" w:sz="4" w:color="D9DCE3"/><w:bottom w:val="single" w:sz="4" w:color="D9DCE3"/><w:insideH w:val="single" w:sz="4" w:color="E6E8EE"/></w:tblBorders><w:tblCellMar><w:left w:w="100" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>${widths.map(w => `<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>
-    <w:tr><w:trPr><w:tblHeader/></w:trPr>${head.map((h, i) => cell(h, { b: true, fill: 'F3F4F7', w: widths[i] })).join('')}</w:tr>${rows.map(r => `<w:tr>${r.map((c, i) => cell(c, { w: widths[i] })).join('')}</w:tr>`).join('')}</w:tbl>${P('', '')}`;
+    <w:tr><w:trPr><w:tblHeader/></w:trPr>${head.map((h, i) => cell(h, { b: true, fill: 'F3F4F7', w: widths[i] })).join('')}</w:tr>${rows.map(r => `<w:tr><w:trPr><w:cantSplit/></w:trPr>${r.map((c, i) => cell(c, { w: widths[i] })).join('')}</w:tr>`).join('')}</w:tbl>${P('', '')}`;
   const people = (a.participants?.length ? a.participants : m.participants) || [];
   const B = [];
   if (Settings.v.brandName || m.seal) B.push(P(run([Settings.v.brandName, m.seal ? 'ACTA ' + folioTxt(m.seal.folio) : ''].filter(Boolean).join('   ·   '), { b: true, c: (Settings.v.brandColor || '#FF6A3D').replace('#', '').toUpperCase(), sz: 18 }), ''));
@@ -2229,11 +2239,11 @@ async function meetingDocx(m) {
   if (a.decisions?.length) { B.push(H1('Decisiones')); a.decisions.forEach(d => B.push(bullet(d.text, d.why))); }
   if (a.actions?.length) { B.push(H1('Tareas')); B.push(table(['Tarea', 'Responsable', 'Plazo', 'Prioridad', 'Estado'], a.actions.map(t => [t.task, t.owner, t.due || (taskDate(t, m) ? shortDate(taskDate(t, m)) : '—'), t.priority, t.done ? 'Hecha' : 'Pendiente']), [3900, 1700, 1400, 1000, 1000])); }
   if (a.topics?.length) { B.push(H1('Temas tratados')); a.topics.forEach(t => B.push(bullet(`**${t.name}** (${fmtT(t.start)})`, t.summary))); }
-  if (a.ideas?.length) { B.push(H2('Ideas')); a.ideas.forEach(d => B.push(bullet(d.text, d.note))); }
-  if (a.risks?.length) { B.push(H2('Riesgos')); a.risks.forEach(d => B.push(bullet(d.text, 'severidad ' + d.severity))); }
-  if (a.questions?.length) { B.push(H2('Preguntas abiertas')); a.questions.forEach(d => B.push(bullet(d.text))); }
-  if (a.numbers?.length) { B.push(H2('Cifras mencionadas')); a.numbers.forEach(n => B.push(bullet(`**${n.value}** ${n.label}`))); }
-  if (a.quotes?.length) { B.push(H2('Frases para recordar')); a.quotes.forEach(q => B.push(P(run('“' + q.text + '”', { i: true }) + run('  — ' + q.who, { c: '6B7280' }), 'Lista'))); }
+  if (a.ideas?.length) { B.push(H1('Ideas')); a.ideas.forEach(d => B.push(bullet(d.text, d.note))); }
+  if (a.risks?.length) { B.push(H1('Riesgos')); a.risks.forEach(d => B.push(bullet(d.text, 'severidad ' + d.severity))); }
+  if (a.questions?.length) { B.push(H1('Preguntas abiertas')); a.questions.forEach(d => B.push(bullet(d.text))); }
+  if (a.numbers?.length) { B.push(H1('Cifras mencionadas')); a.numbers.forEach(n => B.push(bullet(`**${n.value}** ${n.label}`))); }
+  if (a.quotes?.length) { B.push(H1('Frases para recordar')); a.quotes.forEach(q => B.push(P(run('“' + q.text + '”', { i: true }) + run('  — ' + q.who, { c: '6B7280' }), 'Lista'))); }
   if (a.nextSteps?.length) { B.push(H1('Próximos pasos')); a.nextSteps.forEach((s2, i) => B.push(P(run(`${i + 1}.  `, { b: true, c: 'E2553A' }) + rich(s2), 'Lista'))); }
   if (a.extended) {
     const x = a.extended; B.push(P('', '', '<w:pageBreakBefore/>'), para('Informe extendido', 'Title'));
@@ -2254,11 +2264,11 @@ async function meetingDocx(m) {
     if (st.notes) { B.push(H1('Apuntes')); st.notes.split('\n').forEach(l => { const h = l.match(/^(#{1,3})\s+(.*)$/); const li = l.match(/^\s*[-*]\s+(.*)$/); if (h) B.push(para(h[2], 'Heading2')); else if (li) B.push(bullet(li[1])); else if (l.trim()) B.push(para(l)); }); }
     if (st.glossary?.length) { B.push(H1('Glosario')); B.push(table(['Concepto', 'Definición'], st.glossary.map(g => [g.term, g.def]), [2800, 6200])); }
     if (st.flashcards?.length) { B.push(H1('Tarjetas de repaso')); B.push(table(['Pregunta', 'Respuesta'], st.flashcards.map(c => [c.q, c.a]), [4500, 4500])); }
-    if (st.quiz?.length) { B.push(H1('Prueba de práctica')); st.quiz.forEach((q, i) => { B.push(para(`**${i + 1}. ${q.q}**`)); q.options.forEach((o, k) => B.push(P(run(`${'ABCD'[k]})  ${o}`), 'Lista'))); }); B.push(H2('Respuestas')); st.quiz.forEach((q, i) => B.push(bullet(`${i + 1}: ${'ABCD'[q.answer]}${q.why ? ' — ' + q.why : ''}`))); }
+    if (st.quiz?.length) { B.push(H1('Prueba de práctica')); st.quiz.forEach((q, i) => { B.push(P(rich(`**${i + 1}. ${q.q}**`), '', '<w:keepNext/>')); q.options.forEach((o, k) => B.push(P(run(`${'ABCD'[k]})  ${o}`), 'Lista', k < q.options.length - 1 ? '<w:keepNext/>' : ''))); }); B.push(H2('Respuestas')); st.quiz.forEach((q, i) => B.push(bullet(`${i + 1}: ${'ABCD'[q.answer]}${q.why ? ' — ' + q.why : ''}`))); }
   }
-  const f = a.followUp; if (f?.emailBody) { B.push(H1('Mensaje de seguimiento')); B.push(para('Asunto: ' + f.emailSubject)); f.emailBody.split('\n').forEach(l => B.push(para(l))); }
+  const f = a.followUp; if (f?.emailBody) { B.push(H1('Mensaje de seguimiento')); B.push(para('Asunto: ' + f.emailSubject)); f.emailBody.split('\n').forEach(l => { const li = l.match(/^\s*[-*•]\s+(.*)$/); if (li) B.push(bullet(li[1])); else if (l.trim()) B.push(para(l)); }); }
   if (a.brief) { B.push(P('', '', '<w:pageBreakBefore/>')); a.brief.split('\n').forEach(l => { const h = l.match(/^(#{1,3})\s+(.*)$/); const li = l.match(/^\s*[-*]\s+(.*)$/); if (h) B.push(para(h[2], h[1].length === 1 ? 'Heading1' : 'Heading2')); else if (li) B.push(bullet(li[1])); else if (l.trim()) B.push(para(l)); }); }
-  if (segs.length) { B.push(P('', '', '<w:pageBreakBefore/>'), H1('Transcripción')); segs.forEach(sg => B.push(P(run(fmtT(sg.t) + '   ', { c: '9AA0AE', sz: 18 }) + (sg.s ? run(spkName(m, sg.s) + ': ', { b: true }) : '') + run(sg.text), 'Transcripcion'))); }
+  if (segs.length) { B.push(P('', '', '<w:pageBreakBefore/>'), H1('Transcripción')); segs.forEach(sg => B.push(P(run(fmtT(sg.t), { c: '9AA0AE', sz: 18 }) + '<w:r><w:tab/></w:r>' + (sg.s ? run(spkName(m, sg.s) + ': ', { b: true }) : '') + run(sg.text), 'Transcripcion'))); }
   if (m.seal) {
     B.push(H1('Firmas'));
     const sn = [...new Set(people.filter(Boolean))].slice(0, 8);
@@ -2266,8 +2276,8 @@ async function meetingDocx(m) {
     B.push(P(run(`Acta ${folioTxt(m.seal.folio)} · sello de integridad ${sealCode(m.seal.hash)} · sellada el ${new Date(m.seal.at).toLocaleString('es-CL')}`, { b: true, sz: 18 }), ''));
     B.push(P(run('SHA-256: ' + m.seal.hash, { c: '6B7280', sz: 16 }), ''));
   }
-  B.push(P(run((Settings.v.brandName ? Settings.v.brandName + ' · ' : '') + 'Acta creada con Acta · ' + fmtDate(today()), { c: '9AA0AE', sz: 16 }), ''));
-  const doc = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>${B.join('')}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="567" w:footer="567" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+  B.push(P(run((Settings.v.brandName ? Settings.v.brandName + ' · ' : '') + 'Documento generado con Acta · reunión del ' + fmtDate(m.date), { c: '9AA0AE', sz: 16 }), ''));
+  const doc = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>${B.join('')}<w:sectPr><w:footerReference w:type="default" r:id="rId2"/><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="567" w:footer="567" w:gutter="0"/></w:sectPr></w:body></w:document>`;
   const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
 <w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:eastAsia="Calibri" w:cs="Calibri"/><w:sz w:val="22"/><w:szCs w:val="22"/><w:lang w:val="es-CL"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="120" w:line="288" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults>
 <w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:rPr><w:color w:val="1F2430"/></w:rPr></w:style>
@@ -2275,15 +2285,16 @@ async function meetingDocx(m) {
 <w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:pPr><w:keepNext/><w:spacing w:before="320" w:after="100"/><w:pBdr><w:bottom w:val="single" w:sz="6" w:space="2" w:color="FF7A45"/></w:pBdr><w:outlineLvl w:val="0"/></w:pPr><w:rPr><w:b/><w:sz w:val="30"/><w:color w:val="12141B"/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:pPr><w:keepNext/><w:spacing w:before="220" w:after="80"/><w:outlineLvl w:val="1"/></w:pPr><w:rPr><w:b/><w:sz w:val="25"/><w:color w:val="7C5CFF"/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="Lista"><w:name w:val="Lista Acta"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="60"/><w:ind w:left="360" w:hanging="260"/></w:pPr></w:style>
-<w:style w:type="paragraph" w:styleId="Transcripcion"><w:name w:val="Transcripción"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="60"/></w:pPr><w:rPr><w:sz w:val="20"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Transcripcion"><w:name w:val="Transcripción"/><w:basedOn w:val="Normal"/><w:pPr><w:spacing w:after="60"/><w:tabs><w:tab w:val="left" w:pos="900"/></w:tabs><w:ind w:left="900" w:hanging="900"/></w:pPr><w:rPr><w:sz w:val="20"/></w:rPr></w:style>
 <w:style w:type="table" w:styleId="Tabla"><w:name w:val="Tabla Acta"/><w:tblPr><w:tblCellMar><w:top w:w="40" w:type="dxa"/><w:bottom w:w="40" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style>
 </w:styles>`;
   const files = [
-    ['[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>'],
+    ['[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>'],
     ['_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/></Relationships>'],
     ['docProps/core.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${x(a.title || 'Acta')}</dc:title><dc:creator>Acta</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${new Date().toISOString().replace(/\.\d+/, '')}</dcterms:created></cp:coreProperties>`],
-    ['word/_rels/document.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'],
-    ['word/document.xml', doc], ['word/styles.xml', styles]
+    ['word/_rels/document.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/></Relationships>'],
+    ['word/document.xml', doc], ['word/styles.xml', styles],
+    ['word/footer1.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:p><w:pPr><w:pBdr><w:top w:val="single" w:sz="4" w:space="4" w:color="E1E3EA"/></w:pBdr><w:tabs><w:tab w:val="right" w:pos="9972"/></w:tabs><w:spacing w:after="0"/></w:pPr><w:r><w:rPr><w:color w:val="8A90A0"/><w:sz w:val="16"/></w:rPr><w:t xml:space="preserve">${x((a.title || 'Acta').slice(0, 90))}</w:t></w:r><w:r><w:rPr><w:color w:val="8A90A0"/><w:sz w:val="16"/></w:rPr><w:tab/><w:t xml:space="preserve">Página </w:t></w:r><w:r><w:rPr><w:color w:val="8A90A0"/><w:sz w:val="16"/></w:rPr><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:rPr><w:color w:val="8A90A0"/><w:sz w:val="16"/></w:rPr><w:instrText xml:space="preserve"> PAGE </w:instrText></w:r><w:r><w:rPr><w:color w:val="8A90A0"/><w:sz w:val="16"/></w:rPr><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:rPr><w:color w:val="8A90A0"/><w:sz w:val="16"/></w:rPr><w:t>1</w:t></w:r><w:r><w:rPr><w:color w:val="8A90A0"/><w:sz w:val="16"/></w:rPr><w:fldChar w:fldCharType="end"/></w:r><w:r><w:rPr><w:color w:val="8A90A0"/><w:sz w:val="16"/></w:rPr><w:t xml:space="preserve"> de </w:t></w:r><w:r><w:rPr><w:color w:val="8A90A0"/><w:sz w:val="16"/></w:rPr><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:rPr><w:color w:val="8A90A0"/><w:sz w:val="16"/></w:rPr><w:instrText xml:space="preserve"> NUMPAGES </w:instrText></w:r><w:r><w:rPr><w:color w:val="8A90A0"/><w:sz w:val="16"/></w:rPr><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:rPr><w:color w:val="8A90A0"/><w:sz w:val="16"/></w:rPr><w:t>1</w:t></w:r><w:r><w:rPr><w:color w:val="8A90A0"/><w:sz w:val="16"/></w:rPr><w:fldChar w:fldCharType="end"/></w:r></w:p></w:ftr>`]
   ];
   return new File([zipStore(files)], slug(a.title) + '.docx', { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
 }
@@ -2453,8 +2464,8 @@ function renderTasks(app) {
   <div class="page-head"><div><div class="eyebrow">Memoria de compromisos</div><h1>${tab === 'owed' ? 'Te deben' : 'Debes'}</h1><p>${tab === 'owed' ? 'Todo lo que otras personas prometieron en tus reuniones, con la frase exacta en que lo dijeron.' : 'Lo que tú prometiste. Que no se te pase nada.'}</p></div></div>
   ${myNameAsk()}
   <div class="cm-tabs">
-    <button data-cmt="owed" aria-pressed="${tab === 'owed'}"><b>${owed.length}</b><span>Te deben</span>${lateOwed ? `<em>${lateOwed} vencidas</em>` : ''}</button>
-    <button data-cmt="mine" aria-pressed="${tab === 'mine'}"><b>${mine.length}</b><span>Debes</span>${lateMine ? `<em>${lateMine} vencidas</em>` : ''}</button>
+    <button data-cmt="owed" aria-pressed="${tab === 'owed'}"><b>${owed.length}</b><span>Te deben</span>${lateOwed ? `<em>${lateOwed} ${lateOwed === 1 ? 'vencida' : 'vencidas'}</em>` : ''}</button>
+    <button data-cmt="mine" aria-pressed="${tab === 'mine'}"><b>${mine.length}</b><span>Debes</span>${lateMine ? `<em>${lateMine} ${lateMine === 1 ? 'vencida' : 'vencidas'}</em>` : ''}</button>
     <button data-cmt="all" aria-pressed="false"><b>${all.length}</b><span>Todas</span></button>
   </div>
   ${tab === 'owed' ? (groups.size ? [...groups.entries()].map(([k, items]) => { const p = pidx.get(k); const name = p?.name || items[0].owner; const late = items.filter(c => c.state === 'late').length; return `<section class="cm-group">
@@ -2497,7 +2508,7 @@ function peopleIndex() {
 function peopleRowHTML() {
   const ps = [...peopleIndex().values()].filter(p => p.meetings.size).sort((a, b) => (b.last?.date || '').localeCompare(a.last?.date || '') || b.meetings.size - a.meetings.size);
   if (!ps.length) return '';
-  return `<div class="sec-title" style="margin-top:22px"><h2>Personas</h2><button class="btn sm ghost" data-nav="people">Ver todas</button></div><div class="pp-row">${ps.slice(0, 14).map(p => `<button class="pp" data-per="${esc(p.key)}"><span class="av lg" style="background:${avColor(p.key)}">${esc(initials(p.name))}</span><b>${esc(p.name.split(' ')[0])}</b><small>${p.open.length ? `${p.open.length} te debe${p.late.length ? ' · <em>' + p.late.length + ' venc.</em>' : ''}` : `${p.meetings.size} reun.`}</small></button>`).join('')}</div>`;
+  return `<div class="sec-title" style="margin-top:22px"><h2>Personas</h2><button class="btn sm ghost" data-nav="people">Ver todas</button></div><div class="pp-row">${ps.slice(0, 14).map(p => `<button class="pp" data-per="${esc(p.key)}"><span class="av lg" style="background:${avColor(p.key)}">${esc(initials(p.name))}</span><b>${esc(p.name.split(' ')[0])}</b><small>${p.open.length ? (p.late.length ? `<em>${p.late.length} ${p.late.length === 1 ? 'vencida' : 'vencidas'}</em>` : `${p.open.length} ${p.open.length === 1 ? 'pendiente' : 'pendientes'}`) : `${p.meetings.size} ${p.meetings.size === 1 ? 'reunión' : 'reuniones'}`}</small></button>`).join('')}</div>`;
 }
 function owedCardHTML() {
   const all = allCommitments(); const owed = all.filter(c => c.key && !c.t.done); const mine = all.filter(c => c.me && !c.t.done);
@@ -2576,7 +2587,7 @@ function renderPrep(app, kind, id) {
   app.innerHTML = `<button class="btn ghost sm back" id="prep-back">${icon('back')}Volver</button>
   <section class="prep rise">
     <div class="prep-head"><div class="eyebrow">Prepárame · ${esc(fmtDate(today()))}</div><h1>Para ${esc(d.title)}</h1>
-      <div class="prep-pills">${d.owed.length ? `<span class="pp-pill hot">${d.owed.length} te deben${lateN ? ` · ${lateN} vencidas` : ''}</span>` : ''}${d.mine.length ? `<span class="pp-pill">${d.mine.length} debes tú</span>` : ''}${d.questions.length ? `<span class="pp-pill">${d.questions.length} preguntas abiertas</span>` : ''}<span class="pp-pill">${d.ms.length} ${d.ms.length === 1 ? 'reunión previa' : 'reuniones previas'}</span></div></div>
+      <div class="prep-pills">${d.owed.length ? `<span class="pp-pill hot">${d.owed.length} te deben${lateN ? ` · ${lateN} ${lateN === 1 ? 'vencida' : 'vencidas'}` : ''}</span>` : ''}${d.mine.length ? `<span class="pp-pill">${d.mine.length} debes tú</span>` : ''}${d.questions.length ? `<span class="pp-pill">${d.questions.length} preguntas abiertas</span>` : ''}<span class="pp-pill">${d.ms.length} ${d.ms.length === 1 ? 'reunión previa' : 'reuniones previas'}</span></div></div>
     <div class="prep-last"><span class="eyebrow">La última vez · ${esc(shortDate(d.last.date))}</span><p>${esc(d.last.analysis.tldr)}</p><button class="tlink" data-open="${esc(d.last.id)}">Abrir el acta</button></div>
     <div class="sec"><div class="sec-h"><h2>${icon('flag', 2, 18)} Pide cuentas de esto</h2><span class="count">${d.owed.length}</span></div>${d.owed.length ? d.owed.map(c => commitCardHTML(c, { showOwner: kind !== 'p' })).join('') : '<div class="empty-li">Nadie te debe nada aquí.</div>'}</div>
     ${d.mine.length ? `<div class="sec"><div class="sec-h"><h2>Llega con esto listo</h2><span class="count">${d.mine.length}</span></div>${d.mine.map(c => commitCardHTML(c, { remind: false })).join('')}</div>` : ''}
@@ -2757,7 +2768,7 @@ async function renderSettings(app) {
       <h2>Almacenamiento y respaldo</h2>
       ${est ? `<div style="margin-top:12px;display:grid;gap:8px"><div class="store-bar"><i style="width:${Math.min(100, est.usage / est.quota * 100).toFixed(1)}%"></i></div><span class="muted" style="font-size:13px">${fmtBytes(est.usage)} usados de ${fmtBytes(est.quota)} disponibles · caben unas <b>${Math.floor(Math.max(0, est.quota - est.usage) * 8 / (+v.bitrate || 32000) / 3600).toLocaleString('es-CL')} horas</b> más de grabación${persisted ? ' · protegido contra borrado automático' : ''}</span></div>` : ''}
       <div class="tools-row" style="margin-top:14px">
-        ${persisted ? '' : `<button class="btn sm" id="s-persist">${icon('pin')}Proteger mis datos</button>`}
+        ${persisted ? '' : `<button class="btn sm" id="s-persist">${icon('lock')}Proteger mis datos</button>`}
         <button class="btn sm" id="s-export">${icon('download')}Exportar respaldo</button>
         <span class="btn sm filebtn">${icon('upload')}Importar respaldo<input type="file" id="s-import" accept="application/json,.json,application/zip,.zip"></span>
       </div>
@@ -2828,9 +2839,9 @@ const hm = min => { min = Math.round(min); const h = Math.floor(min / 60), mm = 
 function planHTML(compact) {
   const u = planUsage(); const warn = u.pct >= .85; const col = warn ? 'var(--risk)' : 'var(--g-cool)';
   const renewTxt = u.renew.toLocaleDateString('es-CL', { day: 'numeric', month: 'long' });
-  if (compact) return `<button class="plan-mini" data-nav="settings"><span class="pm-top"><b>${esc(Settings.v.planName || 'Tu plan')}</b><span>${hm(u.left)} disponibles</span></span><span class="bar-meter"><i style="width:${Math.max(2, u.pct * 100)}%;background:${col}"></i></span><small>Usaste ${hm(u.used)} de ${hm(u.total)} · se renueva el ${renewTxt}</small></button>`;
+  if (compact) return `<button class="plan-mini" data-nav="settings"><span class="pm-top"><b>${esc(Settings.v.planName || 'Tu plan')}</b><span>${hm(u.left)} disponibles</span></span><span class="bar-meter"><i style="width:${u.pct > 0 ? Math.max(2, u.pct * 100) : 0}%;background:${col}"></i></span><small>Usaste ${hm(u.used)} de ${hm(u.total)} · se renueva el ${renewTxt}</small></button>`;
   return `<h2>Tu plan</h2><div class="plan-card"><div class="pc-top"><span class="pc-name">${esc(Settings.v.planName || 'Tu plan')}</span><span class="pc-left">${hm(u.left)} <small>disponibles</small></span></div>
-    <div class="bar-meter big"><i style="width:${Math.max(2, u.pct * 100)}%;background:${col}"></i></div>
+    <div class="bar-meter big"><i style="width:${u.pct > 0 ? Math.max(2, u.pct * 100) : 0}%;background:${col}"></i></div>
     <p class="muted" style="font-size:13px;margin-top:8px">Usaste <b>${hm(u.used)}</b> de ${hm(u.total)} de grabación este mes · se renueva el <b>${renewTxt}</b>.</p>
     ${warn ? '<p class="notice" style="margin-top:10px;font-size:13px">Te queda poco tiempo de grabación este mes.</p>' : ''}</div>`;
 }
@@ -2993,6 +3004,8 @@ function gaugeSVG(score) {
    ========================================================= */
 const REP_COLORS = ['#FF6A3D', '#2F80ED', '#10B48C', '#7C5CFF', '#F2A100', '#E8467C'];
 const rc = i => REP_COLORS[((i % 6) + 6) % 6];
+/* El mismo color para cada persona en todo el informe: el de su parte en el gráfico de participación */
+const personColors = shares => { const norm = x => String(x || '').trim().toLowerCase(); const memo = {}; let extra = shares.length; return name => { const k = norm(name); if (k in memo) return memo[k]; let i = shares.findIndex(s => norm(s.name) === k); if (i < 0) i = shares.findIndex(s => norm(s.name).split(' ')[0] === k.split(' ')[0]); return (memo[k] = rc(i >= 0 ? i : extra++)); }; };
 function reportHTML(m, a, segs) {
   const dur = m.durationSec || segDuration(segs);
   const acts = a.actions || []; const done = acts.filter(x => x.done).length;
@@ -3004,7 +3017,7 @@ function reportHTML(m, a, segs) {
   const kpi = (val, lbl, ic, c) => `<div class="rp-kpi" style="--kc:${c}">${icon(ic, 2)}<b>${val}</b><span>${lbl}</span></div>`;
   const sec = (title, inner) => `<section class="rp-sec"><h2>${title}</h2>${inner}</section>`;
   const listBox = (items, color) => items.length ? `<div class="rp-list">${items.map(x => `<div class="rp-li"><span class="d" style="background:${x.color || color}"></span><div>${x.html}</div></div>`).join('')}</div>` : `<div class="rp-list"><div class="rp-li"><span></span><div style="color:#9198A8">Nada registrado.</div></div></div>`;
-  const ownerColor = {}; let oc = 0; acts.forEach(t => { if (!(t.owner in ownerColor)) ownerColor[t.owner] = rc(oc++); });
+  const pc = personColors(shares); const ownerColor = {}; acts.forEach(t => { ownerColor[t.owner] = pc(t.owner); });
   const bc = Settings.v.brandColor;
   return `<article class="rep"${bc ? ` style="--brand:${esc(bc)}"` : ''}>
   <div class="rp-band"${bc ? ` style="background:${esc(bc)}"` : ''}></div>
@@ -3101,7 +3114,7 @@ function compactReportHTML(m, a, segs) {
   </div>${repFoot(m, a)}</article>`;
 }
 function extendedReportHTML(m, a, segs) {
-  const x = a.extended; const dur = m.durationSec || segDuration(segs); const shares = speakerShares(m, segs);
+  const x = a.extended; const dur = m.durationSec || segDuration(segs); const shares = speakerShares(m, segs); const pcx = personColors(shares);
   const sec = (t, inner, cls = '') => `<section class="rp-sec ${cls}"><h2>${t}</h2>${inner}</section>`;
   const topics = x.topics || []; const tot = topics.reduce((s, t) => s + Math.max(1, (t.end || 0) - (t.start || 0)), 0) || 1;
   return `<article class="rep extended"${Settings.v.brandColor ? ` style="--brand:${esc(Settings.v.brandColor)}"` : ''}>${repHead(m, a, (m.seal ? 'Acta ' + folioTxt(m.seal.folio) + ' · ' : '') + 'Informe extendido')}
@@ -3122,7 +3135,7 @@ function extendedReportHTML(m, a, segs) {
     ${topics.length ? sec('Desarrollo tema por tema', topics.map((t, i) => `<div class="rp-topicx" style="--kc:${rc(i)}"><div class="tx-h"><span class="n">${i + 1}</span><div><b>${esc(t.name)}</b><em>${fmtT(t.start || 0)}–${fmtT(t.end || 0)}</em></div></div>
       <div class="rp-prose">${md(t.summary || '')}</div>
       ${(t.points || []).length ? `<ul class="tx-pts">${t.points.map(p => `<li>${esc(p)}</li>`).join('')}</ul>` : ''}
-      ${(t.voices || []).length ? `<div class="tx-voices">${t.voices.map(v => `<div><span class="rp-av" style="background:${rc(shares.findIndex(s => s.name === v.who) + 2)}">${esc(initials(v.who))}</span><p><b>${esc(v.who)}:</b> ${esc(v.said)}</p></div>`).join('')}</div>` : ''}
+      ${(t.voices || []).length ? `<div class="tx-voices">${t.voices.map(v => `<div><span class="rp-av" style="background:${pcx(v.who)}">${esc(initials(v.who))}</span><p><b>${esc(v.who)}:</b> ${esc(v.said)}</p></div>`).join('')}</div>` : ''}
       ${(t.numbers || []).length ? `<div class="tx-nums">${t.numbers.map(n => `<span><b>${esc(n.value)}</b> ${esc(n.label)}</span>`).join('')}</div>` : ''}</div>`).join('')) : ''}
     ${(x.decisions || []).length ? sec('Registro de decisiones', `<table class="rp-table"><thead><tr><th>#</th><th>Decisión</th><th>Contexto y motivo</th><th>Propuso</th><th>Min.</th></tr></thead><tbody>${x.decisions.map((d, i) => `<tr><td>${i + 1}</td><td><b>${esc(d.text)}</b></td><td>${esc(d.context || '')}</td><td>${esc(d.proposedBy || '')}</td><td>${d.t != null ? fmtT(d.t) : ''}</td></tr>`).join('')}</tbody></table>`) : ''}
     ${(x.actions || []).length ? sec('Plan de acción detallado', `<table class="rp-table"><thead><tr><th>Tarea</th><th>Responsable</th><th>Plazo</th><th>Detalle y criterio de cumplimiento</th></tr></thead><tbody>${x.actions.map(t => `<tr><td><b>${esc(t.task)}</b></td><td>${esc(t.owner || '')}</td><td>${esc(t.due || '—')}</td><td>${esc(t.detail || '')}</td></tr>`).join('')}</tbody></table>`) : ''}
@@ -3195,7 +3208,7 @@ async function exportReport(m, a, segs, kind = 'png') {
     let file;
     if (kind === 'pdf') {
       const extra = (S.repMode === 'extendido' && a.mindmap?.branches?.length) ? [await mindmapPage(m, a, lib)] : [];
-      const pdf = await reportToLetterPdf(node, lib, a.title || 'Informe', (i, n) => { Busy.step(`Página ${i} de ${n}`, 5 + i / n * 90); }, extra);
+      const pdf = await reportToLetterPdf(node, lib, a.title || 'Informe', (i, n) => { Busy.step(`Página ${i} de ${n}`, 5 + i / n * 90); }, extra, { fitOne: (S.repMode || 'normal') === 'compacto' });
       file = new File([pdf], slug(a.title) + '-informe' + suf + '.pdf', { type: 'application/pdf' });
     } else {
       const opts = { pixelRatio: 2, backgroundColor: '#ffffff', width: 1080 };
@@ -3224,7 +3237,7 @@ async function htmlPdfBlob(html, title, onPage, extraFn) {
 async function reportPdfBlob(m, a, segs, mode, onPage) {
   const wrap = document.createElement('div'); wrap.className = 'rep-export'; wrap.style.width = PDF_CSS_W + 'px';
   wrap.innerHTML = reportByMode(m, a, segs, mode); document.body.appendChild(wrap);
-  try { const lib = await loadH2I(); const extra = (mode === 'extendido' && a.mindmap?.branches?.length) ? [await mindmapPage(m, a, lib)] : []; return await reportToLetterPdf(wrap.firstElementChild, lib, a.title || 'Informe', onPage, extra); }
+  try { const lib = await loadH2I(); const extra = (mode === 'extendido' && a.mindmap?.branches?.length) ? [await mindmapPage(m, a, lib)] : []; return await reportToLetterPdf(wrap.firstElementChild, lib, a.title || 'Informe', onPage, extra, { fitOne: mode === 'compacto' }); }
   finally { wrap.remove(); }
 }
 function transcriptTxt(m, segs) {
@@ -3268,6 +3281,9 @@ async function exportEverything(m) {
       files.push([`${base}/04-resumen.pdf`, await pdfOf('Resumen completo', `<div class="doc-md">${md(sumMd.slice(from < 0 ? 0 : from).join('\n').replace(/^- \[ \] /gm, '- ☐ ').replace(/^- \[x\] /gm, '- ☑ '))}${mmExtra ? '<p class="doc-note">El mapa mental va dibujado en la última página.</p>' : ''}</div>`, mmExtra)]);
       if (mmExtra) { await say('Mapa mental en PDF', 61); files.push([`${base}/08-mapa-mental.pdf`, new Uint8Array(await (await mindmapPdfBlob(m, a)).arrayBuffer())]); }
       if (a.brief) { await say('Brief en PDF', 58); } if (a.brief) files.push([`${base}/05-brief.pdf`, await pdfOf('Brief', `<div class="doc-md">${md(String(a.brief).replace(/^# .*\n?/, ''))}</div>`)]);
+      if (a.study) { await say('Apuntes de clase en PDF', 60); const st = a.study;
+        const html = `${(st.exam || []).length ? `<h2>Entra en la prueba</h2><ul>${st.exam.map(x => `<li>${esc(x.text)}</li>`).join('')}</ul>` : ''}${st.notes ? `<h2>Apuntes</h2>${md(st.notes)}` : ''}${(st.glossary || []).length ? `<h2>Glosario</h2><table class="rp-table"><thead><tr><th>Concepto</th><th>Definición</th></tr></thead><tbody>${st.glossary.map(g => `<tr><td><b>${esc(g.term)}</b></td><td>${esc(g.def)}</td></tr>`).join('')}</tbody></table>` : ''}${(st.flashcards || []).length ? `<h2>Tarjetas de repaso</h2><table class="rp-table"><thead><tr><th>Pregunta</th><th>Respuesta</th></tr></thead><tbody>${st.flashcards.map(c => `<tr><td>${esc(c.q)}</td><td>${esc(c.a)}</td></tr>`).join('')}</tbody></table>` : ''}`;
+        files.push([`${base}/05-apuntes.pdf`, await pdfOf('Apuntes de clase', `<div class="doc-md">${html}</div>`)]); }
       const evs = []; (a.actions || []).forEach(t => { if (t.done) return; const d = taskDate(t, m); if (d) evs.push(taskEvent(m, t, d)); });
       if (evs.length) files.push([`${base}/07-tareas-calendario.ics`, buildICS(evs)]);
     }
@@ -3279,7 +3295,7 @@ async function exportEverything(m) {
     await say('Empaquetando', 93);
     const t = segs.length ? { [m.id]: segs } : {};
     files.push(['respaldo.json', JSON.stringify({ app: 'acta', version: 2, exportedAt: new Date().toISOString(), meetings: [m], transcripts: t, files: map })]);
-    files.push([`${base}/LEEME.txt`, `${a.title || 'Reunión'}\n\n01-informe.pdf: informe visual, tamaño carta\n02-informe-extendido.pdf: informe con todo el detalle (si se creó)\n03-acta.docx: acta completa para editar en Word\n04-resumen.pdf: resumen, decisiones, tareas, ideas y riesgos\n05-brief.pdf: brief del proyecto (si existe)\n06-transcripcion.pdf: transcripción con hablantes y minuto\n07-tareas-calendario.ics: tareas con fecha para el calendario\n08-mapa-mental.pdf: el mapa mental dibujado, en hoja horizontal\naudio/ y fotos/: la grabación original y las fotos\n\nPara volver a cargar esta reunión en Acta: Ajustes > Importar respaldo y elige este .zip tal como está.\n`]);
+    files.push([`${base}/LEEME.txt`, `${a.title || 'Reunión'}\n\n01-informe.pdf: informe visual, tamaño carta\n02-informe-extendido.pdf: informe con todo el detalle (si se creó)\n03-acta.docx: acta completa para editar en Word\n04-resumen.pdf: resumen, decisiones, tareas, ideas y riesgos\n05-brief.pdf: brief del proyecto (si existe)\n05-apuntes.pdf: apuntes, glosario y tarjetas (en clases)\n06-transcripcion.pdf: transcripción con hablantes y minuto\n07-tareas-calendario.ics: tareas con fecha para el calendario\n08-mapa-mental.pdf: el mapa mental dibujado, en hoja horizontal\naudio/ y fotos/: la grabación original y las fotos\n\nPara volver a cargar esta reunión en Acta: Ajustes > Importar respaldo y elige este .zip tal como está.\n`]);
     const zip = new File([zipStore(files)], `${base}-todo.zip`, { type: 'application/zip' });
     await say('¡Listo!', 100); Busy.hide();
     deliverFile(zip, 'Todo de la reunión');
@@ -3313,35 +3329,41 @@ async function exportMindmap(m) {
   catch (e) { Busy.hide(); toast('No se pudo crear el mapa: ' + (e.message || 'error'), 5000); }
 }
 async function mindmapPdfBlob(m, a) { const lib = await loadH2I(); const pg = await mindmapPage(m, a, lib); if (!pg) throw new Error('Esta reunión no tiene mapa mental'); return imagesToPdf([pg], a.title || 'Mapa mental'); }
-function pageBreaks(node, pageCss) {
+function pageBreaks(node, pageCss, opts = {}) {
   const base = node.getBoundingClientRect().top; const total = Math.ceil(node.scrollHeight);
-  const blocked = new Uint8Array(total + 2);
-  const block = (t, b) => { t = Math.max(0, Math.floor(t) + 1); b = Math.min(total, Math.ceil(b) - 1); for (let y = t; y <= b; y++) blocked[y] = 1; };
+  if (opts.fitOne && total <= pageCss * 1.35) return [[0, total]];
+  /* hard: nunca cortar aquí (dentro de una línea de texto, una imagen o un gráfico) · soft: mejor no cortar (filas, tarjetas chicas, títulos con lo que sigue) */
+  const hard = new Uint8Array(total + 2), soft = new Uint8Array(total + 2);
+  const mark = (arr, t, b) => { t = Math.max(0, Math.round(t) + 1); b = Math.min(total, Math.round(b) - 1); for (let y = t; y <= b; y++) arr[y] = 1; };
+  const tw = document.createTreeWalker(node, NodeFilter.SHOW_TEXT); const rg = document.createRange();
+  for (let tn = tw.nextNode(); tn; tn = tw.nextNode()) { if (!tn.nodeValue.trim()) continue; rg.selectNodeContents(tn); for (const r of rg.getClientRects()) if (r.height > 1) mark(hard, r.top - base, r.bottom - base); }
   node.querySelectorAll('*').forEach(el => {
     const r = el.getBoundingClientRect(); if (r.height < 2) return;
-    const t = r.top - base, b = r.bottom - base;
+    const t = r.top - base, b = r.bottom - base, tag = el.tagName, cls = String(el.className?.baseVal ?? el.className ?? '');
+    if ((tag === 'svg' || tag === 'IMG' || tag === 'CANVAS') && r.height <= pageCss * .95) mark(hard, t, b);
     /* un título nunca queda solo al final de la página: va pegado a lo que sigue */
-    if ((/^H[1-4]$/.test(el.tagName) || /(^|[-_\s])(title|eyebrow)([-_\s]|$)/i.test(String(el.className?.baseVal ?? el.className ?? ''))) && r.height < 80) block(t, Math.min(b + 90, total));
-    if (r.height <= pageCss * .92) block(t, b);           /* lo que cabe en una página no se corta */
+    if ((/^H[1-4]$/.test(tag) || /(^|[-_\s])(title|eyebrow|tx-h)([-_\s]|$)/i.test(cls)) && r.height < 80) mark(soft, t, Math.min(b + 90, total));
+    const atomic = tag === 'TR' || tag === 'LI' || tag === 'FIGURE' || el.querySelector?.('svg,img,canvas') || r.height <= pageCss * .5;
+    if (atomic && r.height <= pageCss * .92) mark(soft, t, b);
   });
   const cuts = []; let y = 0;
   while (y < total - 4) {
     const ideal = y + pageCss;
     if (ideal >= total) { cuts.push([y, total]); break; }
     let c = ideal; const floor = y + pageCss * .45;
-    while (c > floor && blocked[c]) c--;
-    if (c <= floor) { c = ideal; while (c > floor && blocked[c] && !(blocked[c - 1] === 0)) c--; if (c <= floor) c = ideal; }
+    while (c > floor && (soft[c] || hard[c])) c--;
+    if (c <= floor) { c = ideal; const floor2 = y + pageCss * .2; while (c > floor2 && hard[c]) c--; if (c <= floor2) c = ideal; }
     cuts.push([y, c]); y = c;
   }
-  /* un resto chico (por ejemplo, solo el pie del informe) se junta con la página anterior y se reduce un poco */
+  /* un resto chico (por ejemplo, solo el pie del informe) se junta con la página anterior, reduciéndola apenas */
   const n = cuts.length;
-  if (n > 1) { const last = cuts[n - 1], prev = cuts[n - 2]; if (last[1] - last[0] < pageCss * .15 && last[1] - prev[0] <= pageCss * 1.15) { prev[1] = last[1]; cuts.pop(); } }
+  if (n > 1) { const last = cuts[n - 1], prev = cuts[n - 2]; if (last[1] - last[0] < pageCss * .12 && last[1] - prev[0] <= pageCss * 1.06) { prev[1] = last[1]; cuts.pop(); } }
   return cuts;
 }
-async function reportToLetterPdf(node, lib, title, onPage, extra = []) {
+async function reportToLetterPdf(node, lib, title, onPage, extra = [], opts = {}) {
   const L = LETTER, cw = L.w - 2 * L.mx, k = cw / PDF_CSS_W, pageCss = Math.floor((L.h - L.mt - L.mb) / k);
   await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-  const cuts = pageBreaks(node, pageCss); const imgs = [];
+  const cuts = pageBreaks(node, pageCss, opts); const imgs = [];
   for (let i = 0; i < cuts.length; i++) {
     onPage && onPage(i + 1, cuts.length);
     const [y0, y1] = cuts[i]; const h = Math.max(1, y1 - y0);
@@ -3419,7 +3441,7 @@ function walletHTML(p) {
   const isA = p === 'anthropic';
   const b = Usage.v[p], left = Usage.left(p), spent = Usage.spent(p), pct = b.balance ? left / b.balance : 0;
   const color = pct < .2 ? '#FF6B6B' : isA ? '#FF7A45' : '#5AD8FF';
-  const est = isA ? `≈ <b>${Math.floor(left / Usage.avg('anthropic', 'acta', 0.1))}</b> actas más (promedio ${money(Usage.avg('anthropic', 'acta', 0.1))} c/u)` : `≈ <b>${(left / (STT_PER_MIN * 60)).toFixed(1)} h</b> de transcripción (US$0,36 por hora)`;
+  const est = isA ? `≈ <b>${Math.floor(left / Usage.avg('anthropic', 'acta', 0.1))}</b> actas más (promedio ${money(Usage.avg('anthropic', 'acta', 0.1))} c/u)` : `≈ <b>${(left / (STT_PER_MIN * 60)).toFixed(1).replace('.', ',')} h</b> de transcripción (US$0,36 por hora)`;
   return `<div class="wcard">
     <div class="wh"><b>${isA ? 'Claude · Anthropic' : 'OpenAI'}</b><span class="chip ${pct < .2 ? 'err' : ''}">${isA ? 'Actas y preguntas' : 'Transcripción'}</span></div>
     <div class="wnum">${ringSVG(pct, color, 64, 7)}<div><div class="big" data-left="${p}">${money(left)}</div><small>quedan de ${money(b.balance)} · usado ${money(spent)}</small></div></div>
@@ -3481,12 +3503,13 @@ async function shareMeeting(m) { shareText(m.analysis.title, summaryText(m)); }
 function copyText(text, ok) { try { navigator.clipboard.writeText(text).then(() => toast(ok), () => fallbackCopy(text, ok)); } catch { fallbackCopy(text, ok); } }
 function fallbackCopy(text, ok) { const ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select(); let r = false; try { r = document.execCommand('copy'); } catch {} ta.remove(); toast(r ? ok : 'No se pudo copiar'); }
 function md(src) {
-  const inline = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/(^|\W)_(.+?)_(?=\W|$)/g, '$1<em>$2</em>').replace(/`(.+?)`/g, '<code class="mono">$1</code>');
+  const inline = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/(^|[^*\w])\*(?![\s*])([^*\n]+?)\*(?![*\w])/g, '$1<em>$2</em>').replace(/\^\(([^)]{1,14})\)/g, '<sup>$1</sup>').replace(/(^|\W)_(.+?)_(?=\W|$)/g, '$1<em>$2</em>').replace(/`(.+?)`/g, '<code class="mono">$1</code>');
   let html = '', inList = false;
   String(src).split('\n').forEach(line => {
     const l = line.trimEnd(); const li = l.match(/^\s*(?:[-*]|\d+\.)\s+(.*)$/);
     if (li) { if (!inList) { html += '<ul>'; inList = true; } html += `<li>${inline(li[1])}</li>`; return; }
     if (inList) { html += '</ul>'; inList = false; }
+    const bq = l.match(/^\s*>\s?(.*)$/); if (bq) { html += `<blockquote>${inline(bq[1])}</blockquote>`; return; }
     const h = l.match(/^(#{1,3})\s+(.*)$/); if (h) { html += `<h${h[1].length}>${inline(h[2])}</h${h[1].length}>`; return; }
     if (l.trim() === '---') { html += '<hr style="border:0;border-top:1px solid var(--line);margin:20px 0">'; return; }
     if (l.trim()) html += `<p>${inline(l)}</p>`;
@@ -3561,14 +3584,14 @@ async function loadDemo() {
   await DB.put('transcripts', { segments: segs2 }, id2);
   await saveMeeting({ id: id2, createdAt: Date.now() - 3600000, date: d2, durationSec: 110, participants: ['Camila', 'Diego', 'Tú'], template: 'uno', project: 'Peluquería Camila', context: '', notes: '', notesLog: [], marks: [], photos: [], audioParts: [], speakers: {}, status: 'ready', words: wordCount(segs2), analysis: a2 });
   const id3 = 'ejemplo-' + uid();
-  const tx3 = `[0:00] Profesora: Hoy vemos flujo en canales abiertos. La ecuación clave es la de Manning.\n[0:20] Profesora: Velocidad igual a uno sobre n, por el radio hidráulico elevado a dos tercios, por la raíz de la pendiente.\n[0:48] Profesora: El radio hidráulico es el área mojada dividida por el perímetro mojado. Esto entra en la prueba, anótenlo.\n[1:15] Alumno: ¿Y el n de Manning de qué depende?\n[1:22] Profesora: De la rugosidad del material. Hormigón liso anda cerca de 0,013; un canal de tierra, 0,025 o más.\n[1:50] Profesora: Para la próxima clase lean el capítulo 4. La prueba es el 28 de octubre.`;
+  const tx3 = `[0:00] Profesora: Hoy vemos flujo en canales abiertos. La ecuación clave es la de Manning.\n[0:20] Profesora: Velocidad igual a uno sobre n, por el radio hidráulico elevado a dos tercios, por la raíz de la pendiente.\n[0:48] Profesora: El radio hidráulico es el área mojada dividida por el perímetro mojado. Esto entra en la prueba, anótenlo.\n[1:15] Tú: ¿Y el n de Manning de qué depende?\n[1:22] Profesora: De la rugosidad del material. Hormigón liso anda cerca de 0,013; un canal de tierra, 0,025 o más.\n[1:50] Profesora: Para la próxima clase lean el capítulo 4. La prueba es el 28 de octubre.`;
   const segs3 = parseTranscript(tx3).segments;
   const a3 = { title: 'Clase: flujo en canales abiertos', tldr: 'Se presentó la ecuación de Manning para calcular la velocidad en canales abiertos, el radio hidráulico y cómo la rugosidad define el coeficiente n. La prueba es el 28 de octubre.', mood: { label: 'Clara', score: 80, note: 'Clase expositiva con una pregunta del curso.' }, tags: ['ejemplo', 'hidráulica'], participants: ['Profesora', 'Tú'], speakers: [],
     keyPoints: [{ title: 'Ecuación de Manning', detail: 'V = (1/n)·R^(2/3)·S^(1/2).', icon: 'tech' }, { title: 'Radio hidráulico', detail: 'Área mojada dividida por perímetro mojado.', icon: 'target' }, { title: 'Rugosidad', detail: 'Hormigón liso n≈0,013; tierra n≈0,025.', icon: 'design' }],
     topics: [{ name: 'Manning', start: 0, end: 48, summary: 'La ecuación.' }, { name: 'Radio hidráulico', start: 48, end: 75, summary: 'Definición.' }, { name: 'Coeficiente n', start: 75, end: 110, summary: 'Rugosidad.' }, { name: 'Cierre', start: 110, end: 130, summary: 'Lectura y prueba.' }],
     decisions: [], actions: [{ id: uid(), task: 'Leer el capítulo 4', owner: 'Tú', due: 'próxima clase', dueDate: '', priority: 'media', done: false }, { id: uid(), task: 'Estudiar para la prueba', owner: 'Tú', due: '28 de octubre', dueDate: parseDue('28 de octubre', today()), priority: 'alta', done: false }],
     ideas: [], risks: [], questions: [], numbers: [{ value: '0,013', label: 'n hormigón liso' }, { value: '0,025', label: 'n canal de tierra' }, { value: '28 oct', label: 'prueba' }], quotes: [{ text: 'Esto entra en la prueba, anótenlo.', who: 'Profesora', t: 48 }],
-    mindmap: { center: 'Canales abiertos', branches: [{ label: 'Manning', children: ['V = 1/n·R^2/3·S^1/2'] }, { label: 'Radio hidráulico', children: ['A / P mojado'] }, { label: 'Rugosidad n', children: ['Hormigón 0,013', 'Tierra 0,025'] }] },
+    mindmap: { center: 'Canales abiertos', branches: [{ label: 'Manning', children: ['V = (1/n)·R^(2/3)·S^(1/2)'] }, { label: 'Radio hidráulico', children: ['A / P mojado'] }, { label: 'Rugosidad n', children: ['Hormigón 0,013', 'Tierra 0,025'] }] },
     nextSteps: ['Leer capítulo 4', 'Prueba 28 de octubre'], brief: '', ficha: [{ label: 'Asignatura', value: 'Hidráulica' }, { label: 'Unidad o tema', value: 'Flujo en canales abiertos' }, { label: 'Evaluaciones y fechas', value: 'Prueba el 28 de octubre' }, { label: 'Lecturas o trabajos pedidos', value: 'Capítulo 4' }], corrections: [], previousTasks: [], continuity: '',
     followUp: { whatsapp: 'Resumen de hidráulica: ecuación de Manning, radio hidráulico (entra en la prueba) y coeficiente n. Leer capítulo 4. Prueba el 28 de octubre.', emailSubject: 'Apuntes: canales abiertos', emailBody: 'Apuntes de la clase de canales abiertos.' },
     study: { notes: '## Ecuación de Manning\n\nLa velocidad media en un canal abierto es:\n\n- **V = (1/n) · R^(2/3) · S^(1/2)**\n- **n**: coeficiente de rugosidad de Manning\n- **R**: radio hidráulico (m)\n- **S**: pendiente del fondo (m/m)\n\n## Radio hidráulico\n\n**R = A / P**, donde A es el área mojada y P el perímetro mojado. *Entra en la prueba.*\n\n## Coeficiente de rugosidad\n\nDepende del material del canal:\n\n- Hormigón liso: n ≈ 0,013\n- Canal de tierra: n ≈ 0,025 o más', exam: [{ text: 'Definición y cálculo del radio hidráulico (área mojada / perímetro mojado)', t: 48 }, { text: 'Prueba el 28 de octubre: unidad de canales abiertos', t: 110 }],
