@@ -1,7 +1,9 @@
-# Compilación de Acta para iPhone en Codemagic (Mac en la nube, plan gratis: 500 min/mes).
-# - "acta-ios-prueba": compila sin firmar para comprobar que todo funciona (no necesita cuenta de Apple).
-# - "acta-ios-testflight": firma con la clave de App Store Connect y sube a TestFlight.
-#   Requiere en Codemagic: Team settings › Integrations › Developer Portal, con el nombre "Acta ASC".
+# Compilación de Acta para iPhone en Codemagic (Mac en la nube).
+# Mismo esquema que AREVYS: la clave de App Store Connect va como variables secretas
+# en el grupo "acta_appstore" de la app en Codemagic (Environment variables):
+#   ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8 (contenido completo del archivo .p8),
+#   APPLE_TEAM_ID y CERTIFICATE_PRIVATE_KEY (puede ser la misma de AREVYS).
+# Nada de esto se guarda en el repositorio.
 
 workflows:
   acta-ios-prueba:
@@ -28,29 +30,44 @@ workflows:
     name: Acta iOS · TestFlight
     max_build_duration: 60
     instance_type: mac_mini_m2
-    integrations:
-      app_store_connect: Acta ASC
     environment:
       node: 22
       xcode: latest
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: cl.mariopinto.acta
+      groups:
+        - acta_appstore
+      vars:
+        BUNDLE_ID: cl.mariopinto.acta
     scripts:
       - name: App web dentro del proyecto nativo
         script: |
           npm ci
           npm run build:www
           npx cap sync ios
-      - name: Firmas
-        script: xcode-project use-profiles --project ios/App/App.xcodeproj
+      - name: Clave de App Store Connect
+        script: |
+          echo "APP_STORE_CONNECT_KEY_IDENTIFIER=$ASC_KEY_ID" >> $CM_ENV
+          echo "APP_STORE_CONNECT_ISSUER_ID=$ASC_ISSUER_ID" >> $CM_ENV
+          printf '%s\n' "$ASC_KEY_P8" > /tmp/asc_key.p8
+          echo "APP_STORE_CONNECT_PRIVATE_KEY=@file:/tmp/asc_key.p8" >> $CM_ENV
+      - name: Certificado y perfil del App Store
+        script: |
+          keychain initialize
+          app-store-connect bundle-ids create "$BUNDLE_ID" --name "Acta" --platform IOS || echo "El identificador ya existe"
+          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create
+          keychain add-certificates
+          xcode-project use-profiles --project ios/App/App.xcodeproj
       - name: Número de compilación
         script: |
           cd ios/App
-          agvtool new-version -all $((PROJECT_BUILD_NUMBER + 1))
-      - name: Compilar y empaquetar
+          agvtool new-version -all $(date -u +%y%m%d%H%M)
+      - name: Compilar y firmar (IPA)
         script: |
           xcode-project build-ipa --project ios/App/App.xcodeproj --scheme App --config Release
+      - name: Subir a App Store Connect (TestFlight)
+        script: |
+          app-store-connect publish --path build/ios/ipa/*.ipa
+      - name: Borrar la clave
+        script: rm -f /tmp/asc_key.p8
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
@@ -61,6 +78,3 @@ workflows:
         notify:
           success: true
           failure: true
-      app_store_connect:
-        auth: integration
-        submit_to_testflight: true
