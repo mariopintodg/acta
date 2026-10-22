@@ -45,16 +45,31 @@ workflows:
       - name: Clave de App Store Connect
         script: |
           mkdir -p /tmp/asc
-          printf '%s\n' "$ASC_KEY_P8" > /tmp/asc/AuthKey.p8
-          test -s /tmp/asc/AuthKey.p8 || { echo "Falta ASC_KEY_P8 en el grupo acta_appstore"; exit 1; }
+          # Rearma el .p8 aunque se haya pegado con saltos de línea de Windows, espacios o en una sola línea
+          python3 - <<'PY'
+          import os, re, textwrap, base64
+          raw = os.environ.get("ASC_KEY_P8", "")
+          body = re.sub(r"-----(BEGIN|END)[^-]*-----", "", raw)
+          body = re.sub(r"[^A-Za-z0-9+/=]", "", body)
+          if not body:
+              raise SystemExit("Falta ASC_KEY_P8 en el grupo acta_appstore")
+          base64.b64decode(body)
+          pem = "-----BEGIN PRIVATE KEY-----\n" + "\n".join(textwrap.wrap(body, 64)) + "\n-----END PRIVATE KEY-----\n"
+          open("/tmp/asc/AuthKey.p8", "w").write(pem)
+          print("Clave P8 lista (" + str(len(body)) + " caracteres)")
+          PY
+          KEY_ID=$(printf '%s' "$ASC_KEY_ID" | tr -d '[:space:]'); ISSUER=$(printf '%s' "$ASC_ISSUER_ID" | tr -d '[:space:]')
+          echo "ASC_KEY_ID_CLEAN=$KEY_ID" >> $CM_ENV
+          echo "ASC_ISSUER_ID_CLEAN=$ISSUER" >> $CM_ENV
+          echo "Key ID: ${#KEY_ID} caracteres · Issuer ID: ${#ISSUER} caracteres"
       - name: Archivar y firmar (firma automática de Apple)
         script: |
           set -o pipefail
           BUILD=$(date -u +%y%m%d%H%M)
-          AUTH="-allowProvisioningUpdates -authenticationKeyPath /tmp/asc/AuthKey.p8 -authenticationKeyID $ASC_KEY_ID -authenticationKeyIssuerID $ASC_ISSUER_ID"
+          AUTH="-allowProvisioningUpdates -authenticationKeyPath /tmp/asc/AuthKey.p8 -authenticationKeyID $ASC_KEY_ID_CLEAN -authenticationKeyIssuerID $ASC_ISSUER_ID_CLEAN"
           xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
             -destination 'generic/platform=iOS' -archivePath build/Acta.xcarchive archive \
-            DEVELOPMENT_TEAM=$APPLE_TEAM_ID CODE_SIGN_STYLE=Automatic PRODUCT_BUNDLE_IDENTIFIER=$BUNDLE_ID \
+            DEVELOPMENT_TEAM=$(printf %s "$APPLE_TEAM_ID" | tr -d "[:space:]") CODE_SIGN_STYLE=Automatic PRODUCT_BUNDLE_IDENTIFIER=$BUNDLE_ID \
             CURRENT_PROJECT_VERSION=$BUILD $AUTH | tail -80
       - name: Subir a App Store Connect (TestFlight)
         script: |
@@ -75,7 +90,7 @@ workflows:
           xcodebuild -exportArchive -archivePath build/Acta.xcarchive -exportPath build/ipa \
             -exportOptionsPlist /tmp/asc/ExportOptions.plist \
             -allowProvisioningUpdates -authenticationKeyPath /tmp/asc/AuthKey.p8 \
-            -authenticationKeyID $ASC_KEY_ID -authenticationKeyIssuerID $ASC_ISSUER_ID | tail -60
+            -authenticationKeyID $ASC_KEY_ID_CLEAN -authenticationKeyIssuerID $ASC_ISSUER_ID_CLEAN | tail -60
       - name: Borrar la clave
         script: rm -rf /tmp/asc
     artifacts:
