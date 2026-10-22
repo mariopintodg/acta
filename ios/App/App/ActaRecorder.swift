@@ -19,7 +19,8 @@ public class ActaRecorderPlugin: CAPPlugin, CAPBridgedPlugin, AVAudioRecorderDel
         CAPPluginMethod(name: "stop", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "status", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "listParts", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "deleteRecording", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "deleteRecording", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "keepAlive", returnType: CAPPluginReturnPromise)
     ]
 
     private enum State: String { case idle, recording, paused, interrupted }
@@ -37,6 +38,7 @@ public class ActaRecorderPlugin: CAPPlugin, CAPBridgedPlugin, AVAudioRecorderDel
     private var rotateTimer: Timer?
     private var resumeWhenActive = false
     private var observersOn = false
+    private var keepEngine: AVAudioEngine?   // mantiene viva la app mientras transcribe y arma el acta
 
     // MARK: - API para JavaScript
 
@@ -54,6 +56,7 @@ public class ActaRecorderPlugin: CAPPlugin, CAPBridgedPlugin, AVAudioRecorderDel
                     let d = base.appendingPathComponent("rec/\(self.recId)", isDirectory: true)
                     try FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
                     self.dir = d
+                    self.stopKeepAlive()
                     try self.activateSession()
                     try self.beginPart()
                 } catch {
@@ -65,6 +68,45 @@ public class ActaRecorderPlugin: CAPPlugin, CAPBridgedPlugin, AVAudioRecorderDel
                 call.resolve(["id": self.recId])
             }
         }
+    }
+
+    /// Mientras se transcribe y se arma el acta, iOS congelaría la app al salir de ella.
+    /// Con un audio en silencio (modo de audio en segundo plano) la app sigue trabajando hasta terminar.
+    @objc func keepAlive(_ call: CAPPluginCall) {
+        let on = call.getBool("on") ?? false
+        DispatchQueue.main.async {
+            if on { self.startKeepAlive() } else { self.stopKeepAlive() }
+            call.resolve(["on": self.keepEngine != nil])
+        }
+    }
+
+    private func startKeepAlive() {
+        if keepEngine != nil || state != .idle { return }   // si está grabando, la grabación ya la mantiene viva
+        let session = AVAudioSession.sharedInstance()
+        do {
+            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            try session.setActive(true)
+            let engine = AVAudioEngine()
+            let player = AVAudioPlayerNode()
+            engine.attach(player)
+            let fmt = engine.mainMixerNode.outputFormat(forBus: 0)
+            engine.connect(player, to: engine.mainMixerNode, format: fmt)
+            guard let buf = AVAudioPCMBuffer(pcmFormat: fmt, frameCapacity: AVAudioFrameCount(max(1, fmt.sampleRate))) else { return }
+            buf.frameLength = buf.frameCapacity   // ceros = silencio
+            player.scheduleBuffer(buf, at: nil, options: .loops, completionHandler: nil)
+            try engine.start()
+            player.play()
+            keepEngine = engine
+        } catch {
+            keepEngine = nil
+        }
+    }
+
+    private func stopKeepAlive() {
+        guard let engine = keepEngine else { return }
+        engine.stop()
+        keepEngine = nil
+        if state == .idle { try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation) }
     }
 
     @objc func pause(_ call: CAPPluginCall) {

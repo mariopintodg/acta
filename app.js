@@ -103,7 +103,7 @@ const KP_ICONS = ['target', 'money', 'people', 'time', 'tech', 'design', 'legal'
 const CLAUDE_MODELS = [['claude-sonnet-5-5', 'Claude Sonnet 5.5 — recomendado'], ['claude-opus-5-5', 'Claude Opus 5.5 — máximo detalle'], ['claude-haiku-5-5', 'Claude Haiku 5.5 — más rápido y económico']];
 const STT_MODELS = [['gpt-4o-transcribe-diarize', 'Con hablantes (recomendado)'], ['whisper-1', 'Whisper — con marcas de tiempo, sin hablantes'], ['gpt-4o-transcribe', 'Solo texto']];
 const MAX_UPLOAD = 25 * 1024 * 1024;
-const APP_VERSION = '4.0.2';
+const APP_VERSION = '4.0.3';
 const PART_SEC = 5 * 60; /* recordings are saved in 5-minute pieces so they can be transcribed in parallel */
 
 /* =========================================================
@@ -518,10 +518,12 @@ async function splitAudio(blob) {
   return out;
 }
 async function pool(items, limit, fn) { const res = new Array(items.length); let next = 0; const run = async () => { while (next < items.length) { const i = next++; res[i] = await fn(items[i], i); } }; await Promise.all(Array.from({ length: Math.min(limit, items.length) }, run)); return res; }
+/* App nativa: mientras haya actas en proceso, la app sigue trabajando aunque salgas de ella o bloquees la pantalla */
+const KeepAlive = { on: false, sync() { if (!NAT) return; const want = S.running.size > 0; if (want === this.on) return; this.on = want; natCall('keepAlive', { on: want }).catch(() => {}); } };
 async function processMeeting(id, { template } = {}) {
-  if (S.running.has(id)) return; S.running.add(id);
+  if (S.running.has(id)) return; S.running.add(id); KeepAlive.sync();
   let m = meetingById(id) || await DB.get('meetings', id);
-  if (!navigator.onLine) { await patchMeeting(id, { status: 'waiting', error: null, template: template || m.template }); S.running.delete(id); render(); return; }
+  if (!navigator.onLine) { await patchMeeting(id, { status: 'waiting', error: null, template: template || m.template }); S.running.delete(id); KeepAlive.sync(); render(); return; }
   try {
     let segs = await getSegments(id);
     if (!segs.length) {
@@ -583,7 +585,7 @@ async function processMeeting(id, { template } = {}) {
     console.error(e);
     if (e.code === 'network' || !navigator.onLine) await patchMeeting(id, { status: 'waiting', error: null });
     else await patchMeeting(id, { status: 'error', error: { code: e.code || 'error', message: e.message || 'No se pudo completar el proceso.' } });
-  } finally { S.running.delete(id); delete S.progress[id]; if (S.progressPct) delete S.progressPct[id]; render(); }
+  } finally { S.running.delete(id); KeepAlive.sync(); delete S.progress[id]; if (S.progressPct) delete S.progressPct[id]; render(); }
 }
 
 function applyCorrections(segs, corr) {
@@ -1398,7 +1400,7 @@ function renderProcessing(app, m) {
       ${adminView() && /key|no_openai|no_anthropic/.test(err?.code || '') ? `<button class="btn" data-nav="settings">${icon('key')}Ir a Ajustes</button>` : ''}
       ${hasAudio ? `<button class="btn ghost" id="p-paste">Pegar transcripción</button>` : ''}
       <button class="btn ghost danger" id="p-del">${icon('trash')}Eliminar</button></div>
-      <div id="p-paste-box"></div>` : st === 'waiting' ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button class="btn" id="p-retry">${icon('refresh')}Probar ahora</button></div>` : `<p class="muted" style="font-size:13px;margin-top:12px">${running ? 'Puedes revisar otras reuniones mientras tanto; mantén la app abierta hasta que termine.' : 'En cola…'}</p>`}
+      <div id="p-paste-box"></div>` : st === 'waiting' ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button class="btn" id="p-retry">${icon('refresh')}Probar ahora</button></div>` : `<p class="muted" style="font-size:13px;margin-top:12px">${running ? (NAT ? 'Puedes salir de la app o bloquear la pantalla: sigue trabajando hasta terminar.' : 'Puedes revisar otras reuniones mientras tanto; mantén la app abierta hasta que termine.') : 'En cola…'}</p>`}
     ${hasAudio ? `<div style="margin-top:16px"><audio controls preload="metadata" id="p-audio" style="width:100%"></audio></div>` : ''}
   </section>
   ${(m.marks?.length || m.notesLog?.length) ? `<section class="panel" style="max-width:720px;margin-top:16px"><div class="eyebrow">Lo que marcaste</div><div class="notes-log" style="margin-top:10px">${[...(m.marks || []).map(k => ({ t: k.t, text: '★ ' + (k.label || 'Momento importante') })), ...(m.notesLog || [])].sort((a, b) => a.t - b.t).map(n => `<div><b>${fmtT(n.t)}</b><span>${esc(n.text)}</span></div>`).join('')}</div></section>` : ''}`;
