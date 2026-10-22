@@ -103,7 +103,7 @@ const KP_ICONS = ['target', 'money', 'people', 'time', 'tech', 'design', 'legal'
 const CLAUDE_MODELS = [['claude-sonnet-5-5', 'Claude Sonnet 5.5 — recomendado'], ['claude-opus-5-5', 'Claude Opus 5.5 — máximo detalle'], ['claude-haiku-5-5', 'Claude Haiku 5.5 — más rápido y económico']];
 const STT_MODELS = [['gpt-4o-transcribe-diarize', 'Con hablantes (recomendado)'], ['whisper-1', 'Whisper — con marcas de tiempo, sin hablantes'], ['gpt-4o-transcribe', 'Solo texto']];
 const MAX_UPLOAD = 25 * 1024 * 1024;
-const APP_VERSION = '4.0.6';
+const APP_VERSION = '4.0.7';
 const PART_SEC = 5 * 60; /* recordings are saved in 5-minute pieces so they can be transcribed in parallel */
 
 /* =========================================================
@@ -1466,7 +1466,7 @@ function rmHero(body, m, a) {
   body.insertAdjacentHTML('afterbegin', `<button class="rm-hero" id="rm-hero" type="button">
     <span class="rm-hero-ic" aria-hidden="true">${icon('chart', 2, 22)}</span>
     <span class="rm-hero-tx"><small>Plan de obra listo</small><b>${esc(f.obra || op.nombre || a.title)}</b><em>${esc(meta)}</em></span>
-    <span class="rm-hero-go">Abrir en Ruta Maestra ${icon('back', 2.2, 16)}</span>
+    <span class="rm-hero-go">Generar proyecto en Ruta Maestra ${icon('back', 2.2, 16)}</span>
   </button>`);
   $('#rm-hero', body).onclick = () => abrirRutaMaestra(m, a);
 }
@@ -2830,7 +2830,7 @@ async function renderSettings(app) {
   </div>`;
   const keyIn = (id, k) => { const el = $(id); el.addEventListener('input', e => Settings.set({ [k]: e.target.value.trim() })); el.addEventListener('change', e => { Settings.set({ [k]: e.target.value.trim() }); keepStorage(); toast('Clave guardada en este teléfono'); }); };
   keyIn('#k-anthropic', 'anthropicKey'); keyIn('#k-openai', 'openaiKey');
-  $('#s-obra-demo').onclick = async () => { const id = await loadObraDemo(); toast('Ejemplo de obra listo: toca Abrir en Ruta Maestra'); go('m/' + id + '/brief'); };
+  $('#s-obra-demo').onclick = async () => { const id = await loadObraDemo(); toast('Ejemplo de obra listo: toca Generar proyecto en Ruta Maestra'); go('m/' + id + '/brief'); };
   $('#t-anthropic').onclick = async () => {
     Settings.set({ anthropicKey: $('#k-anthropic').value.trim() }); keepStorage(); const r = $('#r-anthropic'); r.textContent = 'Probando…';
     try { await claude({ messages: [{ role: 'user', content: 'Responde solo: ok' }], max_tokens: 5, kind: 'prueba' }); r.innerHTML = `<span class="ok-badge">${icon('check', 2.4, 14)}Conectado con ${esc(Settings.v.claudeModel)}</span>`; }

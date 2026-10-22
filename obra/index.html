@@ -1552,7 +1552,22 @@ function recibirDeActa() {
   }
   if (h.startsWith("#plan=") || h === "#desde-acta") { try { history.replaceState(null, "", location.pathname + location.search); } catch {} }
   if (!txt) return;
-  $("#actaTxt").value = txt; irA("acta"); leerActa();
+  $("#actaTxt").value = txt;
+  crearDesdeActaAuto(txt);
+}
+function firmaTxt(t) { let h = 5381; for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0; return "a" + (h >>> 0).toString(36) + t.length.toString(36); }
+async function crearDesdeActaAuto(txt) {
+  const firma = firmaTxt(txt.trim());
+  const ya = S.obras.find(o => o.origenActa === firma);
+  if (ya) { S.actualId = ya.id; RA.resultado = null; renderTodo(); irA("inicio"); window.scrollTo(0, 0); toast("Abrí la obra que ya habías creado con este plan"); return; }
+  irA("acta");
+  await leerActa();
+  const r = RA.resultado;
+  if (!r || !r.obra) return;
+  const o = r.obra; o.id = uid(); o.origenActa = firma;
+  S.obras.unshift(o); S.actualId = o.id; RA.resultado = null; RA.nodo = null; guardar(o, true);
+  renderTodo(); irA("inicio"); window.scrollTo(0, 0);
+  toast(`Proyecto creado: ${o.partidas.length} partidas con presupuesto, programa y ruta crítica`);
 }
 
 /* ---------- Cálculo ---------- */
