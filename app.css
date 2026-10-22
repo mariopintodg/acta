@@ -1191,3 +1191,18 @@ blockquote{margin:8px 0;padding:6px 0 6px 14px;border-left:3px solid var(--brand
 .rep blockquote,.doc-rep blockquote{color:#3B4152}
 .sec.g2{align-items:start}
 .tr-tools .search{min-width:180px;flex:1}
+
+/* Ruta Maestra destacada en el resumen */
+.rm-hero{position:relative;display:grid;grid-template-columns:auto 1fr;gap:6px 14px;align-items:center;width:100%;max-width:820px;margin:0 0 18px;padding:16px 18px;border-radius:var(--r);border:1px solid rgba(255,138,61,.55);background:linear-gradient(120deg,rgba(255,122,69,.22),rgba(255,77,109,.14) 55%,rgba(124,92,255,.16));color:var(--ink);text-align:left;cursor:pointer;overflow:hidden;animation:rmGlow 2.4s ease-in-out infinite}
+.rm-hero::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.18) 50%,transparent 70%);transform:translateX(-100%);animation:rmShine 3.2s ease-in-out infinite;pointer-events:none}
+.rm-hero-ic{grid-row:span 2;width:46px;height:46px;border-radius:14px;display:grid;place-items:center;background:var(--g-brand);color:#fff;box-shadow:0 10px 24px -10px rgba(255,90,60,.9)}
+.rm-hero-tx{display:grid;gap:2px;min-width:0}
+.rm-hero-tx small{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#FFB38A}
+.rm-hero-tx b{font-family:var(--f-display);font-size:18px;line-height:1.2}
+.rm-hero-tx em{font-style:normal;font-size:13px;color:var(--muted)}
+.rm-hero-go{grid-column:2;justify-self:start;display:inline-flex;align-items:center;gap:8px;margin-top:6px;padding:9px 16px;border-radius:999px;background:var(--g-brand);color:#fff;font-weight:700;font-size:14px}
+.rm-hero-go svg{transform:rotate(180deg)}
+.rm-hero:active{transform:scale(.99)}
+@keyframes rmGlow{0%,100%{box-shadow:0 0 0 0 rgba(255,106,61,.0),0 18px 40px -26px rgba(255,90,60,.8)}50%{box-shadow:0 0 0 6px rgba(255,106,61,.12),0 18px 40px -20px rgba(255,90,60,.9)}}
+@keyframes rmShine{0%,60%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+@media (prefers-reduced-motion:reduce){.rm-hero,.rm-hero::after{animation:none}}

@@ -103,7 +103,7 @@ const KP_ICONS = ['target', 'money', 'people', 'time', 'tech', 'design', 'legal'
 const CLAUDE_MODELS = [['claude-sonnet-5-5', 'Claude Sonnet 5.5 — recomendado'], ['claude-opus-5-5', 'Claude Opus 5.5 — máximo detalle'], ['claude-haiku-5-5', 'Claude Haiku 5.5 — más rápido y económico']];
 const STT_MODELS = [['gpt-4o-transcribe-diarize', 'Con hablantes (recomendado)'], ['whisper-1', 'Whisper — con marcas de tiempo, sin hablantes'], ['gpt-4o-transcribe', 'Solo texto']];
 const MAX_UPLOAD = 25 * 1024 * 1024;
-const APP_VERSION = '4.0.5';
+const APP_VERSION = '4.0.6';
 const PART_SEC = 5 * 60; /* recordings are saved in 5-minute pieces so they can be transcribed in parallel */
 
 /* =========================================================
@@ -1430,7 +1430,7 @@ async function renderTab(m) {
   const segs = await getSegments(m.id); S._segCache = S._segCache || {}; S._segCache[m.id] = segs; m._labels = speakerLabels(segs);
   if (!$('#tab-body')) return;
   const tab = S.route.tab || 'resumen';
-  if (tab === 'resumen') return renderSummary(body, m, a, segs);
+  if (tab === 'resumen') { const r = renderSummary(body, m, a, segs); rmHero(body, m, a); return r; }
   if (tab === 'informe') return renderReport(body, m, a, segs);
   if (tab === 'mapa') { requestAnimationFrame(() => { const w = $('.mm-wrap'); if (w && w.scrollWidth > w.clientWidth) w.scrollLeft = (w.scrollWidth - w.clientWidth) / 2; }); body.innerHTML = `<div class="mm-wrap">${mindmapSVG(a.mindmap)}</div>${a.mindmap?.branches?.length ? `<div class="mm-tools"><button class="btn primary sm" id="mm-pdf">${icon('doc', 2)}Descargar mapa en PDF</button></div>` : ''}<p class="mm-note">En el celular, desliza hacia el lado para recorrer el mapa.</p>`; const b = $('#mm-pdf'); if (b) b.onclick = () => exportMindmap(m); return; }
   if (tab === 'brief') {
@@ -1457,6 +1457,18 @@ function talkTime(m, segs) {
   const rows = speakerShares(m, segs);
   if (rows.length < 2) return '';
   return `<div class="sec"><div class="sec-h"><h2>Quién habló</h2><span class="count">Proporción de palabras</span></div><div class="panel talk">${donutSVG(rows.map((r, i) => ({ pct: r.pct, color: tc(i) })), { size: 150, thick: 18, label: String(rows.length), sub: 'VOCES' })}<div class="talk-list">${rows.map((r, i) => `<div class="talk-row"><span class="nm"><i style="background:${tc(i)}"></i>${esc(r.name)}</span><span class="tb"><i style="width:${(r.pct * 100).toFixed(1)}%;background:${tc(i)}"></i></span><span>${Math.round(r.pct * 100)}%</span></div>`).join('')}</div></div></div>`;
+}
+/* Reuniones de obra: tarjeta destacada arriba del resumen para abrir el plan en Ruta Maestra */
+function rmHero(body, m, a) {
+  if (!a?.obraPlan || $('.rm-hero', body)) return;
+  const op = a.obraPlan, f = op.ficha || {}, plazo = +f.plazoDias || op.plazoSugerido || 0;
+  const meta = [`${op.partidas.length} partidas`, plazo ? `plazo ${plazo} días` : '', f.ubicacion || f.region || ''].filter(Boolean).join(' · ');
+  body.insertAdjacentHTML('afterbegin', `<button class="rm-hero" id="rm-hero" type="button">
+    <span class="rm-hero-ic" aria-hidden="true">${icon('chart', 2, 22)}</span>
+    <span class="rm-hero-tx"><small>Plan de obra listo</small><b>${esc(f.obra || op.nombre || a.title)}</b><em>${esc(meta)}</em></span>
+    <span class="rm-hero-go">Abrir en Ruta Maestra ${icon('back', 2.2, 16)}</span>
+  </button>`);
+  $('#rm-hero', body).onclick = () => abrirRutaMaestra(m, a);
 }
 function renderSummary(body, m, a, segs) {
   const acts = a.actions || []; const done = acts.filter(x => x.done).length;
