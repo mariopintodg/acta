@@ -103,7 +103,7 @@ const KP_ICONS = ['target', 'money', 'people', 'time', 'tech', 'design', 'legal'
 const CLAUDE_MODELS = [['claude-sonnet-5-5', 'Claude Sonnet 5.5 — recomendado'], ['claude-opus-5-5', 'Claude Opus 5.5 — máximo detalle'], ['claude-haiku-5-5', 'Claude Haiku 5.5 — más rápido y económico']];
 const STT_MODELS = [['gpt-4o-transcribe-diarize', 'Con hablantes (recomendado)'], ['whisper-1', 'Whisper — con marcas de tiempo, sin hablantes'], ['gpt-4o-transcribe', 'Solo texto']];
 const MAX_UPLOAD = 25 * 1024 * 1024;
-const APP_VERSION = '4.0.4';
+const APP_VERSION = '4.0.5';
 const PART_SEC = 5 * 60; /* recordings are saved in 5-minute pieces so they can be transcribed in parallel */
 
 /* =========================================================
@@ -3535,8 +3535,10 @@ function rutaMaestraJSON(m, a) {
 const RM_URL = 'https://actasapp.com/obra/';
 function abrirRutaMaestra(m, a) {
   const json = rutaMaestraJSON(m, a);
+  /* App del iPhone: Ruta Maestra viene dentro de la app, así "← Acta" vuelve a la app y no a la web */
+  if (NAT) { try { localStorage.setItem('rm.inbox', json); localStorage.setItem('rm.return', location.hash || ''); location.assign('/obra/index.html#desde-acta'); return; } catch {} }
   if (location.origin === 'https://actasapp.com' || location.hostname.endsWith('.acta-app.pages.dev')) {
-    try { localStorage.setItem('rm.inbox', json); location.assign('/obra/#desde-acta'); return; } catch {}
+    try { localStorage.setItem('rm.inbox', json); localStorage.setItem('rm.return', location.hash || ''); location.assign('/obra/#desde-acta'); return; } catch {}
   }
   const bytes = new TextEncoder().encode(json); let bin = '';
   for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192));

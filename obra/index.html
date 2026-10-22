@@ -1,4 +1,4 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><link rel="icon" href="/favicon.png"><meta name="theme-color" content="#15212C"><style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style></head><body><title>Ruta Maestra</title>
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><link rel="icon" href="../favicon.png"><meta name="theme-color" content="#15212C"><style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style></head><body><title>Ruta Maestra</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Public+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
@@ -283,6 +283,12 @@ tr.tot-row td{background:var(--surface-2);border-top:2px solid var(--line)}
   <div class="wrap">
     <div class="brand"><b>Ruta<span>·</span>Maestra</b><span class="proto">Prototipo v0.4</span><i>Presupuesto y programa de obra para pymes</i></div>
     <a class="volver" id="volverActa" href="/app/" hidden>← Acta</a>
+    <script>
+      /* "← Acta" vuelve a donde estabas: dentro de la app del iPhone o a la app web */
+      (function () { try { var a = document.getElementById("volverActa"); var nat = location.protocol === "capacitor:" || !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+        var back = ""; try { back = localStorage.getItem("rm.return") || ""; } catch (e) {}
+        a.href = (nat ? "/index.html" : "/app/") + back; } catch (e) {} })();
+    </script>
     <div class="obra-actual"><span class="nm" id="obraNombreTop"></span><span class="chip save" id="saveChip"><span class="dot"></span><span id="saveTxt">Cargando…</span></span></div>
   </div>
 </header>
