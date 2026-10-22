@@ -103,7 +103,7 @@ const KP_ICONS = ['target', 'money', 'people', 'time', 'tech', 'design', 'legal'
 const CLAUDE_MODELS = [['claude-sonnet-5-5', 'Claude Sonnet 5.5 — recomendado'], ['claude-opus-5-5', 'Claude Opus 5.5 — máximo detalle'], ['claude-haiku-5-5', 'Claude Haiku 5.5 — más rápido y económico']];
 const STT_MODELS = [['gpt-4o-transcribe-diarize', 'Con hablantes (recomendado)'], ['whisper-1', 'Whisper — con marcas de tiempo, sin hablantes'], ['gpt-4o-transcribe', 'Solo texto']];
 const MAX_UPLOAD = 25 * 1024 * 1024;
-const APP_VERSION = '4.0.3';
+const APP_VERSION = '4.0.4';
 const PART_SEC = 5 * 60; /* recordings are saved in 5-minute pieces so they can be transcribed in parallel */
 
 /* =========================================================
@@ -518,6 +518,15 @@ async function splitAudio(blob) {
   return out;
 }
 async function pool(items, limit, fn) { const res = new Array(items.length); let next = 0; const run = async () => { while (next < items.length) { const i = next++; res[i] = await fn(items[i], i); } }; await Promise.all(Array.from({ length: Math.min(limit, items.length) }, run)); return res; }
+/* Cortes de red: en el iPhone, al salir de la app el sistema puede cortar las conexiones aunque haya internet.
+   Se espera a que la app vuelva a estar a la vista y se reintenta solo, sin perder lo ya transcrito. */
+const waitVisible = () => document.visibilityState === 'visible' ? Promise.resolve() : new Promise(r => { const f = () => { if (document.visibilityState === 'visible') { document.removeEventListener('visibilitychange', f); r(); } }; document.addEventListener('visibilitychange', f); });
+async function netRetry(fn, tries = 5) {
+  for (let a = 0; ; a++) {
+    try { return await fn(); }
+    catch (e) { if (e?.code !== 'network' || a >= tries - 1) throw e; await waitVisible(); await sleep([1500, 3000, 6000, 12000][a] || 12000); }
+  }
+}
 /* App nativa: mientras haya actas en proceso, la app sigue trabajando aunque salgas de ella o bloquees la pantalla */
 const KeepAlive = { on: false, sync() { if (!NAT) return; const want = S.running.size > 0; if (want === this.on) return; this.on = want; natCall('keepAlive', { on: want }).catch(() => {}); } };
 async function processMeeting(id, { template } = {}) {
@@ -551,7 +560,8 @@ async function processMeeting(id, { template } = {}) {
         let results;
         try {
           results = await pool(jobs, PARALLEL, async (j, i) => {
-            let r; try { r = await openaiTranscribe(j.blob, j.offset, i); } catch (e) { if (/bad_openai_key|network/.test(e.code || '')) throw e; await sleep(1500); r = await openaiTranscribe(j.blob, j.offset, i); }
+            const ck = 'tx:' + id + ':' + Math.round(j.offset * 10) + ':' + (j.blob.size || 0); let r = null; try { r = await DB.get('kv', ck); } catch {}
+            if (!r) { r = await netRetry(async () => { try { return await openaiTranscribe(j.blob, j.offset, i); } catch (e) { if (/bad_openai_key|network/.test(e.code || '')) throw e; await sleep(1500); return openaiTranscribe(j.blob, j.offset, i); } }); try { await DB.put('kv', r, ck); } catch {} }
             doneN++; setProgress(id, label(), doneN / jobs.length); return r;
           });
         } finally { clearInterval(tick); }
@@ -566,7 +576,7 @@ async function processMeeting(id, { template } = {}) {
     m = await patchMeeting(id, { status: 'analyzing', error: null, hasTranscript: true, words: wordCount(segs), durationSec: m.durationSec || segDuration(segs) }); render();
     setProgress(id, `Claude está leyendo ${nf(wordCount(segs))} palabras…`);
     const tpl = template || m.template || 'general';
-    const analysis = await analyze(m, segs, tpl, n => setProgress(id, `Escribiendo el acta… ${nf(n)} caracteres`));
+    const analysis = await netRetry(() => analyze(m, segs, tpl, n => setProgress(id, `Escribiendo el acta… ${nf(n)} caracteres`)), 4);
     const speakers = { ...(m.speakers || {}) };
     analysis.speakers.forEach(sp => { if (sp.name && !m.speakersEdited?.[sp.label]) speakers[sp.label] = sp.name; });
     const prev = m.analysis?.actions || [];
@@ -598,6 +608,8 @@ function applyCorrections(segs, corr) {
 function processWaiting() { if (!navigator.onLine) return; for (const m of S.meetings) if (['waiting', 'queued'].includes(m.status) && !S.running.has(m.id)) processMeeting(m.id); }
 window.addEventListener('online', () => { document.body.classList.remove('offline'); const w = S.meetings.filter(m => m.status === 'waiting').length; if (w) toast(`Volvió internet: procesando ${w} ${w === 1 ? 'reunión' : 'reuniones'}`); processWaiting(); });
 window.addEventListener('offline', () => { document.body.classList.add('offline'); render(); });
+/* Al volver a la app: si hay internet, se quita el aviso y lo que quedó esperando sigue solo */
+document.addEventListener('visibilitychange', () => { if (document.visibilityState !== 'visible') return; setTimeout(() => { if (!navigator.onLine) return; if (document.body.classList.contains('offline')) { document.body.classList.remove('offline'); render(); } processWaiting(); }, 800); });
 
 /* =========================================================
    Recorder
