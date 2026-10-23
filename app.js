@@ -103,7 +103,7 @@ const KP_ICONS = ['target', 'money', 'people', 'time', 'tech', 'design', 'legal'
 const CLAUDE_MODELS = [['claude-sonnet-5-5', 'Claude Sonnet 5.5 — recomendado'], ['claude-opus-5-5', 'Claude Opus 5.5 — máximo detalle'], ['claude-haiku-5-5', 'Claude Haiku 5.5 — más rápido y económico']];
 const STT_MODELS = [['gpt-4o-transcribe-diarize', 'Con hablantes (recomendado)'], ['whisper-1', 'Whisper — con marcas de tiempo, sin hablantes'], ['gpt-4o-transcribe', 'Solo texto']];
 const MAX_UPLOAD = 25 * 1024 * 1024;
-const APP_VERSION = '4.0.7';
+const APP_VERSION = '4.0.8';
 const PART_SEC = 5 * 60; /* recordings are saved in 5-minute pieces so they can be transcribed in parallel */
 
 /* =========================================================
@@ -447,6 +447,37 @@ Genera el acta llamando a la herramienta guardar_acta una sola vez, con todos lo
   if (!input) throw { code: 'bad_json', message: r.stop === 'max_tokens' ? 'La reunión es muy larga para un solo análisis. Prueba con Claude Opus en Ajustes.' : 'Claude no devolvió el acta. Toca Reintentar.' };
   return normalize(input, m.durationSec || segDuration(segs), m.titleHint);
 }
+/* Plan de obra aparte, cuando el acta no lo trajo (o la reunión se analizó con otro tipo) */
+const esObra = (m, a) => m.template === 'obra' || a?.detected === 'obra' || /\bobras?\b|construc|partida|excavaci|radier|hormig|alcantarillado|agua potable|\bAPR\b|ampliaci|remodelaci|cubicaci|mandante|\bITO\b|movimiento de tierra/i.test([a?.title, a?.tldr, ...(a?.tags || []), m.project, m.context, m.titleHint].filter(Boolean).join(' '));
+async function generarPlanObra(m, segs, a) {
+  segs = segs || await getSegments(m.id); a = a || m.analysis || {};
+  const system = `Eres el jefe de propuestas de una constructora pyme en Chile. A partir de una reunión con el cliente, mandante o ITO armas el plan de obra que se envía a Ruta Maestra (presupuesto con APU, ruta crítica, PERT y curva S).
+Reglas:
+- Escribe en español de Chile.
+- En la ficha usa solo lo que se dijo: no inventes nombres, montos ni fechas (si no se dijo, vacío o 0).
+- Las partidas, cantidades, insumos, precios de referencia (pesos chilenos, netos) y duraciones sí son tu propuesta técnica: realistas para una pyme chilena, con o ≤ m ≤ p en días corridos.
+- 6 a 16 partidas dentro del alcance conversado, más instalación de faenas al inicio y aseo y entrega al final. Dependencias en orden lógico de ejecución, sin ciclos.
+- Si la reunión es seguimiento de una obra en curso, arma el plan de lo que falta por ejecutar.${Settings.v.about ? `\n- Sobre quien graba: ${Settings.v.about}` : ''}`;
+  const ctx = [`Título: ${a.title || m.titleHint || ''}`, `Fecha: ${m.date}`, a.tldr ? `Resumen: ${a.tldr}` : '', (a.decisions || []).length ? `Decisiones:\n${a.decisions.map(d => '- ' + (d.text || d)).join('\n')}` : '', (a.numbers || []).length ? `Cifras: ${a.numbers.map(n => `${n.value} ${n.label}`).join('; ')}` : '', a.brief ? `Brief:\n${a.brief}` : ''].filter(Boolean).join('\n');
+  const tx = transcriptText(m, segs), user = `${ctx}\n\nTranscripción:\n${tx.length > 150000 ? tx.slice(0, 150000) + '\n[…]' : tx}\n\nArma el plan llamando a la herramienta plan_de_obra una sola vez.`;
+  const r = await claude({ system, messages: [{ role: 'user', content: user }], tools: [{ name: 'plan_de_obra', description: 'Guarda el plan de obra para Ruta Maestra', input_schema: { ...ANALYSIS_SCHEMA.properties.obraPlan, description: 'Plan de obra para Ruta Maestra' } }], tool_choice: { type: 'tool', name: 'plan_de_obra' }, max_tokens: 16000, kind: 'acta' });
+  const plan = normalize({ obraPlan: r.toolInput }, 0).obraPlan;
+  if (!plan) throw { code: 'bad_json', message: 'Claude no alcanzó a armar el plan de obra. Toca de nuevo para reintentar.' };
+  return plan;
+}
+async function crearPlanObra(m, btn) {
+  const tgt = btn && (btn.querySelector('.rm-hero-go') || btn);
+  if (btn) { btn.disabled = true; tgt.dataset.txt = tgt.innerHTML; tgt.innerHTML = `${icon('spark', 2)}Armando el plan de obra… (1 a 2 minutos)`; }
+  try {
+    const plan = await netRetry(() => generarPlanObra(m), 2);
+    const fresh = meetingById(m.id) || m;
+    await patchMeeting(m.id, { analysis: { ...(fresh.analysis || {}), obraPlan: plan } });
+    toast('Plan de obra listo: ábrelo en Ruta Maestra', 4000); render();
+  } catch (e) {
+    console.error(e); toast(e.message || 'No se pudo armar el plan de obra. Reintenta.', 5000);
+    if (btn && btn.isConnected) { btn.disabled = false; tgt.innerHTML = tgt.dataset.txt; }
+  }
+}
 /* Earlier meetings of the same project, sent as short context (summaries only, never transcripts) */
 function projectMeetings(project, exceptId) { const p = fold(project).trim(); if (!p) return []; return S.meetings.filter(x => x.id !== exceptId && fold(x.project).trim() === p).sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.createdAt || 0) - (b.createdAt || 0)); }
 function projectContext(m) {
@@ -586,6 +617,10 @@ async function processMeeting(id, { template } = {}) {
     for (const pt of analysis.previousTasks) {
       if (pt.status !== 'hecha') continue; const [mid, i] = pt.ref.split('|'); const pm = meetingById(mid); const t = pm?.analysis?.actions?.[+i];
       if (t && !t.done) { t.done = true; t.closedBy = id; await saveMeeting(pm); closed++; }
+    }
+    if (!analysis.obraPlan && (tpl === 'obra' || analysis.detected === 'obra')) {
+      setProgress(id, 'Armando el plan de obra para Ruta Maestra…');
+      try { analysis.obraPlan = await netRetry(() => generarPlanObra(m, segs, analysis), 2); } catch (e) { console.warn('plan de obra', e); }
     }
     await patchMeeting(id, { status: 'ready', error: null, analysis, template: tpl, speakers, analyzedAt: Date.now() });
     toast(closed ? `Acta lista · ${closed} ${closed === 1 ? 'tarea anterior marcada' : 'tareas anteriores marcadas'} como hecha${closed === 1 ? '' : 's'}` : `Acta lista: ${analysis.title}`, 4500);
@@ -1444,6 +1479,9 @@ async function renderTab(m) {
       $('#rm-open').onclick = () => abrirRutaMaestra(m, a);
       $('#rm-dl').onclick = () => downloadText(slug(f.obra || a.title) + '-ruta-maestra.json', rutaMaestraJSON(m, a), 'application/json');
       $('#rm-copy').onclick = () => copyText(rutaMaestraJSON(m, a), 'Plan copiado: pégalo en Ruta Maestra');
+    } else {
+      body.insertAdjacentHTML('afterbegin', `<div class="rm-plan"><div class="rm-plan-h"><span class="rm-badge">Ruta Maestra</span><b>¿Es una obra?</b></div><p>Arma el plan de obra con lo conversado y ábrelo en Ruta Maestra: presupuesto con APU, ruta crítica, PERT, lista de compras y caja.</p><div class="tools-row"><button class="btn primary sm" id="rm-make">${icon('spark', 2)}Crear plan de obra</button></div></div>`);
+      $('#rm-make').onclick = e => crearPlanObra(m, e.currentTarget);
     }
     return;
   }
@@ -1460,7 +1498,17 @@ function talkTime(m, segs) {
 }
 /* Reuniones de obra: tarjeta destacada arriba del resumen para abrir el plan en Ruta Maestra */
 function rmHero(body, m, a) {
-  if (!a?.obraPlan || $('.rm-hero', body)) return;
+  if (!a || $('.rm-hero', body)) return;
+  if (!a.obraPlan) {
+    if (!esObra(m, a)) return;
+    body.insertAdjacentHTML('afterbegin', `<button class="rm-hero" id="rm-hero" type="button">
+    <span class="rm-hero-ic" aria-hidden="true">${icon('chart', 2, 22)}</span>
+    <span class="rm-hero-tx"><small>Ruta Maestra</small><b>Crear plan de obra con esta reunión</b><em>Presupuesto con APU, ruta crítica, PERT, compras y caja</em></span>
+    <span class="rm-hero-go">Crear plan de obra ${icon('back', 2.2, 16)}</span>
+  </button>`);
+    const b = $('#rm-hero', body); b.onclick = () => { if (!b.disabled) crearPlanObra(m, b); };
+    return;
+  }
   const op = a.obraPlan, f = op.ficha || {}, plazo = +f.plazoDias || op.plazoSugerido || 0;
   const meta = [`${op.partidas.length} partidas`, plazo ? `plazo ${plazo} días` : '', f.ubicacion || f.region || ''].filter(Boolean).join(' · ');
   body.insertAdjacentHTML('afterbegin', `<button class="rm-hero" id="rm-hero" type="button">
